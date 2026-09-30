@@ -3,6 +3,7 @@
   "platform": "wechatgame",
   "debug": false,
   "outputName": "wechatgame",
+  "startScene": "0f05e2d4-7857-5f45-a2f7-ff3f949dc2f8",
   "packages": {
     "wechatgame": {
       "appid": "wxfaa19afc583badd9",

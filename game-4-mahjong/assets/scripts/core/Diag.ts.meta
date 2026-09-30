@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "09a269ec-d9f7-5090-9fce-d99ced604e51",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/core/Diag.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

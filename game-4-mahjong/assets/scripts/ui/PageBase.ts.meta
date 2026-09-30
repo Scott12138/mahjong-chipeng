@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "aeb2c130-dc58-5a5a-95b7-23b1db374538",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/ui/PageBase.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

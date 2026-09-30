@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "28d495d3-379d-5377-833d-ab90f4ebf9e4",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/ui/UIFactory.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

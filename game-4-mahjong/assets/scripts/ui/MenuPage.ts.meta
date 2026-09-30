@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "6e57d26a-f9c3-5699-8f4d-dac7550ca524",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/ui/MenuPage.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

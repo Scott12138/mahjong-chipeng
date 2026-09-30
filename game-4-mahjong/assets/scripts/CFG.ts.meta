@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "c867cbdf-996a-58a4-9684-4f0fcd135579",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/CFG.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

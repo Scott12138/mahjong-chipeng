@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "171642b5-30db-500f-b5a2-f6127288a2d4",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/Bootstrap.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>《麻麻大消除》国潮描边 · 牌面系统 v2（真牌校色版）</title>
+<style>
+  :root {
+    --paper:      #F2EADA;
+    --paper-2:    #FBF6EA;
+    --ink:        #22201C;
+    --ink-2:      #57503F;
+    --ink-3:      #8E8571;
+    --line:       #DFD3B8;
+    --card:       #FBF6EA;
+    --red:        #C4362B;
+    --red-deep:   #93251C;
+    --gold:       #C9A227;
+    --sou:        #2E6B45;
+    --ton:        #2338A0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 46px 28px 72px; }
+
+  header.top { border-bottom: 1px solid var(--line); padding-bottom: 26px; margin-bottom: 38px; }
+  .eyebrow { font-size: 12px; letter-spacing: .2em; color: var(--red); margin: 0 0 12px; font-weight: 600; }
+  h1 { font-size: 30px; font-weight: 700; letter-spacing: .01em; margin: 0 0 14px; }
+  .lede { font-size: 14px; line-height: 1.8; color: var(--ink-2); max-width: 860px; margin: 0; }
+  .lede b { color: var(--ink); font-weight: 600; }
+  .facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+  .fact { font-size: 12px; line-height: 1.5; color: var(--ink-2); background: var(--card);
+          border: 1px solid var(--line); border-radius: 3px; padding: 6px 13px; }
+  .fact b { color: var(--ink); font-weight: 600; }
+
+  section { margin-bottom: 52px; }
+  h2 { font-size: 15px; font-weight: 700; letter-spacing: .1em; color: var(--red);
+       margin: 0 0 6px; padding-bottom: 9px; border-bottom: 2px solid var(--ink); }
+  h2 span { color: var(--ink-3); font-weight: 500; letter-spacing: 0; font-size: 12.5px; margin-left: 10px; }
+  h3 { font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--ink-3); margin: 0 0 12px; }
+  .sub { font-size: 13px; line-height: 1.75; color: var(--ink-2); margin: 12px 0 20px; max-width: 900px; }
+  .sub b { color: var(--ink); font-weight: 600; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+  .cellwrap { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .cellwrap .nm { font-size: 10.5px; color: var(--ink-3); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .tileset { background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+             padding: 22px 20px; }
+  .tileset + .tileset { margin-top: 14px; }
+  .sethead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .sethead .badge { font-size: 12px; font-weight: 700; color: var(--paper-2); background: var(--ink);
+                    border-radius: 3px; padding: 3px 9px; letter-spacing: .08em; }
+  .sethead .badge.sou { background: var(--sou); }
+  .sethead .badge.ton { background: var(--ton); }
+  .sethead .badge.wan { background: var(--red); }
+  .sethead p { font-size: 12.5px; color: var(--ink-3); margin: 0; line-height: 1.6; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; font-weight: 600; color: var(--ink-3); font-size: 11px; letter-spacing: .08em;
+       padding: 0 10px 8px 0; border-bottom: 1px solid var(--line); }
+  td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--line); color: var(--ink-2); vertical-align: top; }
+  td b { color: var(--ink); font-weight: 600; }
+  td code, .sub code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px;
+                       background: #EFE6D2; padding: 1px 5px; border-radius: 3px; color: var(--ink); }
+  pre { background: #221F1A; color: #E8DFC8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11.5px; line-height: 1.7; padding: 16px 18px; border-radius: 4px; overflow-x: auto; margin: 0; }
+
+  .sw { display: flex; flex-wrap: wrap; gap: 9px; }
+  .sw div { width: 82px; }
+  .sw i { display: block; height: 40px; border-radius: 3px; border: 1px solid rgba(0,0,0,.12); }
+  .sw span { display: block; font-size: 9.5px; color: var(--ink-3); margin-top: 5px;
+             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.4; }
+
+  .two { display: flex; gap: 28px; flex-wrap: wrap; }
+  .two > div { flex: 1 1 380px; }
+
+  .phonepair { display: flex; gap: 20px; flex-wrap: wrap; }
+  .phonepair figure { margin: 0; }
+  .phonepair svg { display: block; border: 1px solid var(--line); border-radius: 4px; }
+  .phonepair figcaption { font-size: 11.5px; color: var(--ink-3); margin-top: 8px; line-height: 1.6; }
+
+  .note { border-left: 3px solid var(--gold); background: #F7EFD8; padding: 13px 16px;
+          font-size: 12.5px; line-height: 1.75; color: var(--ink-2); margin: 20px 0 0; }
+  .note b { color: var(--ink); }
+  .note.red { border-left-color: var(--red); background: #F8E7E2; }
+  .note.blue { border-left-color: var(--ton); background: #E7EAF7; }
+
+  ul.plain { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: var(--ink-2); }
+  ul.plain b { color: var(--ink); }
+
+  .tile { display: block; }
+  .cmp { display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-start; }
+  .cmp figure { margin: 0; }
+  .cmp figcaption { font-size: 11.5px; color: var(--ink-3); margin-top: 8px; }
+  .refimg { display: block; border: 1px solid var(--line); border-radius: 4px; background: #fff; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">麻麻大消除 · 国潮描边 · 牌面系统 v2 · 真牌校色版</p>
+  <h1>照真牌画：万子蓝字红萬、条子绿身红蓝点缀、筒子多彩</h1>
+  <p class="lede">
+    v1 的牌面是「一个族一个颜色」，看起来整齐，但<b>不是真牌</b>。这一稿把参考图<b>逐格量了像素</b>，
+    把三族的真实配色还原回来：<b>万子＝深蓝数字 + 朱红「萬」</b>（五萬作「伍」）、
+    <b>条子＝墨绿竹节 + 定点红/蓝</b>、<b>筒子＝绿/红/蓝三色饼</b>。
+    框仍然是国潮的「宣纸 + 墨线 + 朱红角花」，<b>牌面归真牌、框归国潮</b> —— 两侧各管一件事，互不干扰。
+  </p>
+  <div class="facts">
+    <span class="fact">配色锁定：<b>宣纸底 + 墨线 + 朱红角花 + 硬直角</b></span>
+    <span class="fact">牌面用色：<b>真牌三色 蓝 #2338A0 / 红 #B02A1E / 绿 #2E6B45</b></span>
+    <span class="fact">已拍板：<b>1 条画鸟</b> · <b>金色不进牌面</b></span>
+    <span class="fact">零贴图：<b>assets 现仅 212KB，此稿不增加体积</b></span>
+  </div>
+</header>
+
+<!-- ================= §1 基调 ================= -->
+<section id="tokens">
+  <h2>§1 设计基调 <span>国潮四要素 · 色板令牌 · 字体</span></h2>
+  <p class="sub">
+    国潮不是「加点红色」，它有四个可执行的动作，本稿每一条都落在了具体画法上：
+  </p>
+  <ul class="plain">
+    <li><b>宣纸底</b> —— 不用纯白。牌面与版面底色带一点米黄与暖灰（<code>#F2EADA</code> / <code>#FBF6EA</code>）。</li>
+    <li><b>墨线双框</b> —— 外粗内细两道墨线，这是中式装帧/线装书的通用骨架，也是本稿「描边」二字的来源。</li>
+    <li><b>朱红角花</b> —— 内框四角各一段朱红折线（回纹的极简版）。8 条短线段，成本极低，国潮味最重。</li>
+    <li><b>硬直角</b> —— 圆角半径压到 3–7px。这一条是把「玩具感」换成「器物感」的关键。</li>
+  </ul>
+
+  <div class="two" style="margin-top:24px;">
+    <div>
+      <h3>色板令牌（→ CFG.COLOR）</h3>
+      <div class="sw">
+        <div><i style="background:#F2EADA"></i><span>F2EADA<br>页面纸底</span></div>
+        <div><i style="background:#FBF6EA"></i><span>FBF6EA<br>牌面/面板</span></div>
+        <div><i style="background:#EFE6D2"></i><span>EFE6D2<br>纸底暗层</span></div>
+        <div><i style="background:#22201C"></i><span>22201C<br>墨 · 主描边</span></div>
+        <div><i style="background:#C4362B"></i><span>C4362B<br>朱红 · 角花</span></div>
+        <div><i style="background:#C9A227"></i><span>C9A227<br>金 · 仅界面</span></div>
+        <div><i style="background:#2338A0"></i><span>2338A0<br>真牌蓝</span></div>
+        <div><i style="background:#B02A1E"></i><span>B02A1E<br>真牌红</span></div>
+        <div><i style="background:#2E6B45"></i><span>2E6B45<br>真牌绿</span></div>
+        <div><i style="background:#57503F"></i><span>57503F<br>次级文字</span></div>
+        <div><i style="background:#8E8571"></i><span>8E8571<br>弱化文字</span></div>
+        <div><i style="background:#B9B09A"></i><span>B9B09A<br>锁定态</span></div>
+      </div>
+      <div class="note blue" style="margin-top:16px;">
+        <b>为什么牌面另起三色、不跟界面共用：</b>界面的朱红（<code>#C4362B</code>）偏亮，是「颜料」；
+        牌面的红（<code>#B02A1E</code>）偏沉，是「墨」。真牌的字是用印泥压出来的，本来就比屏幕上的装饰红更深。
+        两者放一起会有层次，而不是撞色。
+      </div>
+    </div>
+    <div>
+      <h3>字体与字号阶梯</h3>
+      <p class="sub" style="margin:0 0 12px;">
+        <b>牌面用衬线体</b>（宋体族），这是麻将牌上「萬」字的真实字形 —— 参考图里的萬是标准的明朝体骨架；
+        <b>界面用系统无衬线</b>，保证小字号清晰。引擎不打包字体，由平台字体回退兜底。
+      </p>
+      <table>
+        <tr><th>用途</th><th>字族</th><th>字号 × 字重</th></tr>
+        <tr><td><b>牌面数字（蓝）</b></td><td>宋体族</td><td>64 × 800</td></tr>
+        <tr><td><b>牌面「萬」（红）</b></td><td>宋体族</td><td>58 × 800</td></tr>
+        <tr><td>页面主标题</td><td>宋体族</td><td>76 × 800，墨色 + 金描边 5px</td></tr>
+        <tr><td>副标题</td><td>系统无衬线</td><td>30 × 400，字距 5</td></tr>
+        <tr><td>按钮</td><td>系统无衬线</td><td>44 × 700，字距 10</td></tr>
+        <tr><td>正文 / 提示</td><td>系统无衬线</td><td>24–26 × 400</td></tr>
+      </table>
+      <div class="note" style="margin-top:16px;">
+        <b>金色只出现在三个地方</b>：页面标题描边、「消除中」的反馈圈、以及道具的「看广告」角标处高光。
+        <b>牌面零金</b> —— 这条已拍板。真牌本来就没有金，加了反而削弱三族颜色的区分度。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §2 真牌对照 ================= -->
+<section id="ref">
+  <h2>§2 与真牌的对照 <span>逐格量过像素，不是凭印象</span></h2>
+  <p class="sub">
+    下面左边是参考图，右边是本稿的同一张牌。为了对齐，我把参考图按 9×3 网格切开，
+    统计了每格的<b>色相构成</b>与<b>子格分布</b>，再据此写绘制数据 —— 也就是说，
+    下面这张对照表里的每一行，都对应一次真实的像素测量，而不是「看着像」。
+  </p>
+  <div class="tileset">
+    <div class="cmp" id="cmp-boxes"></div>
+  </div>
+  <div class="note red">
+    <b>参考图量出来的 5 处关键结论（v1 全错的地方）：</b><br>
+    ① <b>万子不是全红</b> —— 中文数字是<b>深蓝</b>，只有「萬」是朱红；且<b>五萬写作「伍」</b>（财用大写字）。<br>
+    ② <b>筒子不是单色</b> —— 9 筒＝上绿/中红/下蓝，8 筒＝全蓝（2 列 × 4 行），5 筒＝四角蓝绿 + 中心红，
+       1 筒＝深蓝→绿→红→白心。圆饼内部是「深外环 → 浅调 → 族色 → 浅心」四层，<b>不是「族色→白→族色」</b>。<br>
+    ③ <b>6 筒是「上 2 绿 + 下 4 红」</b>（2 列 × 3 行，实测 bbox 36×64 高大于宽）。
+       v1 的行列数其实是对的，<b>错的是「上三绿下三红」的配色</b> —— 真牌上面那排只有 2 颗。<br>
+    ④ <b>条子有定点红蓝</b> —— 5 条中间一根红；7 条顶上红、中列蓝；9 条中列红。<br>
+    ⑤ <b>牌面元素比我原来画的明显更大</b> —— 真牌的筒子几乎相切、条子占到内框 85%。
+       按实测比例放大后，牌面才不显空。
+  </div>
+</section>
+
+<!-- ================= §3 解剖 ================= -->
+<section id="anatomy">
+  <h2>§3 牌面解剖 <span>一张牌 = 4 个绘制动作 + 1 组图案数据</span></h2>
+  <p class="sub">
+    牌体本身是<b>固定套路</b>，三族共用同一套框 —— 变化只在第 ④ 层「图案」。
+    好处是代码里只有<b>一个</b> <code>drawTileFrame()</code>、三个 <code>drawPattern()</code>，
+    27 张牌共用同一份几何数据。内部坐标系固定为 132×176，随牌尺寸等比缩放。
+  </p>
+  <div class="row" style="background:var(--card);border:1px solid var(--line);border-radius:4px;padding:26px 24px;">
+    <svg viewBox="-12 -12 156 200" width="290" height="372" class="tile" id="anatomy-tile"></svg>
+    <div style="flex:1 1 420px;min-width:360px;">
+      <table>
+        <tr><th style="width:34px;">#</th><th style="width:120px;">层</th><th>Cocos Graphics 画法</th></tr>
+        <tr><td><b>①</b></td><td><b>牌体</b></td><td><code>roundRect(1.6,1.6,128.8,172.8,7)</code> → <code>fill()</code> 米色 → <code>stroke()</code> 墨 3.2px</td></tr>
+        <tr><td><b>②</b></td><td><b>内墨线</b></td><td><code>roundRect(8.5,8.5,115,159,3.5)</code> → <code>stroke()</code> 墨 1.1px，alpha 0.62</td></tr>
+        <tr><td><b>③</b></td><td><b>四角朱红角花</b></td><td>4 段 L 形折线（每段 2 条 12px 直线）→ <code>moveTo/lineTo</code> + <code>stroke()</code> 朱红 2.2px</td></tr>
+        <tr><td><b>④</b></td><td><b>图案</b></td><td>见 §4–§6，三族各一套纯几何排布，<b>颜色由数据表指定</b></td></tr>
+        <tr><td><b>⑤</b></td><td><b>状态层</b></td><td>选中/消除时在牌体外围加一圈描边（见 §7），不动牌体本身</td></tr>
+      </table>
+      <div class="note">
+        <b>图案为什么会「跳出来」：</b>框是中性色（宣纸 + 墨线），图案是饱和色（蓝/红/绿）。
+        对比度全部集中在图案上，所以哪怕牌堆挤满屏幕，扫一眼也是先看到花色、后看到框。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §4 万 ================= -->
+<section id="wan">
+  <h2>§4 万子 <span>深蓝数字 + 朱红萬，字形照真牌</span></h2>
+  <p class="sub">
+    真牌万子<b>就是文字牌</b>，但关键是<b>上下两字不同色</b>：数字是深蓝、萬是朱红。
+    v1 全都涂成红色，是最大的失真。另外两条来自参考图：<b>五萬写作「伍」</b>（财用大写，老牌常见）、
+    <b>用繁体「萬」</b>。数字略大于萬字，上下居中对齐。
+  </p>
+  <div class="tileset">
+    <div class="sethead"><span class="badge wan">万 · 蓝字红萬</span><p>数字 64px 深蓝 / 萬 58px 朱红，宋体加粗；两字纵向居中于牌面 y=88</p></div>
+    <div class="row" id="set-wan"></div>
+  </div>
+</section>
+
+<!-- ================= §5 条 ================= -->
+<section id="sou">
+  <h2>§5 条子 <span>竹节 —— 绿身 + 定点红蓝</span></h2>
+  <p class="sub">
+    真牌条子（索子）的主体是<b>竹节</b>，墨绿。但<b>不是全绿</b>：5 条正中间一根是<b>红</b>；
+    7 条顶上一根红、中列两根<b>蓝</b>；9 条中列三根<b>红</b>。
+    这些点缀是真牌用来「报数」的记号，抽掉就认不出是几索了 —— 所以必须还原。
+  </p>
+  <div class="tileset">
+    <div class="sethead"><span class="badge sou">条 · 竹青</span><p>一根竹节 = 圆头胶囊 + 中央竖高光 + 上下两组侧缺口</p></div>
+    <div class="row" id="set-sou"></div>
+  </div>
+  <div class="note">
+    <b>竹节的形状我改过一次，这里说明原因。</b>v1 画的是一根竖条加<b>一道横贯的白色留白</b> ——
+    放大看像缠了一圈绷带，因为那道留白把竖条<b>从中间切断了</b>。
+    真牌的做法不是切断，而是：<b>① 中央有一条连续的竖向高光（浅调绿）；② 只在左右两侧、上下各一对短缺口</b>。
+    高光不断，缺口只在边上，读起来才是「一根竹子」，而不是「两截」。
+  </div>
+  <div class="note">
+    <b>1 条（幺鸡）保留鸟。</b>参考图里的幺鸡是一只很讲究的鸟：红棕羽冠 + 白脸 + 深蓝大眼 + 蓝喙蓝翅 + 绿身 + 红棕长尾。
+    本稿按这个配色重画，用纯几何体拼（不用贴图）。它是全副牌唯一的具象图案，也是辨识度最高的符号。
+  </div>
+</section>
+
+<!-- ================= §6 筒 ================= -->
+<section id="ton">
+  <h2>§6 筒子 <span>圆饼 —— 真牌是三色的</span></h2>
+  <p class="sub">
+    真牌筒子（饼子）是<b>同心圆饼</b>，但颜色按牌面分配，非常「花」：<b>2 筒上绿下蓝、4 筒对角同色、8 筒全蓝、
+    9 筒上绿中红下蓝</b>。1 筒是特例，是一个<b>深蓝→绿→红→白心</b>的大圆盘。
+    圆饼的层次也修正了：v1 用的是「族色→<b>白</b>→族色」，真牌用的是「<b>最深外环</b>→同色浅调→族色→浅心」——
+    中间那些环是一层层更浅的<b>同色</b>，不是牌面的白。
+  </p>
+  <div class="tileset">
+    <div class="sethead"><span class="badge ton">筒 · 三色</span><p>一个饼 = 最深外环 + 同色浅调 + 族色 + 浅心（四层同心）</p></div>
+    <div class="row" id="set-ton"></div>
+  </div>
+  <div class="note">
+    <b>圆饼的尺寸是照实测定死的。</b>参考图里 9 筒三颗几乎相切、8 筒两列几乎顶到内框 —— 真牌的饼fill 得很满。
+    v1 把半径画到 12–18，牌面留了大片空白，一眼就看出「不是真牌」。本稿按实测把半径提到 18–27，
+    并让整组图案占到内框的 85% 左右。
+  </div>
+</section>
+
+<!-- ================= §7 状态 ================= -->
+<section id="states">
+  <h2>§7 状态与反馈 <span>同一张牌，五种状态</span></h2>
+  <p class="sub">
+    消除类游戏的「手感」一半来自状态反馈。国潮风格下不做发光、不做弹跳，靠<b>描边粗细与颜色</b>做区分 ——
+    和整体语言一致，且在低端机上零成本。
+  </p>
+  <div class="tileset">
+    <div class="row" id="set-states" style="gap:24px;"></div>
+  </div>
+  <div class="two" style="margin-top:16px;">
+    <div>
+      <table>
+        <tr><th>状态</th><th>视觉处理</th></tr>
+        <tr><td><b>常态</b></td><td>米色牌面 + 墨双框 + 四角朱红 + 真牌图案</td></tr>
+        <tr><td><b>可点</b></td><td>与常态相同。<b>不额外加光</b> —— 靠「被压住的牌变灰」反向表达可点，画面更干净</td></tr>
+        <tr><td><b>被压住</b></td><td>牌面转灰米 <code>#EDE6D4</code>、图案整体降饱和转灰、朱红角花隐去、不透明度 0.62</td></tr>
+        <tr><td><b>选中</b></td><td>外围加朱红外圈（4px，向外扩 7px）＋ 牌体上移 16px 做「抽出来」的位移</td></tr>
+        <tr><td><b>消除中</b></td><td>外围加金圈（4px）＋ 图案短暂放大 1.08 倍后整体缩没（0.18s）</td></tr>
+      </table>
+    </div>
+    <div class="cellwrap" style="align-items:flex-start;">
+      <div class="row" id="set-back" style="gap:20px;"></div>
+      <p class="sub" style="margin:12px 0 0;font-size:12px;">
+        <b>牌背</b>（左侧）：朱红实底 + 米色回纹内框 + 中央小印。<br>
+        本作牌堆全部正面朝上，牌背只在<b>「洗牌」道具</b>的翻牌动效里出现一次 —— 有它，道具才有「真的洗过牌」的可信度。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §8 尺寸校验 ================= -->
+<section id="sizes">
+  <h2>§8 尺寸与遮挡校验 <span>必须在真实尺寸下还能认出来</span></h2>
+  <p class="sub">
+    稿子放大看很漂亮，但真机上牌只有 84×112。<b>所以牌面必须在这一档尺寸下再验一遍。</b>
+    下面四档依次是：放大稿、牌堆实尺（84×112）、槽位内尺寸（64×85）、以及<b>被上层压住约 1/3 之后</b>的可见部分 ——
+    如果最后一档还能分辨族别与数量，这套牌面才算合格。
+  </p>
+  <div class="tileset">
+    <div class="row" id="set-sizes" style="gap:26px;align-items:flex-start;"></div>
+  </div>
+  <div class="note">
+    <b>一个必须交给 S2 的结论：</b>牌面读数的关键信息（万＝两行字、条/筒＝队形）集中在牌的<b>中上部</b>，
+    而叠塔遮挡发生在<b>顶部</b>。所以 <code>CFG.GAMEPLAY.LAYER_OFFSET_Y</code> 需要锁在一个区间内 ——
+    太大则牌堆太高不好看，太小则下方牌的图案被切掉。建议 S2 用手感测试锁定在 <b>26–40px</b>，
+    本稿按 <b>34px</b> 出效果图（即最多遮掉牌面顶部约 30%）。
+  </div>
+</section>
+
+<!-- ================= §9 页面 ================= -->
+<section id="pages">
+  <h2>§9 页面应用 <span>同一块 720×1280</span></h2>
+  <p class="sub">
+    牌面定了，页面就有了主角。下面是三张关键页的构图 —— 注意菜单页中央那三张牌
+    （一萬 / 幺鸡 / 一筒）：<b>它不只是装饰，它是在玩家点「开始」之前就把三族花色教完了。</b>
+  </p>
+  <div class="phonepair">
+    <figure>
+      <svg viewBox="0 0 720 1280" width="330" height="587" id="page-menu"></svg>
+      <figcaption>菜单页 · 标题居中，三张牌作「静态教学」，下方朱红实底按钮</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" width="330" height="587" id="page-level"></svg>
+      <figcaption>关卡页 · 每条关卡前挂一枚代表牌，锁定的用灰米 + 无角花</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" width="330" height="587" id="page-play"></svg>
+      <figcaption>游戏页 · 顶部关卡信息，中部叠塔牌堆，底部槽位条 + 道具栏</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ================= §10 落地 ================= -->
+<section id="spec">
+  <h2>§10 落地规范 <span>可直接粘贴进工程的数据</span></h2>
+  <p class="sub">
+    下面是三族图案的完整排布数据。坐标系固定为 132×176（牌面内部坐标，绘制时按
+    <code>实际牌宽 / 132</code> 等比缩放）。<b>条族</b>元素是 <code>[x, y, w, h, rot, color]</code>
+    （竹节中心 / 宽 / 高 / 旋转角 / 颜色键）；<b>筒族</b>是 <code>[x, y, r, color]</code>（圆心 / 半径 / 颜色键）。
+    <b>颜色键指向真牌三色</b>，业务代码只做遍历，不出现任何坐标或色值字面量。
+  </p>
+  <pre id="code-out"></pre>
+
+  <h3 style="margin:26px 0 12px;">绘制顺序与调用对照</h3>
+  <table>
+    <tr><th style="width:150px;">元素</th><th>Cocos Creator 3.8 Graphics 调用</th><th style="width:210px;">备注</th></tr>
+    <tr><td><b>牌体 / 内框</b></td><td><code>g.roundRect(...); g.fillColor=…; g.fill(); g.lineWidth=…; g.strokeColor=…; g.stroke();</code></td><td>先 fill 后 stroke，描边压在半透明填充之上</td></tr>
+    <tr><td><b>角花</b></td><td><code>g.moveTo(); g.lineTo(); … g.stroke();</code></td><td>4 条折线可合成 1 个 path，省 3 次 draw call</td></tr>
+    <tr><td><b>竹节</b></td><td><code>roundRect(w/2 圆角) fill 绿 → roundRect 浅调竖高光 → 4 个面色小矩形做侧缺口</code></td><td>高光必须<b>连续</b>，缺口只在左右两侧，不能贯通</td></tr>
+    <tr><td><b>圆饼</b></td><td>4 个 <code>g.circle()</code> 依次 fill：<b>deep(色,0.30)</b> → 同色浅调 → 族色 → 浅调心</td><td>浅调用 <code>tint(color, 0.50)</code> 预计算，别用白色</td></tr>
+    <tr><td><b>万子字</b></td><td>不走 Graphics，用 <code>Label</code> 节点（宋体族、加粗，<b>数字蓝 / 萬红</b>）</td><td>文字必须用 Label，Graphics 无法绘制汉字</td></tr>
+    <tr><td><b>1 条（鸟）</b></td><td>圆 + 椭圆 + 三角形 + 3 条 <code>bezierCurveTo</code>，5 种颜色</td><td>约 12 个图元，是全副牌里最复杂的一张</td></tr>
+  </table>
+
+  <div class="note blue" style="margin-top:20px;">
+    <b>本稿已完成的两项拍板：</b><br>
+    ① <b>1 条画鸟</b> —— 已按参考图的真实配色重画（红棕冠、白脸、蓝眼喙翅、绿身、红棕长尾）。<br>
+    ② <b>金色不进牌面</b> —— 牌面只有蓝/红/绿三色 + 墨线 + 米色，金仅用于页面标题描边与「消除中」反馈圈。
+  </div>
+</section>
+
+</div>
+
+<script>
+/* ============================================================
+   牌面生成器 v2（本页自用）
+   数据 = 最终要搬进 CFG.TILE_PATTERN 的那一份，一一对应。
+   坐标系 132×176 = 牌面内部坐标，渲染时等比缩放。
+   ============================================================ */
+
+const PAL = {
+  paper:'#F2EADA', paper2:'#FBF6EA', face:'#FBF6EA', faceDim:'#EDE6D4',
+  ink:'#22201C', inkMid:'#57503F', inkSoft:'#8E8571', lock:'#B9B09A',
+  vermilion:'#C4362B', gold:'#C9A227',
+};
+
+/* ---------- 真牌三色（本稿的核心修正） ----------
+   取值来源：参考图逐格像素统计后再做提亮校正（截图有 JPEG 压缩变暗）。
+   蓝：万子中文数字 / 筒族蓝 / 条7 中列
+   红：萬字 / 筒族红 / 条5中 · 条7顶 · 条9中列
+   绿：条族主色 / 筒族绿
+   浅调：同色与白混 45%，用于圆饼中间那一环（真牌不用白） */
+const INK3 = { blue:'#2338A0', red:'#B02A1E', green:'#2E6B45' };
+
+function tint(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const m = v => Math.round(v + (255 - v) * k);
+  return '#' + [m(r), m(g), m(b)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+const LIGHT = { blue: tint(INK3.blue, 0.50), red: tint(INK3.red, 0.50), green: tint(INK3.green, 0.50) };
+const DIMC  = { blue:'#8A8C9E', red:'#A08279', green:'#8A9A8C' };   // 被压住时的降饱和替身
+
+/* 最深调：圆饼最外一圈。
+   参考图里每颗饼最外面还有一道明显更深的细环（扫描线实测 #0B2111，比主体深一大截），
+   少了它圆饼会「飘」，加上以后才有真牌那种压印的厚度感。 */
+function deep(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const m = v => Math.round(v * (1 - k));
+  return '#' + [m(r), m(g), m(b)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+const DEEP = { blue: deep(INK3.blue, 0.30), red: deep(INK3.red, 0.30), green: deep(INK3.green, 0.30) };
+
+const FAM = {
+  wan: { label:'万', accent:'#C4362B' },
+  sou: { label:'条', accent:INK3.green },
+  ton: { label:'筒', accent:INK3.blue  },
+};
+
+/* ---------- 万子字形 ----------
+   真牌：中文数字深蓝、萬朱红。
+   ⚠️ 五萬用财用大写「伍」—— 参考图上就是伍，不是五。 */
+const WAN_NUM = ['一','二','三','四','伍','六','七','八','九'];
+
+/* ---------- 条族排布 ----------
+   [x, y, w, h, rot(度，顺时针), colorKey]
+   队形与配色全部来自参考图：
+     2: 两竖排 绿
+     3: 上1下2 绿
+     4: 2×2 绿
+     5: 上2绿 + 中1红 + 下2绿          ← 真牌记号
+     6: 2行×3列 绿
+     7: 上1红 + 下面3列×2行（中列蓝、两侧绿） ← 真牌记号
+     8: 上组「∧」+ 下组「∨」，两侧近竖直、中两根成尖
+     9: 3列×3行，中列红、两侧绿        ← 真牌记号
+
+   ⚠️ 尺寸按参考图实测比例放大过一轮：真牌的竹节明显比 v1 更粗更长，
+      横向游程实测「宽 ≈ 0.62 × 列距」，纵向整个图案占到牌面内框的 ~85%。
+      不放大会显得牌面很空，一眼看出是「画的」而不是「打的」。 */
+const P_SOU = {
+  1: null,
+  2: [[66,53,24,62,0,'green'],[66,123,24,62,0,'green']],
+  3: [[66,48,22,44,0,'green'],[36,126,22,44,0,'green'],[96,126,22,44,0,'green']],
+  4: [[45,56,22,56,0,'green'],[87,56,22,56,0,'green'],[45,120,22,56,0,'green'],[87,120,22,56,0,'green']],
+  5: [[44,46,21,42,0,'green'],[88,46,21,42,0,'green'],[66,88,21,42,0,'red'],
+      [44,130,21,42,0,'green'],[88,130,21,42,0,'green']],
+  6: [[32,57,21,62,0,'green'],[66,57,21,62,0,'green'],[100,57,21,62,0,'green'],
+      [32,119,21,62,0,'green'],[66,119,21,62,0,'green'],[100,119,21,62,0,'green']],
+  7: [[66,36,20,44,0,'red'],
+      [38,92,20,44,0,'green'],[66,92,20,44,0,'blue'],[94,92,20,44,0,'green'],
+      [38,138,20,44,0,'green'],[66,138,20,44,0,'blue'],[94,138,20,44,0,'green']],
+  8: [[33,54,18,54,12,'green'],[56,54,18,54,32,'green'],[78,54,18,54,-32,'green'],[101,54,18,54,-12,'green'],
+      [33,122,18,54,-12,'green'],[56,122,18,54,-32,'green'],[78,122,18,54,32,'green'],[101,122,18,54,12,'green']],
+  9: [[32,48,19,38,0,'green'],[66,48,19,38,0,'red'],[100,48,19,38,0,'green'],
+      [32,88,19,38,0,'green'],[66,88,19,38,0,'red'],[100,88,19,38,0,'green'],
+      [32,128,19,38,0,'green'],[66,128,19,38,0,'red'],[100,128,19,38,0,'green']],
+};
+
+/* ---------- 筒族排布 ----------
+   [x, y, r, colorKey]
+   配色与大小来自参考图（含实测出的两处纠错）：
+     1: 特例，单独绘制（深蓝→绿→红→白心）
+     2: 上绿 下蓝，2 颗超大饼
+     3: 左上绿 → 中红 → 右下蓝（斜排）
+     4: 左上蓝 右上绿 左下绿 右下蓝（对角同色）
+     5: 四角蓝绿 + 中心红
+     6: 上 2 绿 + 下 4 红（2 列 × 3 行）   ← 实测 bbox 36×64（高>宽）确认为 2 列，v1 的列数其实是对的，错的是配色
+     7: 上 3 绿阶梯斜排 + 下 4 红（2×2）
+     8: 全蓝 2 列 × 4 行
+     9: 上 3 绿 中 3 红 下 3 蓝（3×3，饼几乎相切） */
+const P_TON = {
+  1: [[66,88,42,'special']],
+  2: [[66,55,27,'green'],[66,121,27,'blue']],
+  3: [[42,50,20,'green'],[66,88,20,'red'],[90,126,20,'blue']],
+  4: [[45,54,21,'blue'],[87,54,21,'green'],[45,122,21,'green'],[87,122,21,'blue']],
+  5: [[44,49,20,'blue'],[88,49,20,'green'],[66,88,20,'red'],[44,127,20,'green'],[88,127,20,'blue']],
+  6: [[47,48,20,'green'],[85,48,20,'green'],
+      [47,88,20,'red'],[85,88,20,'red'],
+      [47,128,20,'red'],[85,128,20,'red']],
+  7: [[38,42,19,'green'],[66,56,19,'green'],[94,70,19,'green'],
+      [44,110,19,'red'],[88,110,19,'red'],[44,141,19,'red'],[88,141,19,'red']],
+  8: [[47,34,19,'blue'],[85,34,19,'blue'],[47,70,19,'blue'],[85,70,19,'blue'],
+      [47,106,19,'blue'],[85,106,19,'blue'],[47,142,19,'blue'],[85,142,19,'blue']],
+  9: [[30,35,18,'green'],[66,35,18,'green'],[102,35,18,'green'],
+      [30,88,18,'red'],[66,88,18,'red'],[102,88,18,'red'],
+      [30,141,18,'blue'],[66,141,18,'blue'],[102,141,18,'blue']],
+};
+
+/* ---------- 绘制 ---------- */
+function pick(key, isDim) {
+  if (isDim) return DIMC[key];
+  return INK3[key];
+}
+function pickLight(key, isDim) {
+  if (isDim) return tint(DIMC[key], 0.40);
+  return LIGHT[key];
+}
+
+/* 万子：数字（蓝）在上，萬（红）在下
+   【纵向居中】y=72 / 144 是量出来的，不是估的：
+   牌体 1.6..174.4、内墨线框 8.5..167.5，两者中心都在 y=88。
+   宋体汉字的「字面框」约为 [基线-0.795em, 基线+0.186em]（实测「萬」64px 上 50.88 / 下 11.88）。
+   取 数字 64px 的框顶 = 72-50.9 = 21.1，萬 58px 的框底 = 144+10.77 = 154.8
+   → 上下留白各约 12.7px，与条族（7条约 13.5）、筒族（9筒约 8.5）的对称留白同一路子。
+   原稿写 86 / 158，整块下沉 14px，萬字底甚至压出内墨线 1.3px。 */
+function glyphWan(n, isDim) {
+  const cNum = isDim ? DIMC.blue  : INK3.blue;
+  const cWan = isDim ? DIMC.red   : INK3.red;
+  const f = 'font-family="\'Songti SC\',\'STSong\',\'SimSun\',serif"';
+  return '<text x="66" y="72" text-anchor="middle" font-size="64" font-weight="800" fill="' + cNum + '" ' + f + '>'
+       + WAN_NUM[n-1] + '</text>'
+       + '<text x="66" y="144" text-anchor="middle" font-size="58" font-weight="800" fill="' + cWan + '" ' + f + '>萬</text>';
+}
+
+/* 竹节：胶囊 + 中央竖高光 + 上下两组侧缺口
+   ⚠️ 高光必须贯通；缺口只切左右两侧，绝不能横贯（横贯就把竹子切成两截，像绷带） */
+function bamboo(x, y, w, h, rot, colKey, isDim, face) {
+  const col   = pick(colKey, isDim);
+  const light = isDim ? tint(DIMC[colKey], 0.30) : tint(INK3[colKey], 0.38);
+  const r     = w / 2;
+  const hw    = w * 0.26;                 // 高光宽（太宽会变成一条白条，真牌的高光很克制）
+  const hl    = h * 0.66;                 // 高光长
+  const nx    = w * 0.22;                 // 侧缺口宽
+                                          // ⚠️ 不能大于 (1 - 0.26)/2 = 0.37w：
+                                          //    左右两个缺口 + 中间高光一旦接起来，整根就被切满了 → 又变绷带
+  const nh    = Math.max(1.6, h * 0.05);  // 侧缺口厚
+  const ny1   = y - h * 0.22;
+  const ny2   = y + h * 0.22;
+
+  let s = '<rect x="' + (x-w/2) + '" y="' + (y-h/2) + '" width="' + w + '" height="' + h + '" rx="' + r + '" fill="' + col + '"/>';
+  // 中央竖向高光（连续）
+  s += '<rect x="' + (x-hw/2) + '" y="' + (y-hl/2) + '" width="' + hw + '" height="' + hl + '" rx="' + (hw/2) + '" fill="' + light + '"/>';
+  // 上下两组侧缺口（只在左右边缘，不贯通）
+  [[ny1],[ny2]].forEach(function (p) {
+    const yy = p[0] - nh/2;
+    s += '<rect x="' + (x-w/2) + '" y="' + yy + '" width="' + nx + '" height="' + nh + '" fill="' + face + '"/>';
+    s += '<rect x="' + (x+w/2-nx) + '" y="' + yy + '" width="' + nx + '" height="' + nh + '" fill="' + face + '"/>';
+  });
+  if (rot) s = '<g transform="rotate(' + rot + ' ' + x + ' ' + y + ')">' + s + '</g>';
+  return s;
+}
+
+/* 圆饼：深外环 → 同色浅调 → 族色 → 浅调心（四层同心，真牌不用白心）
+   参考图水平扫描实测（自外向内）：#0B2111 深 → #98C7A9 浅 → #2B4E30 族色 → 浅心 */
+function disc(x, y, r, colKey, isDim, face) {
+  const col = pick(colKey, isDim);
+  const lit = pickLight(colKey, isDim);
+  const dp  = isDim ? deep(DIMC[colKey], 0.18) : DEEP[colKey];
+  return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '"           fill="' + dp  + '"/>'
+       + '<circle cx="' + x + '" cy="' + y + '" r="' + (r*0.80) + '" fill="' + lit + '"/>'
+       + '<circle cx="' + x + '" cy="' + y + '" r="' + (r*0.54) + '" fill="' + col + '"/>'
+       + '<circle cx="' + x + '" cy="' + y + '" r="' + (r*0.28) + '" fill="' + lit + '"/>';
+}
+
+/* 1 筒特例：深蓝 → 绿 → 红 → 白心（参考图实测的四层异色大盘） */
+function discOne(isDim, face) {
+  const b = isDim ? DIMC.blue : INK3.blue;
+  const g = isDim ? DIMC.green : INK3.green;
+  const r = isDim ? DIMC.red : INK3.red;
+  const dp = isDim ? deep(DIMC.blue, 0.18) : DEEP.blue;
+  return '<circle cx="66" cy="88" r="42"   fill="' + dp + '"/>'
+       + '<circle cx="66" cy="88" r="36"   fill="' + b  + '"/>'
+       + '<circle cx="66" cy="88" r="26.5" fill="' + g  + '"/>'
+       + '<circle cx="66" cy="88" r="18"   fill="' + r  + '"/>'
+       + '<circle cx="66" cy="88" r="10.5" fill="' + face + '"/>';
+}
+
+/* 1 条（幺鸡）：照参考图配色与姿态 —— 红棕羽冠（向上偏右飘）、白脸、深蓝大眼、
+   蓝喙朝右、蓝翅上扬、绿身、红棕长尾向左下收尖、蓝爪。
+   画法要点：尾羽必须「长而尖」且朝左下；羽冠必须「飘」而不是「竖着扎」——
+   这两条是它能不能被一眼读成鸟的关键。 */
+function bird(isDim, face) {
+  const RB = isDim ? DIMC.red   : '#8E3A2A';   // 红棕（冠 / 尾羽）
+  const BL = isDim ? DIMC.blue  : INK3.blue;   // 蓝（眼 / 喙 / 翅 / 爪）
+  const GR = isDim ? DIMC.green : INK3.green;  // 绿（身体）
+  const WH = face;
+  return '<g>'
+    // ① 长尾羽（红棕，三片从尾根斜向左下、收成尖），刻意画得比身体长，才「飘」得出来
+    + '<path d="M70 108 Q44 126 18 152 Q44 138 78 114 Z" fill="' + RB + '"/>'
+    + '<path d="M76 112 Q58 138 40 160 Q62 148 86 118 Z" fill="' + RB + '"/>'
+    + '<path d="M88 112 Q86 138 78 161 Q94 142 98 116 Z" fill="' + RB + '"/>'
+    // ② 身体（绿，水滴形，左下沉）
+    + '<path d="M80 70 C96 84 97 108 81 122 C65 134 45 128 39 110 C33 89 49 69 66 65 Z" fill="' + GR + '"/>'
+    // ③ 翅（蓝，右侧上扬的羽片）
+    + '<path d="M83 74 C99 82 107 100 104 118 C98 102 90 92 80 86 Z" fill="' + BL + '"/>'
+    // ④ 头（白脸 + 蓝细描边）
+    + '<ellipse cx="74" cy="56" rx="16" ry="17" fill="' + WH + '" stroke="' + BL + '" stroke-width="1.4"/>'
+    // ⑤ 眼（蓝底 + 白高光）
+    + '<circle cx="78" cy="54" r="7" fill="' + BL + '"/>'
+    + '<circle cx="80.5" cy="51.5" r="2.4" fill="' + WH + '"/>'
+    // ⑥ 喙（蓝，朝右）
+    + '<path d="M88 52 L107 59 L88 67 Z" fill="' + BL + '"/>'
+    // ⑦ 羽冠（红棕，三缕细而弯，从头顶向左上/右上「飘」）
+    + '<path d="M63 45 Q57 28 62 12 Q71 28 73 45 Z" fill="' + RB + '"/>'
+    + '<path d="M76 42 Q80 26 90 12 Q88 30 82 44 Z" fill="' + RB + '"/>'
+    + '<path d="M86 46 Q96 36 108 30 Q99 42 90 52 Z" fill="' + RB + '"/>'
+    // ⑧ 腿与爪（蓝）
+    + '<path d="M63 118 L58 137" stroke="' + BL + '" stroke-width="4" stroke-linecap="round" fill="none"/>'
+    + '<path d="M80 116 L85 135" stroke="' + BL + '" stroke-width="4" stroke-linecap="round" fill="none"/>'
+    + '<path d="M49 139 L67 139" stroke="' + BL + '" stroke-width="3.6" stroke-linecap="round"/>'
+    + '<path d="M77 137 L95 137" stroke="' + BL + '" stroke-width="3.6" stroke-linecap="round"/>'
+    + '</g>';
+}
+
+function glyphSou(n, isDim, face) {
+  if (n === 1) return bird(isDim, face);
+  let s = '';
+  for (const p of P_SOU[n]) s += bamboo(p[0], p[1], p[2], p[3], p[4], p[5], isDim, face);
+  return s;
+}
+
+function glyphTon(n, isDim, face) {
+  if (n === 1) return discOne(isDim, face);
+  let s = '';
+  for (const p of P_TON[n]) s += disc(p[0], p[1], p[2], p[3], isDim, face);
+  return s;
+}
+
+/* ---------- 牌面组装 ---------- */
+function tileInner(fam, n, state) {
+  const isDim = state === 'dim';
+  const face = isDim ? PAL.faceDim : PAL.face;
+  const frameCol = isDim ? PAL.lock : PAL.ink;
+
+  let s = '';
+  // ① 牌体
+  s += '<rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="' + face + '" stroke="' + frameCol + '" stroke-width="3.2"/>';
+  // ② 内墨线
+  s += '<rect x="8.5" y="8.5" width="115" height="159" rx="3.5" fill="none" stroke="' + frameCol + '" stroke-width="1.1" opacity="' + (isDim ? 0.3 : 0.62) + '"/>';
+  // ③ 四角朱红角花
+  if (!isDim) {
+    s += '<g stroke="' + PAL.vermilion + '" stroke-width="2.2" fill="none" stroke-linecap="square">'
+       + '<path d="M8.5 20.5 L8.5 8.5 L20.5 8.5"/>'
+       + '<path d="M111.5 8.5 L123.5 8.5 L123.5 20.5"/>'
+       + '<path d="M123.5 155.5 L123.5 167.5 L111.5 167.5"/>'
+       + '<path d="M20.5 167.5 L8.5 167.5 L8.5 155.5"/>'
+       + '</g>';
+  }
+  // ④ 图案
+  if (fam === 'wan')      s += glyphWan(n, isDim);
+  else if (fam === 'sou') s += glyphSou(n, isDim, face);
+  else                    s += glyphTon(n, isDim, face);
+
+  // ⑤ 状态层（画在牌体外围）
+  if (state === 'pick') {
+    s += '<rect x="-7" y="-7" width="146" height="190" rx="10" fill="none" stroke="' + PAL.vermilion + '" stroke-width="4"/>';
+  } else if (state === 'clear') {
+    s += '<rect x="-7" y="-7" width="146" height="190" rx="10" fill="none" stroke="' + PAL.gold + '" stroke-width="4"/>';
+  }
+  return s;
+}
+
+function tileSVG(fam, n, opt) {
+  opt = opt || {};
+  const size = opt.size || 132;
+  const state = opt.state || 'normal';
+  const op = state === 'dim' ? ' opacity="0.68"' : '';
+  return '<svg class="tile" viewBox="-12 -12 156 200" width="' + size + '" height="' + Math.round(size*200/156) + '"' + op + '>'
+       + tileInner(fam, n, state) + '</svg>';
+}
+
+/* ---------- 牌背 ---------- */
+function backSVG(size) {
+  size = size || 132;
+  const h = Math.round(size * 200 / 156);
+  let s = '<rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="' + PAL.vermilion + '" stroke="' + PAL.ink + '" stroke-width="3.2"/>';
+  s += '<rect x="11" y="11" width="110" height="154" rx="3" fill="none" stroke="' + PAL.paper2 + '" stroke-width="1.6" opacity="0.85"/>';
+  s += '<g stroke="' + PAL.paper2 + '" stroke-width="1.6" fill="none" opacity="0.85" stroke-linecap="square">'
+     + '<path d="M11 26 L11 11 L26 11"/><path d="M106 11 L121 11 L121 26"/>'
+     + '<path d="M121 150 L121 165 L106 165"/><path d="M26 165 L11 165 L11 150"/></g>';
+  s += '<rect x="44" y="66" width="44" height="44" rx="3" fill="' + PAL.paper2 + '"/>';
+  s += '<text x="66" y="99" text-anchor="middle" font-size="30" font-weight="800" fill="' + PAL.vermilion + '"'
+     + ' font-family="\'Songti SC\',\'STSong\',\'SimSun\',serif">麻</text>';
+  return '<svg class="tile" viewBox="-12 -12 156 200" width="' + size + '" height="' + h + '">' + s + '</svg>';
+}
+
+/* ---------- 渲染 ---------- */
+function put(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+function cell(svg, name) { return '<div class="cellwrap">' + svg + '<span class="nm">' + name + '</span></div>'; }
+
+(function render() {
+  // §3 解剖图：用 9 筒（三种颜色一次看全）
+  put('anatomy-tile', tileInner('ton', 9, 'normal'));
+
+  // §4–§6 三族全套
+  let a = '', b = '', c = '';
+  for (let n = 1; n <= 9; n++) {
+    a += cell(tileSVG('wan', n, { size: 118 }), n + ' 万');
+    b += cell(tileSVG('sou', n, { size: 118 }), n + ' 条');
+    c += cell(tileSVG('ton', n, { size: 118 }), n + ' 筒');
+  }
+  put('set-wan', a); put('set-sou', b); put('set-ton', c);
+
+  // §7 状态
+  put('set-states',
+      cell(tileSVG('ton', 5, { size: 122 }), '常态')
+    + cell(tileSVG('sou', 5, { size: 122, state:'dim' }), '被压住（不可点）')
+    + cell(tileSVG('wan', 5, { size: 122, state:'pick' }), '选中')
+    + cell(tileSVG('sou', 9, { size: 122, state:'clear' }), '消除中'));
+
+  put('set-back',
+      cell(backSVG(122), '牌背（洗牌动效用）')
+    + cell(tileSVG('wan', 3, { size: 122 }), '对照：正面'));
+
+  // §8 尺寸校验
+  const big  = tileSVG('wan', 5, { size: 118 });
+  const real = tileSVG('sou', 9, { size: 84 });
+  const slot = tileSVG('ton', 9, { size: 64 });
+  const clipW = 84, clipH = 74, kk = clipW / 156;
+  const crop = '<svg class="tile" viewBox="-12 ' + (-12 + (200 - clipH/kk)) + ' 156 ' + (clipH/kk) + '"'
+             + ' width="' + clipW + '" height="' + clipH + '">' + tileInner('sou', 7, 'dim') + '</svg>';
+  put('set-sizes',
+      cell(big,  '放大稿 118px')
+    + cell(real, '牌堆实尺 84×112')
+    + cell(slot, '槽位内 64×85')
+    + cell(crop, '被压住后可见部分'));
+
+  // §2 真牌对照（参考图裁片 + 本稿同张牌）
+  const REF = '<img class="refimg" width="420" src="ref-real-mahjong-pair.png" alt="参考真牌：五萬 / 七条 / 九筒">';
+  put('cmp-boxes',
+      '<figure>' + REF + '<figcaption>参考真牌（裁自你给的图）· 五萬 / 七条 / 九筒</figcaption></figure>'
+    + '<figure>' + tileSVG('wan', 5, { size: 150 }) + '<figcaption>本稿 五萬<br>数字蓝 #2338A0 / 萬红 #B02A1E</figcaption></figure>'
+    + '<figure>' + tileSVG('sou', 7, { size: 150 }) + '<figcaption>本稿 七条<br>顶红 + 中列蓝</figcaption></figure>'
+    + '<figure>' + tileSVG('ton', 9, { size: 150 }) + '<figcaption>本稿 九筒<br>绿 / 红 / 蓝 三色</figcaption></figure>');
+
+  // §10 代码
+  const fmtSou = k => '    ' + k + ': ' + (P_SOU[k] === null ? 'null,   // 幺鸡，单独绘制'
+      : '[' + P_SOU[k].map(p => "[" + p.join(', ') + "]").join(', ') + '],');
+  const fmtTon = k => '    ' + k + ': [' + P_TON[k].map(p => "[" + p.join(', ') + "]").join(', ') + '],';
+  let code = '// ===== 真牌牌面数据（建议放入 CFG.ts，业务代码只遍历，不写字面量）=====\n';
+  code += '// 坐标系固定 132×176，绘制时按 (实际牌宽 / 132) 等比缩放\n\n';
+  code += '// 真牌三色：蓝=数字/筒蓝、红=萬/筒红、绿=竹节/筒绿。浅调 = tint(色, 0.45)，不要用白色\n';
+  code += 'export const TILE_INK = {\n';
+  code += "  blue:  '#2338A0',\n  red:   '#B02A1E',\n  green: '#2E6B45',\n};\n\n";
+  code += 'export const TILE_PATTERN = {\n';
+  code += "  /** 万族数字：深度序即牌序，注意 5 用财用大写「伍」（照真牌） */\n";
+  code += "  WAN_NUM: ['一','二','三','四','伍','六','七','八','九'],\n";
+  code += "  WAN_INK: { num: 'blue', wan: 'red' },   // 数字蓝、萬红 —— 真牌的关键特征\n\n";
+  code += '  /** 条族竹节：[x, y, w, h, rot(顺时针度), colorKey]，x/y 为中心点 */\n';
+  code += '  SOU: {\n';
+  for (let n = 1; n <= 9; n++) code += fmtSou(n) + '\n';
+  code += '  },\n\n';
+  code += '  /** 筒族圆饼：[x, y, r, colorKey]，x/y 为圆心。1 筒为特例（蓝→绿→红→白心） */\n';
+  code += '  TON: {\n';
+  for (let n = 1; n <= 9; n++) code += fmtTon(n) + '\n';
+  code += '  },\n};\n\n';
+  code += '// 共用牌体尺寸（内部坐标）\n';
+  code += 'export const TILE_GEO = {\n';
+  code += '  W: 132, H: 176,\n';
+  code += "  BODY:  { x: 1.6, y: 1.6, w: 128.8, h: 172.8, r: 7,   line: 3.2 },\n";
+  code += "  INNER: { x: 8.5, y: 8.5, w: 115,   h: 159,   r: 3.5, line: 1.1, alpha: 0.62 },\n";
+  code += '  CORNER: 12,     // 角花折线长度\n';
+  code += '  BAMBOO_HL: 0.26,     // 竹节中央竖高光宽 / 竹节宽（要连续，不能被缺口切断）\n';
+  code += '  BAMBOO_NOTCH: 0.22,  // 侧缺口宽 / 竹节宽。⚠️ 必须 < (1-0.26)/2，否则左右缺口会和高光连起来 → 整根被切满、又变绷带\n';
+  code += '  BAMBOO_NOTCH_H: 0.05,// 侧缺口厚 / 竹节高\n';
+  code += '  DISC: [1, 0.80, 0.54, 0.28],   // 圆饼四层同心半径系数（最外层用 deep(色,0.30)）\n';
+  code += '};\n';
+  put('code-out', code);
+})();
+
+/* ---------- §9 三张页面 ---------- */
+const S = {
+  paper:'#F2EADA', face:'#FBF6EA', ink:'#22201C', ink2:'#57503F', ink3:'#8E8571',
+  red:'#C4362B', gold:'#C9A227', dim:'#B9B09A',
+};
+
+function placeTile(fam, n, state, cx, cy, w) {
+  const k = w / 132;
+  const ox = cx - 66 * k, oy = cy - 88 * k;
+  return '<g transform="translate(' + ox.toFixed(2) + ',' + oy.toFixed(2) + ') scale(' + k.toFixed(4) + ')">'
+       + tileInner(fam, n, state) + '</g>';
+}
+
+function pageChrome(inner) {
+  let s = '<rect width="720" height="1280" fill="' + S.paper + '"/>';
+  s += '<rect x="46" y="66" width="628" height="1148" rx="10" fill="' + S.face + '" stroke="' + S.red + '" stroke-width="3"/>';
+  s += '<rect x="66" y="86" width="588" height="1108" rx="4" fill="none" stroke="' + S.ink + '" stroke-width="1.5" opacity="0.4"/>';
+  s += '<g stroke="' + S.red + '" stroke-width="2.4" fill="none" stroke-linecap="square">'
+     + '<path d="M66 106 L66 86 L86 86"/><path d="M634 86 L654 86 L654 106"/>'
+     + '<path d="M654 1174 L654 1194 L634 1194"/><path d="M86 1194 L66 1194 L66 1174"/></g>';
+  return s + inner;
+}
+
+// —— 菜单页 ——
+(function () {
+  let s = '';
+  s += '<text x="360" y="300" text-anchor="middle" font-size="76" font-weight="800" letter-spacing="8"'
+     + ' font-family="\'Songti SC\',\'STSong\',\'SimSun\',serif" fill="' + S.ink + '"'
+     + ' stroke="' + S.gold + '" stroke-width="5" paint-order="stroke fill">麻麻大消除</text>';
+  s += '<text x="360" y="374" text-anchor="middle" font-size="30" letter-spacing="5" fill="' + S.ink2 + '">点牌 · 凑型 · 一路清</text>';
+  s += '<g stroke="' + S.ink + '" stroke-width="1.2" opacity="0.35">'
+     + '<line x1="120" y1="424" x2="330" y2="424"/><line x1="390" y1="424" x2="600" y2="424"/></g>';
+  s += '<path d="M360 416 L368 424 L360 432 L352 424 Z" fill="' + S.red + '"/>';
+  // 三张牌（静态教学：万 / 条 / 筒 各一张）
+  s += placeTile('wan', 1, 'normal', 240, 534, 104);
+  s += placeTile('sou', 1, 'normal', 360, 534, 104);
+  s += placeTile('ton', 1, 'normal', 480, 534, 104);
+  s += '<text x="360" y="640" text-anchor="middle" font-size="24" letter-spacing="1" fill="' + S.ink3 + '">万 · 条 · 筒　三族各有各的图案</text>';
+  // 主按钮
+  s += '<rect x="150" y="696" width="420" height="140" rx="6" fill="' + S.ink + '"/>';
+  s += '<rect x="150" y="688" width="420" height="140" rx="6" fill="' + S.red + '" stroke="' + S.ink + '" stroke-width="3"/>';
+  s += '<text x="360" y="758" text-anchor="middle" dominant-baseline="central" font-size="44" font-weight="700"'
+     + ' letter-spacing="10" fill="' + S.face + '">开 始 游 戏</text>';
+  // 回纹带
+  s += '<g stroke="' + S.ink + '" stroke-width="1.3" opacity="0.32" fill="none">';
+  for (let i = 0; i < 8; i++) {
+    const x = 168 + i * 48, y = 992;
+    s += '<path d="M' + x + ' ' + (y+18) + ' L' + x + ' ' + y + ' L' + (x+36) + ' ' + y
+       + ' L' + (x+36) + ' ' + (y+12) + ' L' + (x+10) + ' ' + (y+12) + ' L' + (x+10) + ' ' + (y+5)
+       + ' L' + (x+26) + ' ' + (y+5) + '"/>';
+  }
+  s += '</g>';
+  s += '<text x="360" y="1086" text-anchor="middle" font-size="24" letter-spacing="1" fill="' + S.ink2 + '">点击牌 → 进槽位 → 凑齐「碰 / 吃 / 杠」</text>';
+  s += '<text x="80" y="1168" font-size="22" fill="' + S.ink3 + '">内部开发版 v0.1.0</text>';
+  s += '<rect x="586" y="1116" width="52" height="52" rx="4" fill="' + S.red + '"/>';
+  s += '<text x="612" y="1145" text-anchor="middle" dominant-baseline="central" font-size="24" font-weight="700"'
+     + ' font-family="\'Songti SC\',\'STSong\',\'SimSun\',serif" fill="' + S.face + '">麻</text>';
+  document.getElementById('page-menu').innerHTML = pageChrome(s);
+})();
+
+// —— 关卡页 ——
+(function () {
+  const LV = [
+    { id:1, name:'试手气', sub:'18 张 · 单层 · 不限时', fam:'wan', n:1, cleared:true,  locked:false },
+    { id:2, name:'上道了', sub:'60 张 · 4 层 · 150 秒', fam:'sou', n:4, cleared:false, locked:false },
+    { id:3, name:'有点意思', sub:'78 张 · 5 层 · 180 秒', fam:'ton', n:6, cleared:false, locked:true },
+    { id:4, name:'就差一点', sub:'90 张 · 6 层 · 180 秒', fam:'wan', n:9, cleared:false, locked:true },
+  ];
+  let s = '';
+  s += '<text x="360" y="186" text-anchor="middle" font-size="52" font-weight="800" letter-spacing="8"'
+     + ' font-family="\'Songti SC\',\'STSong\',\'SimSun\',serif" fill="' + S.ink + '">选 关 卡</text>';
+  s += '<g stroke="' + S.ink + '" stroke-width="1.2" opacity="0.3"><line x1="150" y1="216" x2="330" y2="216"/><line x1="390" y1="216" x2="570" y2="216"/></g>';
+  s += '<path d="M360 208 L368 216 L360 224 L352 216 Z" fill="' + S.red + '"/>';
+
+  const top = 286, gap = 190, h = 158;
+  LV.forEach(function (L, i) {
+    const y = top + i * gap;
+    const body = L.locked ? S.dim : S.ink;
+    s += '<rect x="80" y="' + (y+6) + '" width="560" height="' + h + '" rx="6" fill="' + S.ink + '" opacity="' + (L.locked?0.10:1) + '"/>';
+    s += '<rect x="80" y="' + y + '" width="560" height="' + h + '" rx="6" fill="' + (L.locked ? '#EAE3D2' : S.face) + '" stroke="' + body + '" stroke-width="3"/>';
+    if (!L.locked) {
+      s += '<g stroke="' + S.red + '" stroke-width="2" fill="none" stroke-linecap="square">'
+         + '<path d="M80 ' + (y+16) + ' L80 ' + y + ' L96 ' + y + '"/><path d="M624 ' + y + ' L640 ' + y + ' L640 ' + (y+16) + '"/>'
+         + '<path d="M640 ' + (y+h-16) + ' L640 ' + (y+h) + ' L624 ' + (y+h) + '"/><path d="M96 ' + (y+h) + ' L80 ' + (y+h) + ' L80 ' + (y+h-16) + '"/></g>';
+    }
+    s += placeTile(L.fam, L.n, L.locked ? 'dim' : 'normal', 168, y + h/2, 92);
+    s += '<text x="234" y="' + (y + 56) + '" font-size="34" font-weight="800" fill="' + body + '"'
+       + ' font-family="\'Songti SC\',\'STSong\',\'SimSun\',serif">第 ' + L.id + ' 关 · ' + L.name + '</text>';
+    s += '<text x="234" y="' + (y + 98) + '" font-size="23" fill="' + (L.locked ? S.ink3 : S.ink2) + '">' + L.sub + '</text>';
+    if (L.locked) {
+      s += '<text x="600" y="' + (y + h/2) + '" text-anchor="end" dominant-baseline="central" font-size="30" fill="' + S.ink3 + '">锁</text>';
+    } else if (L.cleared) {
+      s += '<circle cx="592" cy="' + (y + h/2) + '" r="24" fill="' + S.red + '"/>';
+      s += '<text x="592" y="' + (y + h/2 + 1) + '" text-anchor="middle" dominant-baseline="central" font-size="24" fill="' + S.face + '">✓</text>';
+    } else {
+      s += '<path d="M578 ' + (y+h/2-12) + ' L602 ' + (y+h/2) + ' L578 ' + (y+h/2+12) + ' Z" fill="' + S.red + '"/>';
+    }
+  });
+  const by = 1100;
+  s += '<rect x="260" y="' + (by+5) + '" width="200" height="90" rx="6" fill="' + S.ink + '"/>';
+  // ⚠️ 必须给 fill（不能 none）：下方厚度矩形会从镂空处透出来，把按钮糊成黑块
+  s += '<rect x="260" y="' + by + '" width="200" height="90" rx="6" fill="' + S.face + '" stroke="' + S.ink + '" stroke-width="3"/>';
+  s += '<text x="360" y="' + (by+45) + '" text-anchor="middle" dominant-baseline="central" font-size="30" letter-spacing="4" fill="' + S.ink + '">返 回</text>';
+  document.getElementById('page-level').innerHTML = pageChrome(s);
+})();
+
+// —— 游戏页 ——
+(function () {
+  let s = '';
+  s += '<rect x="66" y="86" width="588" height="104" fill="' + S.ink + '" opacity="0.05"/>';
+  s += '<line x1="66" y1="190" x2="654" y2="190" stroke="' + S.ink + '" stroke-width="1.6" opacity="0.5"/>';
+  s += '<text x="96" y="150" font-size="30" font-weight="800" fill="' + S.ink + '"'
+     + ' font-family="\'Songti SC\',\'STSong\',\'SimSun\',serif">第 3 关 · 有点意思</text>';
+  s += '<text x="624" y="150" text-anchor="end" font-size="30" font-weight="800" fill="' + S.red + '">02:41</text>';
+  s += '<rect x="96" y="212" width="528" height="10" rx="0" fill="' + S.ink + '" opacity="0.12"/>';
+  s += '<rect x="96" y="212" width="212" height="10" rx="0" fill="' + S.red + '"/>';
+  s += '<text x="96" y="252" font-size="21" fill="' + S.ink3 + '">已清 12 / 30</text>';
+
+  s += '<text x="360" y="330" text-anchor="middle" font-size="24" fill="' + S.ink3 + '">万 / 条 / 筒三族混合，还出现了 4 张相同的「杠」</text>';
+  s += '<g stroke="' + S.ink + '" stroke-width="1.1" opacity="0.22" fill="none">'
+     + '<path d="M232 362 L232 348 L256 348"/><path d="M488 348 L512 348 L512 362"/></g>';
+
+  // 叠塔牌堆：5 层金字塔（本关 5 层），自下而上绘制 —— 上层后画 = 压住下层
+  const layers = [6, 5, 4, 3, 2];
+  const TW = 88, OFFSET = 60, baseY = 846;
+  const step = TW + 6;
+  layers.forEach(function (cnt, li) {
+    const y = baseY - li * OFFSET;
+    const totalW = cnt * step - 6;
+    const x0 = (720 - totalW) / 2 + TW / 2;
+    for (let i = 0; i < cnt; i++) {
+      const cx = x0 + i * step;
+      const covered = (li === 0 && (i === 1 || i === 4)) || (li === 1 && i === 2) || (li === 2 && i === 1);
+      const fam = ['wan','sou','ton'][(li + i) % 3];
+      const num = ((li * 2 + i) % 9) + 1;
+      s += placeTile(fam, num, covered ? 'dim' : 'normal', cx, y, TW);
+    }
+  });
+  s += placeTile('ton', 7, 'pick', 360, baseY - 4 * OFFSET - 16, TW);
+
+  // 槽位条（8 格）—— 严格对齐内框 66..654
+  const BAR_X = 66, BAR_W = 588;
+  const slotN = 8, slotW = 67, slotGap = 3;
+  const sy = 946, sh = 112;
+  const totalSW = slotN * slotW + (slotN - 1) * slotGap;
+  const sx0 = BAR_X + (BAR_W - totalSW) / 2;
+  s += '<rect x="' + BAR_X + '" y="' + sy + '" width="' + BAR_W + '" height="' + sh + '" rx="4"'
+     + ' fill="' + S.face + '" stroke="' + S.ink + '" stroke-width="2.6"/>';
+  for (let i = 0; i < slotN; i++) {
+    const x = sx0 + i * (slotW + slotGap);
+    const inSlot = i < 3;
+    s += '<rect x="' + x + '" y="' + (sy + 9) + '" width="' + slotW + '" height="' + (sh - 18) + '" rx="3"'
+       + ' fill="' + (inSlot ? '#F3ECDA' : 'none') + '" stroke="' + S.ink + '" stroke-width="1.1" opacity="0.45"/>';
+    if (inSlot) {
+      const fams = ['sou', 'sou', 'ton'];
+      const nums = [5, 5, 9];
+      s += placeTile(fams[i], nums[i], 'normal', x + slotW / 2, sy + sh / 2, slotW - 12);
+    }
+  }
+  s += '<text x="' + BAR_X + '" y="' + (sy - 12) + '" font-size="21" fill="' + S.ink3 + '">槽位 3 / 8</text>';
+
+  // 道具栏（4 个）—— 同样对齐内框
+  const itemY = 1080, itemW = 129, itemGap = 16, itemH = 96;
+  const itemX0 = BAR_X + (BAR_W - (4 * itemW + 3 * itemGap)) / 2;
+  const ITEMS = [
+    { n: '消除', c: 2 },
+    { n: '移出', c: 1 },
+    { n: '洗牌', c: 3 },
+    { n: '加槽', c: 1 },
+  ];
+  ITEMS.forEach(function (it, i) {
+    const x = itemX0 + i * (itemW + itemGap);
+    s += '<rect x="' + x + '" y="' + (itemY + 5) + '" width="' + itemW + '" height="' + itemH + '" rx="5" fill="' + S.ink + '" opacity="0.9"/>';
+    s += '<rect x="' + x + '" y="' + itemY + '" width="' + itemW + '" height="' + itemH + '" rx="5"'
+       + ' fill="' + S.face + '" stroke="' + S.ink + '" stroke-width="2.6"/>';
+    s += '<text x="' + (x + itemW / 2) + '" y="' + (itemY + 42) + '" text-anchor="middle" dominant-baseline="central"'
+       + ' font-size="27" font-weight="700" fill="' + S.ink + '">' + it.n + '</text>';
+    s += '<rect x="' + (x + itemW - 40) + '" y="' + (itemY + 8) + '" width="32" height="21" rx="2" fill="' + S.red + '"/>';
+    s += '<text x="' + (x + itemW - 24) + '" y="' + (itemY + 19) + '" text-anchor="middle" dominant-baseline="central"'
+       + ' font-size="14" font-weight="700" fill="' + S.face + '">AD</text>';
+    s += '<text x="' + (x + itemW / 2) + '" y="' + (itemY + 72) + '" text-anchor="middle" font-size="19" fill="' + S.ink3 + '">剩 ' + it.c + ' 次</text>';
+  });
+
+  document.getElementById('page-play').innerHTML = pageChrome(s);
+})();
+</script>
+</body>
+</html>

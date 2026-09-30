@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>《麻麻大消除》界面改版方向对比 · v1</title>
+<style>
+  :root {
+    --paper: #F5F3EF;
+    --ink: #1F1D1A;
+    --ink-2: #5C574F;
+    --ink-3: #8C857A;
+    --line: #DED8CD;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 28px 64px; }
+
+  header.top { border-bottom: 1px solid var(--line); padding-bottom: 24px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .18em; color: var(--ink-3); text-transform: uppercase; margin: 0 0 10px; }
+  h1 { font-size: 27px; font-weight: 600; letter-spacing: -.01em; margin: 0 0 12px; }
+  .lede { font-size: 14px; line-height: 1.75; color: var(--ink-2); max-width: 760px; margin: 0; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  .facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .fact { font-size: 12px; line-height: 1.5; color: var(--ink-2); background: var(--card);
+          border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; }
+  .fact b { color: var(--ink); font-weight: 600; }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+
+  .col { flex: 1 1 340px; min-width: 320px; background: var(--card); border: 1px solid var(--line);
+         border-radius: 14px; padding: 20px 20px 24px; }
+  .col.pick { border-color: #1F1D1A; box-shadow: 0 0 0 1px #1F1D1A inset; }
+
+  .col-head { display: flex; align-items: baseline; gap: 9px; margin-bottom: 3px; }
+  .tag { font-size: 11px; font-weight: 600; letter-spacing: .06em; color: #FFFFFF; background: var(--ink);
+         border-radius: 5px; padding: 3px 7px; }
+  .col-head h2 { font-size: 17px; font-weight: 600; margin: 0; }
+  .sub { font-size: 12.5px; color: var(--ink-3); margin: 0 0 16px; line-height: 1.6; }
+
+  .phone { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
+  .strip { display: block; width: 100%; height: auto; margin-top: 10px; border-radius: 10px; border: 1px solid var(--line); }
+  .cap { font-size: 11.5px; color: var(--ink-3); margin: 7px 0 0; }
+
+  h3 { font-size: 12px; font-weight: 600; letter-spacing: .08em; color: var(--ink-3);
+       text-transform: uppercase; margin: 22px 0 10px; }
+
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 44px; }
+  .sw i { display: block; height: 34px; border-radius: 7px; border: 1px solid rgba(0,0,0,.10); }
+  .sw span { display: block; font-size: 9.5px; color: var(--ink-3); margin-top: 4px;
+             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  ul.pro, ul.con { margin: 0; padding-left: 0; list-style: none; }
+  ul.pro li, ul.con li { font-size: 13px; line-height: 1.65; padding-left: 16px; position: relative; margin-bottom: 5px; }
+  ul.pro li::before { content: "＋"; position: absolute; left: 0; color: #1D9E75; font-weight: 600; }
+  ul.con li::before { content: "−"; position: absolute; left: 0; color: #C4362B; font-weight: 600; }
+
+  .verdict { margin-top: 40px; background: var(--card); border: 1px solid var(--line);
+             border-radius: 14px; padding: 26px 26px 28px; }
+  .verdict h2 { font-size: 18px; font-weight: 600; margin: 0 0 14px; }
+  .verdict p { font-size: 14px; line-height: 1.8; color: var(--ink-2); margin: 0 0 12px; max-width: 860px; }
+  .verdict p b { color: var(--ink); font-weight: 600; }
+  .verdict ol { font-size: 13.5px; line-height: 1.9; color: var(--ink-2); padding-left: 20px; margin: 0; max-width: 860px; }
+  .warn { border-left: 3px solid #C4362B; padding-left: 14px; margin: 18px 0 4px; }
+  .warn p { margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">麻麻大消除 · 界面改版方向</p>
+  <h1>三个方向，同一块 720×1280 画布</h1>
+  <p class="lede">
+    下面三块是<b>同一张菜单页</b>的三种做法，牌面与槽位也一并给出 —— 因为消除游戏的视觉语言最终是落在<b>牌</b>上的，
+    UI 只是它的框。三套都用<b>纯矢量绘制</b>（无贴图），和现有工程的技术路线完全一致，可以一比一落成 Cocos 的绘制调用。
+  </p>
+  <div class="facts">
+    <span class="fact">趋势依据：<b>触感极简</b>（2026 移动游戏美术主导风格）</span>
+    <span class="fact">Claymorphism：<b>被点名为最适合休闲游戏的拟态</b></span>
+    <span class="fact">同类头部：<b>羊了个羊 / 猪了个猪 / 抓大鹅</b> 均为 Q 萌高饱和</span>
+    <span class="fact">硬约束：<b>不可读作棋牌</b></span>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- ============ 方向 A ============ -->
+  <div class="col pick">
+    <div class="col-head"><span class="tag">A · 推荐</span><h2>软糖玩具</h2></div>
+    <p class="sub">有实体触感的圆润块面 —— 摸起来像软糖，看起来像玩具。</p>
+
+    <svg class="phone" viewBox="0 0 720 1280" role="img" aria-label="软糖玩具风格菜单页">
+      <rect width="720" height="1280" fill="#FFE7C2"/>
+      <rect x="34" y="66" width="652" height="1150" rx="58" fill="#5FB58C"/>
+      <rect x="34" y="54" width="652" height="1150" rx="58" fill="#7BCFA8"/>
+      <rect x="92" y="86" width="536" height="9" rx="4.5" fill="#FFFFFF" opacity="0.30"/>
+      <rect x="92" y="1176" width="536" height="9" rx="4.5" fill="#2F6B4F" opacity="0.14"/>
+
+      <text x="360" y="308" text-anchor="middle" font-size="76" font-weight="800" letter-spacing="4"
+            fill="#C93E22" stroke="#C93E22" stroke-width="7" paint-order="stroke fill">麻麻大消除</text>
+      <text x="360" y="300" text-anchor="middle" font-size="76" font-weight="800" letter-spacing="4"
+            fill="#FFC53D" stroke="#E8762B" stroke-width="7" paint-order="stroke fill">麻麻大消除</text>
+
+      <text x="360" y="392" text-anchor="middle" font-size="34" letter-spacing="3"
+            fill="#FFFFFF" opacity="0.92">点牌 · 凑型 · 一路清</text>
+
+      <rect x="150" y="702" width="420" height="140" rx="40" fill="#C93E22"/>
+      <rect x="150" y="690" width="420" height="140" rx="40" fill="#FF6B4A"/>
+      <rect x="182" y="706" width="356" height="36" rx="18" fill="#FFFFFF" opacity="0.24"/>
+      <text x="360" y="760" text-anchor="middle" dominant-baseline="central" font-size="46"
+            font-weight="800" letter-spacing="8" fill="#FFF8F0">开 始 游 戏</text>
+
+      <text x="360" y="1146" text-anchor="middle" font-size="26" letter-spacing="1"
+            fill="#FFFFFF" opacity="0.82">点击牌 → 进槽位 → 凑齐「碰 / 吃 / 杠」</text>
+      <text x="40" y="1224" font-size="22" fill="#FFFFFF" opacity="0.55">内部开发版 v0.1.0</text>
+    </svg>
+    <p class="cap">菜单页 · 奶油底 + 薄荷桌面 + 立体字 + 厚边按钮</p>
+
+    <svg class="strip" viewBox="0 0 720 330" role="img" aria-label="软糖玩具风格牌面与槽位">
+      <rect width="720" height="330" fill="#7BCFA8"/>
+      <g>
+        <rect x="210" y="48" width="84" height="112" rx="18" fill="#D9C7A6"/>
+        <rect x="210" y="40" width="84" height="112" rx="18" fill="#FFFDF5" stroke="#E8DCC8" stroke-width="2"/>
+        <text x="252" y="86" text-anchor="middle" font-size="42" font-weight="800" fill="#E5544B">一</text>
+        <text x="252" y="132" text-anchor="middle" font-size="30" font-weight="700" fill="#4A2E22">万</text>
+
+        <rect x="318" y="48" width="84" height="112" rx="18" fill="#D9C7A6"/>
+        <rect x="318" y="40" width="84" height="112" rx="18" fill="#FFFDF5" stroke="#E8DCC8" stroke-width="2"/>
+        <text x="360" y="86" text-anchor="middle" font-size="42" font-weight="800" fill="#2FA97C">二</text>
+        <text x="360" y="132" text-anchor="middle" font-size="30" font-weight="700" fill="#4A2E22">条</text>
+
+        <rect x="426" y="48" width="84" height="112" rx="18" fill="#D9C7A6"/>
+        <rect x="426" y="40" width="84" height="112" rx="18" fill="#FFFDF5" stroke="#E8DCC8" stroke-width="2"/>
+        <text x="468" y="86" text-anchor="middle" font-size="42" font-weight="800" fill="#3B82C4">三</text>
+        <text x="468" y="132" text-anchor="middle" font-size="30" font-weight="700" fill="#4A2E22">筒</text>
+      </g>
+      <g>
+        <rect x="92" y="216" width="536" height="84" rx="26" fill="#FFFFFF" opacity="0.20"/>
+        <rect x="92" y="216" width="536" height="84" rx="26" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.45"/>
+        <rect x="100" y="224" width="60" height="68" rx="16" fill="#FFFFFF" opacity="0.22"/>
+        <rect x="130" y="222" width="60" height="68" rx="16" fill="#FFFDF5" stroke="#E8DCC8" stroke-width="2"/>
+        <text x="160" y="270" text-anchor="middle" font-size="30" font-weight="800" fill="#3B82C4">三</text>
+      </g>
+    </svg>
+    <p class="cap">牌面 · 三族用红/绿/蓝区分（提升牌堆中的辨识速度）· 槽位条带内描边</p>
+
+    <h3>色板</h3>
+    <div class="sw">
+      <div><i style="background:#FFE7C2"></i><span>FFE7C2</span></div>
+      <div><i style="background:#7BCFA8"></i><span>7BCFA8</span></div>
+      <div><i style="background:#5FB58C"></i><span>5FB58C</span></div>
+      <div><i style="background:#FF6B4A"></i><span>FF6B4A</span></div>
+      <div><i style="background:#FFC53D"></i><span>FFC53D</span></div>
+      <div><i style="background:#FFFDF5"></i><span>FFFDF5</span></div>
+      <div><i style="background:#4A2E22"></i><span>4A2E22</span></div>
+    </div>
+
+    <h3>取</h3>
+    <ul class="pro">
+      <li>缩略图辨识度最高，和榜单上头部休闲游戏同一视觉谱系</li>
+      <li>「厚边 + 顶部高光」做出实体感，纯矢量即可实现，零贴图</li>
+      <li>牌面与桌面明度反差大，长局不易眼累</li>
+    </ul>
+    <h3>舍</h3>
+    <ul class="con">
+      <li>色彩多，必须靠设计令牌严格约束，否则容易花</li>
+      <li>放弃目前的深墨绿桌面，观感变化最大</li>
+    </ul>
+  </div>
+
+  <!-- ============ 方向 B ============ -->
+  <div class="col">
+    <div class="col-head"><span class="tag">B</span><h2>清爽扁平</h2></div>
+    <p class="sub">大留白 + 单一强调色，把全部注意力让给牌。</p>
+
+    <svg class="phone" viewBox="0 0 720 1280" role="img" aria-label="清爽扁平风格菜单页">
+      <rect width="720" height="1280" fill="#F2F7F4"/>
+      <rect x="46" y="66" width="628" height="1148" rx="34" fill="#E4F0EA"/>
+      <rect x="96" y="150" width="52" height="6" rx="3" fill="#1D9E75"/>
+
+      <text x="360" y="308" text-anchor="middle" font-size="78" font-weight="700" letter-spacing="6"
+            fill="#10382A">麻麻大消除</text>
+      <text x="360" y="386" text-anchor="middle" font-size="30" letter-spacing="4"
+            fill="#6B7F76">点牌 · 凑型 · 一路清</text>
+
+      <rect x="150" y="690" width="420" height="140" rx="24" fill="#1D9E75"/>
+      <text x="360" y="760" text-anchor="middle" dominant-baseline="central" font-size="42"
+            font-weight="600" letter-spacing="10" fill="#FFFFFF">开 始 游 戏</text>
+
+      <text x="360" y="1156" text-anchor="middle" font-size="25" letter-spacing="1"
+            fill="#8A9A93">点击牌 → 进槽位 → 凑齐「碰 / 吃 / 杠」</text>
+      <text x="96" y="1222" font-size="22" fill="#B0BCB6">内部开发版 v0.1.0</text>
+    </svg>
+    <p class="cap">菜单页 · 近白底 + 极浅面板 + 单一墨绿实色按钮，无厚度无描边</p>
+
+    <svg class="strip" viewBox="0 0 720 330" role="img" aria-label="清爽扁平风格牌面与槽位">
+      <rect width="720" height="330" fill="#E4F0EA"/>
+      <g>
+        <rect x="210" y="40" width="84" height="112" rx="12" fill="#FFFFFF" stroke="#CBDDD4" stroke-width="2"/>
+        <text x="252" y="88" text-anchor="middle" font-size="40" font-weight="700" fill="#D1503F">一</text>
+        <text x="252" y="132" text-anchor="middle" font-size="28" font-weight="600" fill="#3A4A44">万</text>
+
+        <rect x="318" y="40" width="84" height="112" rx="12" fill="#FFFFFF" stroke="#CBDDD4" stroke-width="2"/>
+        <text x="360" y="88" text-anchor="middle" font-size="40" font-weight="700" fill="#1D9E75">二</text>
+        <text x="360" y="132" text-anchor="middle" font-size="28" font-weight="600" fill="#3A4A44">条</text>
+
+        <rect x="426" y="40" width="84" height="112" rx="12" fill="#FFFFFF" stroke="#CBDDD4" stroke-width="2"/>
+        <text x="468" y="88" text-anchor="middle" font-size="40" font-weight="700" fill="#2E6BA8">三</text>
+        <text x="468" y="132" text-anchor="middle" font-size="28" font-weight="600" fill="#3A4A44">筒</text>
+      </g>
+      <g>
+        <rect x="92" y="216" width="536" height="84" rx="20" fill="#FFFFFF" stroke="#CBDDD4" stroke-width="2"/>
+        <rect x="102" y="226" width="60" height="64" rx="12" fill="#FFFFFF" stroke="#CBDDD4" stroke-width="2"/>
+        <text x="132" y="272" text-anchor="middle" font-size="28" font-weight="700" fill="#2E6BA8">三</text>
+      </g>
+    </svg>
+    <p class="cap">牌面 · 细描边卡片式，最克制；槽位以细线划分</p>
+
+    <h3>色板</h3>
+    <div class="sw">
+      <div><i style="background:#F2F7F4"></i><span>F2F7F4</span></div>
+      <div><i style="background:#E4F0EA"></i><span>E4F0EA</span></div>
+      <div><i style="background:#1D9E75"></i><span>1D9E75</span></div>
+      <div><i style="background:#10382A"></i><span>10382A</span></div>
+      <div><i style="background:#6B7F76"></i><span>6B7F76</span></div>
+      <div><i style="background:#FFFFFF"></i><span>FFFFFF</span></div>
+      <div><i style="background:#D1503F"></i><span>D1503F</span></div>
+    </div>
+
+    <h3>取</h3>
+    <ul class="pro">
+      <li>最耐看、最不容易过时；牌面被衬托得最清楚</li>
+      <li>浅色底在长局里对眼睛最友好，也最省实现成本</li>
+      <li>留白多，后续加道具栏 / HUD 不易拥挤</li>
+    </ul>
+    <h3>舍</h3>
+    <ul class="con">
+      <li>缩略图冲击力弱于 A，在微信游戏列表里不够跳</li>
+      <li>「解压玩具感」的表达弱，偏工具感</li>
+    </ul>
+  </div>
+
+  <!-- ============ 方向 C ============ -->
+  <div class="col">
+    <div class="col-head"><span class="tag">C</span><h2>国潮描边</h2></div>
+    <p class="sub">宣纸底 + 朱红墨线 + 硬朗直角，辨识度最高，但风险也最高。</p>
+
+    <svg class="phone" viewBox="0 0 720 1280" role="img" aria-label="国潮描边风格菜单页">
+      <rect width="720" height="1280" fill="#F7F1E3"/>
+      <rect x="46" y="66" width="628" height="1148" rx="10" fill="#FBF6EA" stroke="#C4362B" stroke-width="3"/>
+      <rect x="66" y="86" width="588" height="1070" rx="4" fill="none" stroke="#22201C" stroke-width="1.5" opacity="0.35"/>
+
+      <text x="360" y="308" text-anchor="middle" font-size="74" font-weight="800" letter-spacing="8"
+            fill="#22201C" stroke="#C9A227" stroke-width="5" paint-order="stroke fill">麻麻大消除</text>
+      <text x="360" y="386" text-anchor="middle" font-size="30" letter-spacing="5"
+            fill="#6B5E4E">点牌 · 凑型 · 一路清</text>
+
+      <rect x="150" y="698" width="420" height="140" rx="6" fill="#22201C"/>
+      <rect x="150" y="690" width="420" height="140" rx="6" fill="#C4362B" stroke="#22201C" stroke-width="3"/>
+      <text x="360" y="760" text-anchor="middle" dominant-baseline="central" font-size="44"
+            font-weight="700" letter-spacing="10" fill="#F7F1E3">开 始 游 戏</text>
+
+      <rect x="596" y="1158" width="52" height="52" rx="4" fill="#C4362B"/>
+      <text x="622" y="1184" text-anchor="middle" dominant-baseline="central" font-size="22"
+            font-weight="700" fill="#F7F1E3">麻</text>
+
+      <text x="76" y="1120" font-size="24" letter-spacing="1"
+            fill="#6B5E4E">点击牌 → 进槽位 → 凑齐「碰 / 吃 / 杠」</text>
+      <text x="76" y="1196" font-size="22" fill="#9A8F7C">内部开发版 v0.1.0</text>
+    </svg>
+    <p class="cap">菜单页 · 宣纸底 + 朱红墨线双描边 + 直角印章</p>
+
+    <svg class="strip" viewBox="0 0 720 340" role="img" aria-label="国潮描边风格牌面与槽位">
+      <rect width="720" height="340" fill="#FBF6EA"/>
+      <g>
+        <!-- 一萬：中文数字 + 萬 -->
+        <g transform="translate(208.98,38.98) scale(0.63636)">
+          <rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="#FBF6EA" stroke="#22201C" stroke-width="3.2"/>
+          <rect x="8.5" y="8.5" width="115" height="159" rx="3.5" fill="none" stroke="#22201C" stroke-width="1.1" opacity="0.62"/>
+          <g stroke="#C4362B" stroke-width="2.2" fill="none" stroke-linecap="square">
+            <path d="M8.5 20.5 L8.5 8.5 L20.5 8.5"/><path d="M111.5 8.5 L123.5 8.5 L123.5 20.5"/>
+            <path d="M123.5 155.5 L123.5 167.5 L111.5 167.5"/><path d="M20.5 167.5 L8.5 167.5 L8.5 155.5"/>
+          </g>
+          <text x="66" y="72" text-anchor="middle" font-size="64" font-weight="800" fill="#2338A0" font-family="'Songti SC','STSong','SimSun',serif">一</text>
+          <text x="66" y="144" text-anchor="middle" font-size="58" font-weight="800" fill="#B02A1E" font-family="'Songti SC','STSong','SimSun',serif">萬</text>
+        </g>
+
+        <!-- 三条：上 1 下 2 的竹节（真牌=墨绿竹节 + 中央竖高光 + 两侧短缺口） -->
+        <g transform="translate(316.98,38.98) scale(0.63636)">
+          <rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="#FBF6EA" stroke="#22201C" stroke-width="3.2"/>
+          <rect x="8.5" y="8.5" width="115" height="159" rx="3.5" fill="none" stroke="#22201C" stroke-width="1.1" opacity="0.62"/>
+          <g stroke="#C4362B" stroke-width="2.2" fill="none" stroke-linecap="square">
+            <path d="M8.5 20.5 L8.5 8.5 L20.5 8.5"/><path d="M111.5 8.5 L123.5 8.5 L123.5 20.5"/>
+            <path d="M123.5 155.5 L123.5 167.5 L111.5 167.5"/><path d="M20.5 167.5 L8.5 167.5 L8.5 155.5"/>
+          </g>
+          <g fill="#2E6B45">
+            <rect x="55" y="26" width="22" height="44" rx="11"/>
+            <rect x="25" y="104" width="22" height="44" rx="11"/>
+            <rect x="85" y="104" width="22" height="44" rx="11"/>
+          </g>
+          <g fill="#96B5A2">
+            <rect x="63.1" y="33.5" width="5.7" height="29" rx="2.9"/>
+            <rect x="33.1" y="111.5" width="5.7" height="29" rx="2.9"/>
+            <rect x="93.1" y="111.5" width="5.7" height="29" rx="2.9"/>
+          </g>
+          <g fill="#FBF6EA">
+            <rect x="55" y="37.2" width="4.8" height="2.2"/><rect x="72.2" y="37.2" width="4.8" height="2.2"/>
+            <rect x="55" y="56.6" width="4.8" height="2.2"/><rect x="72.2" y="56.6" width="4.8" height="2.2"/>
+            <rect x="25" y="115.2" width="4.8" height="2.2"/><rect x="42.2" y="115.2" width="4.8" height="2.2"/>
+            <rect x="25" y="134.6" width="4.8" height="2.2"/><rect x="42.2" y="134.6" width="4.8" height="2.2"/>
+            <rect x="85" y="115.2" width="4.8" height="2.2"/><rect x="102.2" y="115.2" width="4.8" height="2.2"/>
+            <rect x="85" y="134.6" width="4.8" height="2.2"/><rect x="102.2" y="134.6" width="4.8" height="2.2"/>
+          </g>
+        </g>
+
+        <!-- 三筒：斜排三个圆饼（真牌=绿/红/蓝三色，四层同心） -->
+        <g transform="translate(424.98,38.98) scale(0.63636)">
+          <rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="#FBF6EA" stroke="#22201C" stroke-width="3.2"/>
+          <rect x="8.5" y="8.5" width="115" height="159" rx="3.5" fill="none" stroke="#22201C" stroke-width="1.1" opacity="0.62"/>
+          <g stroke="#C4362B" stroke-width="2.2" fill="none" stroke-linecap="square">
+            <path d="M8.5 20.5 L8.5 8.5 L20.5 8.5"/><path d="M111.5 8.5 L123.5 8.5 L123.5 20.5"/>
+            <path d="M123.5 155.5 L123.5 167.5 L111.5 167.5"/><path d="M20.5 167.5 L8.5 167.5 L8.5 155.5"/>
+          </g>
+          <!-- 左上 绿 -->
+          <circle cx="42" cy="50" r="20" fill="#204B30"/><circle cx="42" cy="50" r="16" fill="#96B5A2"/>
+          <circle cx="42" cy="50" r="10.8" fill="#2E6B45"/><circle cx="42" cy="50" r="5.6" fill="#96B5A2"/>
+          <!-- 中 红 -->
+          <circle cx="66" cy="88" r="20" fill="#7B1D15"/><circle cx="66" cy="88" r="16" fill="#D7948E"/>
+          <circle cx="66" cy="88" r="10.8" fill="#B02A1E"/><circle cx="66" cy="88" r="5.6" fill="#D7948E"/>
+          <!-- 右下 蓝 -->
+          <circle cx="90" cy="126" r="20" fill="#182770"/><circle cx="90" cy="126" r="16" fill="#919BCF"/>
+          <circle cx="90" cy="126" r="10.8" fill="#2338A0"/><circle cx="90" cy="126" r="5.6" fill="#919BCF"/>
+        </g>
+      </g>
+      <g>
+        <rect x="92" y="216" width="536" height="84" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="2.5"/>
+        <rect x="102" y="220" width="76" height="76" rx="4" fill="#FBF6EA" stroke="#C4362B" stroke-width="2"/>
+        <g transform="translate(113.37,223.37) scale(0.39394)">
+          <rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="#FBF6EA" stroke="#22201C" stroke-width="3.2"/>
+          <g>
+            <circle cx="42" cy="50" r="20" fill="#204B30"/><circle cx="42" cy="50" r="16" fill="#96B5A2"/>
+            <circle cx="42" cy="50" r="10.8" fill="#2E6B45"/><circle cx="42" cy="50" r="5.6" fill="#96B5A2"/>
+            <circle cx="66" cy="88" r="20" fill="#7B1D15"/><circle cx="66" cy="88" r="16" fill="#D7948E"/>
+            <circle cx="66" cy="88" r="10.8" fill="#B02A1E"/><circle cx="66" cy="88" r="5.6" fill="#D7948E"/>
+            <circle cx="90" cy="126" r="20" fill="#182770"/><circle cx="90" cy="126" r="16" fill="#919BCF"/>
+            <circle cx="90" cy="126" r="10.8" fill="#2338A0"/><circle cx="90" cy="126" r="5.6" fill="#919BCF"/>
+          </g>
+        </g>
+      </g>
+    </svg>
+    <p class="cap">牌面（已按真实麻将图案重画）· 一萬 / 三条竹节 / 三筒圆饼 —— 完整 27 张见 <code>guochao-tiles.html</code></p>
+
+    <h3>色板</h3>
+    <div class="sw">
+      <div><i style="background:#F7F1E3"></i><span>F7F1E3</span></div>
+      <div><i style="background:#C4362B"></i><span>C4362B</span></div>
+      <div><i style="background:#C9A227"></i><span>C9A227</span></div>
+      <div><i style="background:#2E6B7A"></i><span>2E6B7A</span></div>
+      <div><i style="background:#22201C"></i><span>22201C</span></div>
+      <div><i style="background:#6B5E4E"></i><span>6B5E4E</span></div>
+      <div><i style="background:#FBF6EA"></i><span>FBF6EA</span></div>
+    </div>
+
+    <h3>取</h3>
+    <ul class="pro">
+      <li>辨识度最高，别人抄不走，题材拿捏得最准</li>
+      <li>强对比下牌面数字极清楚，适合高密度牌堆</li>
+    </ul>
+    <h3>舍</h3>
+    <ul class="con">
+      <li>朱红 + 墨 + 金是棋牌类的经典配色，容易被读成麻将/扑克</li>
+      <li>与"休闲益智"的轻松气质相冲，弱化解压感</li>
+    </ul>
+  </div>
+
+</div>
+
+<div class="verdict">
+  <h2>我的结论</h2>
+
+  <div class="warn" style="border-left-color:#1F1D1A;">
+    <p>
+      <b>【后续决定 · 记录于此】</b> 用户最终选择了 <b>方向 C · 国潮描边</b>，并接受其过审风险；
+      同时要求牌面必须用<b>现实麻将的真实图案</b>而非文字占位。该决定已展开为独立文档
+      <code>docs/design/guochao-tiles.html</code> —— 含 27 张牌的完整矢量设计、状态反馈、
+      尺寸校验与可直接落成 Cocos <code>Graphics</code> 调用的排布数据表。下方原文保留作决策留痕。
+    </p>
+  </div>
+  <p>
+    推荐 <b>方向 A · 软糖玩具</b>。理由不是"它更花"，而是三件事同时成立：
+    它是 2026 年这个品类真正的商业主流（<b>触感极简</b> + <b>claymorphism 玩具感</b>），
+    它的做法<b>恰好是纯矢量的强项</b>（厚边、高光、圆角块面全部可用圆角矩形叠出来，不需要任何贴图），
+    而且它把游戏推向"玩具"而不是"棋牌"—— 这一点对我们是要害。
+  </p>
+
+  <p>具体执行上，我会把方案 A 按设计系统的方式落地，分四层：</p>
+  <ol>
+    <li><b>色层</b>：冷暖两族 + 三个语义色（正确 / 提示 / 禁用），全部写进 <code>CFG</code>，业务代码零硬编码色值。</li>
+    <li><b>形层</b>：圆角与厚边统一为几档令牌，做一套「抬起 / 按下 / 禁用」三态；按钮不再只是缩放。</li>
+    <li><b>字层</b>：字号阶梯收敛为一套比例，标题用描边 + 位移副本做出立体字，正文字重与颜色分级。</li>
+    <li><b>牌层</b>：这是重头。牌面重画为「厚边 + 高光 + 三族配色 + 双层信息」，并配一套消除时的反馈动效。</li>
+  </ol>
+
+  <div class="warn">
+    <p>
+      <b>关于方向 C 要单独说一句</b>：它在纯设计角度是三个里最有性格的，但它和我们"必须申报休闲益智类目、
+      游戏内不能读作棋牌"这条硬约束正面冲突。我不建议现在选它 —— 除非你愿意接受后续过审的不确定性。
+      如果你确实喜欢那股劲，我可以在方案 A 的骨架里取一点点国潮的局部元素（例如描边质感），
+      拿 5% 调味，而不是把它当主调。
+    </p>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
