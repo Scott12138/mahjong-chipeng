@@ -22,15 +22,22 @@
  *  使 view.getVisibleSize() 恰好等于设计分辨率 → 设计坐标与屏幕坐标 1:1。
  *
  *  【用法】
- *    node tools/web-smoke.mjs <url> <输出目录> [坐标 ...]
- *  坐标两种写法（可混用，按顺序执行）：
- *    d:<x>,<y>  设计坐标（原点=屏幕中心，y 向上，与 Cocos 一致）★推荐
- *    <x>,<y>    屏幕坐标（左上角为原点，仅调试用）
+ *    node tools/web-smoke.mjs <url> <输出目录> [动作 ...]
+ *  动作三种写法（可混用，按顺序执行）：
+ *    d:<x>,<y>  设计坐标点击（原点=屏幕中心，y 向上，与 Cocos 一致）★推荐
+ *    <x>,<y>    屏幕坐标点击（左上角为原点，仅调试用）
+ *    auto:<n>   自动试玩 n 步 —— 从控制台里读游戏自己打印的「可点牌」坐标，
+ *               优先连点同一个牌面（凑「碰」）。牌位是随机的，
+ *               没有这个就只能靠肉眼看截图猜坐标。
+ *    dirty:<n>  故意凑不成 n 步 —— auto 的反面：专挑槽内张数最少的牌面点，
+ *               绝不凑成 3 张。用来**稳定逼出败局**，回归「失败 / 复活 / 兜底」
+ *               这条在真实游玩里很难复现的负向链路。
  *  例：
- *    node tools/web-smoke.mjs http://127.0.0.1:8123/index.html /tmp/smoke d:0,-120
+ *    node tools/web-smoke.mjs http://127.0.0.1:8123/index.html /tmp/smoke d:0,-118 d:0,275 auto:18
+ *    node tools/web-smoke.mjs http://127.0.0.1:8123/index.html /tmp/fail d:0,-118 d:0,275 auto:40 d:0,85 dirty:24
  *
  *  【产出】
- *    00-before.png / 01-click-*.png ... / console.log / metrics.json
+ *    00-before.png / 01-click-*.png / console.log / metrics.json
  * ============================================================
  */
 
@@ -51,9 +58,17 @@ const DESIGN_H = 1280;
 const URL_ = process.argv[2] || 'http://127.0.0.1:8123/index.html';
 const OUT_DIR = process.argv[3] || '/tmp/smoke';
 const ACTIONS = process.argv.slice(4).map((s) => {
+    if (s.startsWith('auto')) {
+        const n = Number(s.split(':')[1] ?? 12);
+        return { kind: 'auto', steps: Number.isFinite(n) ? n : 12, label: s.replace(/[:.]/g, '_') };
+    }
+    if (s.startsWith('dirty')) {
+        const n = Number(s.split(':')[1] ?? 12);
+        return { kind: 'dirty', steps: Number.isFinite(n) ? n : 12, label: s.replace(/[:.]/g, '_') };
+    }
     const design = s.startsWith('d:');
     const [x, y] = (design ? s.slice(2) : s).split(',').map(Number);
-    return { x, y, design, label: s.replace(/[:.]/g, '_') };
+    return { kind: 'click', x, y, design, label: s.replace(/[:.]/g, '_') };
 });
 
 mkdirSync(OUT_DIR, { recursive: true });
@@ -141,6 +156,160 @@ class CDP {
         await sleep(90);
         await this.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...base });
     }
+}
+
+// ------------------------------------------------------------
+//  自动试玩：靠游戏自己打印的「可点牌」日志定位
+// ------------------------------------------------------------
+//  牌位是随机的（格点加权采样 + 抖动），脚本没有视觉识别能力，
+//  所以让游戏在 DEBUG 模式把可点牌与坐标打出来，脚本照着点。
+//  策略很朴素但够用：优先连点同一个牌面，因为那才有机会凑成「碰」。
+// ------------------------------------------------------------
+
+/** 取最近一条「可点」日志 */
+function latestPickableLine(cdp) {
+    for (let i = cdp.consoleLines.length - 1; i >= 0; i--) {
+        if (cdp.consoleLines[i].includes('牌局 已清=')) return cdp.consoleLines[i];
+    }
+    return null;
+}
+
+/** 解析 'wan-1@-238,146 sou-3@-170,60' 这种串 */
+function parsePickable(line) {
+    const out = [];
+    if (!line) return out;
+    const re = /([a-z]+-\d+)@(-?\d+),(-?\d+)/g;
+    let m;
+    while ((m = re.exec(line)) !== null) {
+        out.push({ key: m[1], x: Number(m[2]), y: Number(m[3]) });
+    }
+    return out;
+}
+
+async function autoPlay(cdp, cx, cy, steps, outDir, shotIndex) {
+    let clicked = 0;
+    let clears = 0;
+
+    for (let s = 0; s < steps; s++) {
+        const line = latestPickableLine(cdp);
+        const list = parsePickable(line);
+        if (list.length === 0) {
+            console.log('    （已无可点牌，自动试玩结束）');
+            break;
+        }
+
+        // 决策顺序（越靠前越优先）：
+        //   ① 槽里已有 2 张同牌面 → 补第 3 张，立刻消
+        //   ② 槽里已有 1 张同牌面 → 补到 2 张
+        //   ③ 可点牌里数量最多的牌面 → 有富余才敢开始凑
+        //   ④ 都没有就随便点一张
+        const slotKeys = parseSlotKeys(line);
+        const slotCnt = new Map();
+        for (const k of slotKeys) slotCnt.set(k, (slotCnt.get(k) || 0) + 1);
+
+        let target = null;
+        const bySlot = [...slotCnt.entries()].sort((a, b) => b[1] - a[1]);
+        for (const [k] of bySlot) {
+            const hit = list.find((t) => t.key === k);
+            if (hit) { target = hit; break; }
+        }
+
+        if (!target) {
+            const cnt = new Map();
+            for (const t of list) cnt.set(t.key, (cnt.get(t.key) || 0) + 1);
+            let bestKey = null;
+            let bestN = 0;
+            for (const [k, n] of cnt) if (n > bestN) { bestN = n; bestKey = k; }
+            target = (bestN >= 3 ? list.find((t) => t.key === bestKey) : null) || list[0];
+        }
+
+        const sx = Math.round(cx + target.x);
+        const sy = Math.round(cy - target.y);
+        const before = latestState(cdp);
+        console.log(`    [${s + 1}] 点 ${target.key} @设计(${target.x}, ${target.y})`);
+        await cdp.clickAt(sx, sy);
+        clicked++;
+        await sleep(800);
+
+        const after = latestState(cdp);
+        if (before !== after) {
+            clears++;
+            console.log(`       状态：${after ?? '(无)'}`);
+        }
+    }
+
+    // 通关/失败后游戏会延迟 2 秒跳回关卡页，这里等它跳完再继续
+    await sleep(2200);
+    const p = await cdp.shot(`${String(shotIndex).padStart(2, '0')}-auto`);
+    console.log(`    已截图：${p}（点击 ${clicked} 次，状态变化 ${clears} 次）`);
+}
+
+// ------------------------------------------------------------
+//  故意凑不成（dirty）：专门用来逼出「败局」的负向测试
+// ------------------------------------------------------------
+//  auto 是"聪明地玩"，永远在凑同牌面 → 永远通关，测不到失败分支。
+//  失败分支（槽位满了 / 时间到）恰恰是最需要回归的：复活、结算、兜底文案
+//  全挂在这条链路上，而它在真实游玩里很难稳定复现。
+//
+//  dirty 的策略与 auto **完全相反**：专挑"槽内该牌面张数最少"的牌点，
+//  且跳过任何会让槽内某牌面凑到 3 张的牌（那会消掉，白费）。
+//  结果就是槽里堆满单张散牌 → 槽位一满立刻判负。
+// ------------------------------------------------------------
+async function dirtyPlay(cdp, cx, cy, steps, outDir, shotIndex) {
+    let clicked = 0;
+
+    for (let s = 0; s < steps; s++) {
+        const line = latestPickableLine(cdp);
+        const list = parsePickable(line);
+        if (list.length === 0) {
+            console.log('    （已无可点牌，结束）');
+            break;
+        }
+
+        const slotCnt = new Map();
+        for (const k of parseSlotKeys(line)) slotCnt.set(k, (slotCnt.get(k) || 0) + 1);
+
+        // 选槽内该牌面张数最少的一张；张数 ≥2 的直接跳过（点了会消）
+        let best = null;
+        let bestN = Number.POSITIVE_INFINITY;
+        for (const t of list) {
+            const n = slotCnt.get(t.key) || 0;
+            if (n >= 2) continue;
+            if (n < bestN) { bestN = n; best = t; }
+        }
+        if (!best) {
+            console.log('    （剩下的牌一点就会消，无负数路径可走，结束）');
+            break;
+        }
+
+        const sx = Math.round(cx + best.x);
+        const sy = Math.round(cy - best.y);
+        console.log(`    [${s + 1}] 故意点 ${best.key}（槽内已有 ${bestN} 张）@设计(${best.x}, ${best.y})`);
+        await cdp.clickAt(sx, sy);
+        clicked++;
+        await sleep(700);
+    }
+
+    // 判负后游戏会延迟 2 秒弹面板，等它出来再截图
+    await sleep(2400);
+    const p = await cdp.shot(`${String(shotIndex).padStart(2, '0')}-dirty`);
+    console.log(`    已截图：${p}（点击 ${clicked} 次）`);
+}
+
+/** 解析槽内牌面：'槽内=[wan-7,wan-7,ton-5]' → ['wan-7','wan-7','ton-5'] */
+function parseSlotKeys(line) {
+    if (!line) return [];
+    const m = line.match(/槽内=\[([^\]]*)\]/);
+    if (!m || !m[1].trim()) return [];
+    return m[1].split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/** 取最近一条状态行里的「已清 / 槽」摘要（用来判断刚才那一下有没有真的消掉） */
+function latestState(cdp) {
+    const line = latestPickableLine(cdp);
+    if (!line) return null;
+    const m = line.match(/已清=(\d+) 槽=(\d+)\/(\d+)/);
+    return m ? `已清${m[1]} 槽${m[2]}/${m[3]}` : null;
 }
 
 // ------------------------------------------------------------
@@ -265,6 +434,18 @@ try {
     // ---- 依次点击并截图 ----
     let i = 1;
     for (const a of ACTIONS) {
+        if (a.kind === 'auto') {
+            console.log(`==> 自动试玩 ${a.steps} 步（坐标取自控制台里的「牌局」日志）`);
+            await autoPlay(cdp, cx, cy, a.steps, OUT_DIR, i);
+            i++;
+            continue;
+        }
+        if (a.kind === 'dirty') {
+            console.log(`==> 故意凑不成 ${a.steps} 步（负向测试：逼出槽位满的败局）`);
+            await dirtyPlay(cdp, cx, cy, a.steps, OUT_DIR, i);
+            i++;
+            continue;
+        }
         const sx = a.design ? Math.round(cx + a.x) : a.x;
         const sy = a.design ? Math.round(cy - a.y) : a.y;   // Cocos y 轴向上 → 屏幕 y 向下
         console.log(`==> 点击 ${a.design ? `设计坐标(${a.x}, ${a.y})` : `屏幕坐标(${a.x}, ${a.y})`} → 屏幕(${sx}, ${sy})`);

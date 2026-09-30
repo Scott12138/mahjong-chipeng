@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "1f4b7c92-3a6d-4f18-9c25-7b8e0d4a6c31",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/ui/MotionFx.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

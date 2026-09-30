@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "a4cfe88b-8bb0-4096-b31a-0175fc61d395",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/ui/GamePage.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

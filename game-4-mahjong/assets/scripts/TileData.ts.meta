@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "63c4300c-ff16-464d-8d23-2411f21a82df",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/TileData.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

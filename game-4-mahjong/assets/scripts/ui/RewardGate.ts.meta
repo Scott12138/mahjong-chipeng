@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "218120ba-d881-4831-a85c-2ace0c301855",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/ui/RewardGate.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "5c17e6f0-ed6e-44a9-a557-3042babfd585",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/ui/TileRenderer.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

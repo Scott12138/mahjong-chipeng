@@ -26,6 +26,7 @@ import { _decorator, Component, Layers, Node, UITransform, Widget, log, view } f
 import { CFG } from './CFG';
 import { PageManager } from './core/PageManager';
 import { SaveService } from './core/SaveService';
+import { GamePage } from './ui/GamePage';
 import { LevelSelectPage } from './ui/LevelSelectPage';
 import { MenuPage } from './ui/MenuPage';
 
@@ -35,6 +36,7 @@ const { ccclass } = _decorator;
 export const PAGE = {
     MENU: 'menu',
     LEVEL_SELECT: 'levelSelect',
+    GAME: 'game',
 } as const;
 
 @ccclass('GameRoot')
@@ -125,7 +127,8 @@ export class GameRoot extends Component {
     private registerPages(): void {
         PageManager.register(PAGE.MENU, MenuPage);
         PageManager.register(PAGE.LEVEL_SELECT, LevelSelectPage);
-        // 后续里程碑在此追加：game（S2）、result（S7）……
+        PageManager.register(PAGE.GAME, GamePage);
+        // 后续里程碑在此追加：result（S7 正式结算面板）……
     }
 
     // --------------------------------------------------------
