@@ -88,6 +88,8 @@ export const EASE = {
     REJECT: CFG.MOTION.EASE_REJECT,
     /** 下落（越落越快 = 重力感） */
     DROP: CFG.MOTION.EASE_DROP,
+    /** 冲刺 / 撞击（越冲越快 = 力量感，与 DROP 数值相同但语义不同） */
+    DASH: CFG.MOTION.EASE_DASH,
 } as const;
 
 /**
@@ -140,6 +142,14 @@ export const TAG = {
     STACK: 'stack',
     /** 牌堆整体浮现（改容器 scale / opacity） */
     ENTER: 'enter',
+    /**
+     * 牌堆整体的**冲击位移**（改容器 position）。
+     * 【为什么不能和 ENTER 共用】S7 踩过一次共用 tag 导致动画被自己停掉的坑
+     * （缩放与淡入共用 ENTER，后起的把先起的 stop 了）。
+     * "碰"的撞击踢与"入场浮现"在时间上不重叠，理论上可以共用；
+     * 但共用通道等于给未来的自己埋雷 —— 只要有一天两者重叠，就是一次难查的抖动。
+     */
+    KICK: 'kick',
     /** 透明度（与上面几条分开，便于"位移动画不打断淡入淡出"） */
     FADE: 'fade',
     /** 临时特效 */
@@ -666,31 +676,44 @@ export function spawnDebris(
 /**
  * D1「落点脉冲」：一圈由小到大、同时淡出的描边圆环。
  * 它是"奖励到了"的句号 —— 只有飞行没有落点反馈，玩家会怀疑"到底生效没有"。
+ *
+ * 【opt 参数的意义（S7.5 新增）】
+ * 原来它的尺寸写死用 CFG.MOTION.PULSE_*（为"奖励到账"调的，小而精致）。
+ * "碰"的撞击环需要**更大更狠**：它是三张牌撞在一起的能量释放，
+ * 用奖励环的尺寸会显得"不够响"。与其复制一份代码，不如把三个尺寸参数开放出来。
  */
-export function spawnPulse(pool: FxPool, localX: number, localY: number, color: string): void {
+export function spawnPulse(
+    pool: FxPool, localX: number, localY: number, color: string,
+    opt: { r0?: number; r1?: number; line?: number; life?: number } = {},
+): void {
     const M = CFG.MOTION;
     if (!pool.layer) return;
 
+    const r0 = opt.r0 ?? M.PULSE_R0;
+    const r1 = opt.r1 ?? M.PULSE_R1;
+    const life = opt.life ?? M.PULSE;
+
     const node = pool.rent('pulse');
     const gg = node.getComponent(Graphics);
-    const r0 = M.PULSE_R0;
     if (gg) {
         gg.clear();
-        gg.lineWidth = M.PULSE_LINE;
+        gg.lineWidth = opt.line ?? M.PULSE_LINE;
         gg.strokeColor = hex2color(color);
         gg.circle(0, 0, r0);
         gg.stroke();
     }
     node.setPosition(localX, localY, 0);
-    // 从"细环"放大成"大环"：起始 scale 就是这个比值，收在 PULSE_R1
-    const k0 = r0 / M.PULSE_R1;
+    // 从"细环"放大成"大环"：起始 scale 就是这个比值，收在 r1
+    const k0 = r0 / r1;
     node.setScale(k0, k0, 1);
 
     MotionFx.to(node, { scale: v3(1, 1, 1) },
-        { duration: M.PULSE, easing: EASE.ENTER, tag: TAG.FX });
-    MotionFx.fade(node, 0, M.PULSE, { easing: EASE.MOVE, tag: TAG.FADE });
+        { duration: life, easing: EASE.ENTER, tag: TAG.FX });
+    MotionFx.fade(node, 0, life, { easing: EASE.MOVE, tag: TAG.FADE });
 
-    pool.autoRecycle('pulse', node);
+    // 生命周期兜底：撞击环比默认 PULSE 活得久，必须把寿命一起传下去，
+    // 否则环还在放大就被池子强行回收了（表现为"环没扩散完就没了"）
+    pool.autoRecycle('pulse', node, Math.max(M.FX_MAX_LIFE, life + 0.06));
 }
 
 /**

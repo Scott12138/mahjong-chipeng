@@ -32,9 +32,18 @@
  *    dirty:<n>  故意凑不成 n 步 —— auto 的反面：专挑槽内张数最少的牌面点，
  *               绝不凑成 3 张。用来**稳定逼出败局**，回归「失败 / 复活 / 兜底」
  *               这条在真实游玩里很难复现的负向链路。
+ *    d:<x>,<y>@<ms>  点击 + **自定义截图延迟**。
+ *               默认是点击后 1600ms 截图（等一切稳定）；
+ *               但动效验收要看的恰恰是"动效中间的那一帧"，
+ *               所以用 @ 把延迟压到 100~700ms，就能抓到飞行/撞击/入场的半途。
+ *    wait:<ms>  **不点击，只等 ms 毫秒后截图**。
+ *               抓动画中间帧的关键：`d:` 之间必然隔着上一次点击的等待，
+ *               时间线是断的，而 wait 能把时间线连续推下去。
  *  例：
  *    node tools/web-smoke.mjs http://127.0.0.1:8123/index.html /tmp/smoke d:0,-118 d:0,275 auto:18
  *    node tools/web-smoke.mjs http://127.0.0.1:8123/index.html /tmp/fail d:0,-118 d:0,275 auto:40 d:0,85 dirty:24
+ *    （抓入场动画的连续五帧）
+ *    node tools/web-smoke.mjs … d:0,-118 d:0,275@150 wait:200 wait:200 wait:250 wait:400 auto:60
  *
  *  【产出】
  *    00-before.png / 01-click-*.png / console.log / metrics.json
@@ -58,17 +67,68 @@ const DESIGN_H = 1280;
 const URL_ = process.argv[2] || 'http://127.0.0.1:8123/index.html';
 const OUT_DIR = process.argv[3] || '/tmp/smoke';
 const ACTIONS = process.argv.slice(4).map((s) => {
+    // auto:<n> / auto:<n>@<gapMs> / auto:<n>@<gapMs>!<ms,ms,...>
+    //   gapMs = **每步的最小间隔**，默认 800。
+    //   实际间隔 = "等游戏吐出新牌局日志" + gapMs，所以它会自动跟随真实节奏。
+    //   存在的意义：默认值加上等待本身，一步约 1.3 秒 —— 那是"边看边想"的慢节奏。
+    //   而"连章 / 连锁"这类**依赖时间窗口**的机制只在快节奏下才触发，
+    //   所以必须能把节奏压下来才能测到它们（420ms 大致相当于真人连打）。
+    //   !<ms,...> = **撞击帧连拍**：只在"这一步会触发消除"的点击后，
+    //   按给定毫秒偏移各截一张图。它是验收动效的唯一手段 ——
+    //   否则整段消除动画（约 1 秒）只会出现在最终截图里，中间过程一张都留不下。
     if (s.startsWith('auto')) {
-        const n = Number(s.split(':')[1] ?? 12);
-        return { kind: 'auto', steps: Number.isFinite(n) ? n : 12, label: s.replace(/[:.]/g, '_') };
+        const [nPart, rest] = s.slice(4).replace(/^:/, '').split('@');
+        const [gapPart, burstPart] = (rest ?? '').split('!');
+        const n = Number(nPart);
+        const gap = Number(gapPart);
+        const burst = (burstPart ?? '')
+            .split(',')
+            .filter((t) => t.trim() !== '')        // ⚠️ 必须先滤空串：Number('') === 0，
+            .map(Number)                          //    否则 "auto:70@420" 会凭空多出一个 0ms 连拍
+            .filter(Number.isFinite);
+        return {
+            kind: 'auto',
+            steps: Number.isFinite(n) ? n : 12,
+            gap: Number.isFinite(gap) ? gap : 800,
+            burst,
+            label: s.replace(/[:.@!,\-]/g, '_'),
+        };
     }
     if (s.startsWith('dirty')) {
-        const n = Number(s.split(':')[1] ?? 12);
-        return { kind: 'dirty', steps: Number.isFinite(n) ? n : 12, label: s.replace(/[:.]/g, '_') };
+        const [nPart, gapPart] = s.slice(5).replace(/^:/, '').split('@');
+        const n = Number(nPart);
+        const gap = Number(gapPart);
+        return {
+            kind: 'dirty',
+            steps: Number.isFinite(n) ? n : 12,
+            gap: Number.isFinite(gap) ? gap : 800,
+            label: s.replace(/[:.@]/g, '_'),
+        };
+    }
+    // wait:<ms> —— **不点击，只等 ms 毫秒然后截图**。
+    // 它是抓"动画中间帧"的关键：`d:` 动作之间必然隔着上一次点击的等待，
+    // 时间线是断的；而 wait 能接着上一步把时间线连续推下去。
+    //   例：d:0,275@150 wait:200 wait:200 wait:200  → 150/350/550/750ms 各一帧
+    if (s.startsWith('wait')) {
+        const ms = Number(s.split(':')[1] ?? 200);
+        return { kind: 'wait', ms: Number.isFinite(ms) ? ms : 200, label: s.replace(/[:.]/g, '_') };
     }
     const design = s.startsWith('d:');
-    const [x, y] = (design ? s.slice(2) : s).split(',').map(Number);
-    return { kind: 'click', x, y, design, label: s.replace(/[:.]/g, '_') };
+    // 可选后缀 `@<毫秒>`：覆盖"点击后等多久才截图"。
+    // 默认 1600ms，那是"等页面/动画彻底稳定"的保守值；
+    // 但**动效验收需要看动效中间的那一帧** —— 等 1.6 秒什么都播完了。
+    //   例：d:0,275@180  → 进关后 180ms 截图（逐张飞入的早期）
+    //       d:0,275@700  → 同一次操作，700ms 时再看一帧
+    let body = s;
+    let delay = 1600;
+    const at = s.indexOf('@');
+    if (at >= 0) {
+        body = s.slice(0, at);
+        const d = Number(s.slice(at + 1));
+        if (Number.isFinite(d)) delay = Math.max(0, d);
+    }
+    const [x, y] = (design ? body.slice(2) : body).split(',').map(Number);
+    return { kind: 'click', x, y, design, delay, label: body.replace(/[:.]/g, '_') };
 });
 
 mkdirSync(OUT_DIR, { recursive: true });
@@ -174,6 +234,36 @@ function latestPickableLine(cdp) {
     return null;
 }
 
+/** 目前已收到的「牌局」日志条数 —— 用它判断"点击后游戏有没有吐出新状态" */
+function pickableSeq(cdp) {
+    let n = 0;
+    for (const l of cdp.consoleLines) if (l.includes('牌局 已清=')) n++;
+    return n;
+}
+
+/**
+ * 等游戏吐出一条**新的**牌局日志（返回实际等待毫秒；超时返回 -1）。
+ *
+ * 【为什么不能只 sleep 一个固定时长 —— 踩过的坑】
+ * 自动试玩的决策完全依赖控制台里的那份「可点牌位置列表」，而点击之后
+ * 游戏要过「选中 180ms + 飞行 ≤300ms + 落位余量」才会打出下一条列表。
+ * 如果不等新日志、只按固定间隔决策，读到的仍是**点击前**那份列表，
+ * 于是会对着一张已经拿走的牌再点一次；而这一下会被游戏的 B7 逻辑
+ * 判成"点错了、撤回"（这是设计行为，不是 bug），日志里就出现
+ *     「拿牌 → 取消选中 → 拿牌 → 落位 → 落位放弃」
+ * 的死循环。表现像游戏卡死，实际是测试脚本读了过期数据。
+ * 有了这条等待，"点一次 → 等状态真的变了 → 再点下一次"，
+ * 节奏自动跟真人对齐，也不会再产生无效点击。
+ */
+async function waitNewPickable(cdp, seqBefore, timeoutMs) {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeoutMs) {
+        if (pickableSeq(cdp) > seqBefore) return Date.now() - t0;
+        await sleep(40);
+    }
+    return -1;
+}
+
 /** 解析 'wan-1@-238,146 sou-3@-170,60' 这种串 */
 function parsePickable(line) {
     const out = [];
@@ -186,9 +276,17 @@ function parsePickable(line) {
     return out;
 }
 
-async function autoPlay(cdp, cx, cy, steps, outDir, shotIndex) {
+//  gapMs：两次点击之间的间隔。默认 800（悠闲地玩），但**连章（连消）判定依赖时间窗口**，
+//  要用 450ms 左右（≈ 真人连打的节奏）才测得到。所以它必须是参数，不能写死。
+//  另外它认识"这一步会不会触发消除"：决策规则 ① 就是"槽里已有 2 张同牌面 →
+//  补第 3 张"，所以只要看**槽内该牌面的张数是不是 2**，就能在点击之前预知
+//  「这里马上要消」。这让「撞击帧连拍」成为可能 —— 只在这一步前后连拍，
+//  其余步照常走，既拿得到动画中间帧，又不会产出上百张无用截图。
+async function autoPlay(cdp, cx, cy, steps, outDir, shotIndex, gapMs = 800, burst = []) {
     let clicked = 0;
     let clears = 0;
+    console.log(`    节奏：每步间隔 ${gapMs}ms（连章窗口需 ≥ 此值的 3 倍才可能连上）`);
+    if (burst.length) console.log(`    撞击帧连拍：消除步后 +[${burst.join(', ')}]ms 各截一张`);
 
     for (let s = 0; s < steps; s++) {
         const line = latestPickableLine(cdp);
@@ -225,11 +323,31 @@ async function autoPlay(cdp, cx, cy, steps, outDir, shotIndex) {
 
         const sx = Math.round(cx + target.x);
         const sy = Math.round(cy - target.y);
+        // 预知这一步会不会消：决策规则①挑的就是"槽里已有 2 张"的牌面
+        const willClear = (slotCnt.get(target.key) || 0) === 2;
         const before = latestState(cdp);
-        console.log(`    [${s + 1}] 点 ${target.key} @设计(${target.x}, ${target.y})`);
+        const seq0 = pickableSeq(cdp);
+        console.log(`    [${s + 1}] 点 ${target.key} @设计(${target.x}, ${target.y})${willClear ? '  ← 预计触发消除' : ''}`);
         await cdp.clickAt(sx, sy);
         clicked++;
-        await sleep(800);
+
+        if (willClear && burst.length) {
+            // 撞击帧连拍：消除动画总长不到 1 秒，只有按偏移连拍才抓得到中间过程
+            let t = 0;
+            for (const off of burst) {
+                await sleep(Math.max(0, off - t));
+                t = off;
+                const p = await cdp.shot(`${String(shotIndex).padStart(2, '0')}-clash-${s + 1}-${off}ms`);
+                console.log(`       撞击 ${off}ms → ${p}`);
+            }
+            await sleep(Math.max(0, gapMs - t));
+            await waitNewPickable(cdp, seq0, 1400);
+        } else {
+            // 等"这一步真的落地了"再继续（见 waitNewPickable 的注释）
+            const waited = await waitNewPickable(cdp, seq0, 1400);
+            if (waited < 0) console.log('       （这一步没有产生新牌局日志，按最小节奏继续）');
+            await sleep(gapMs);
+        }
 
         const after = latestState(cdp);
         if (before !== after) {
@@ -255,8 +373,9 @@ async function autoPlay(cdp, cx, cy, steps, outDir, shotIndex) {
 //  且跳过任何会让槽内某牌面凑到 3 张的牌（那会消掉，白费）。
 //  结果就是槽里堆满单张散牌 → 槽位一满立刻判负。
 // ------------------------------------------------------------
-async function dirtyPlay(cdp, cx, cy, steps, outDir, shotIndex) {
+async function dirtyPlay(cdp, cx, cy, steps, outDir, shotIndex, gapMs = 700) {
     let clicked = 0;
+    console.log(`    节奏：每步间隔 ${gapMs}ms`);
 
     for (let s = 0; s < steps; s++) {
         const line = latestPickableLine(cdp);
@@ -285,9 +404,12 @@ async function dirtyPlay(cdp, cx, cy, steps, outDir, shotIndex) {
         const sx = Math.round(cx + best.x);
         const sy = Math.round(cy - best.y);
         console.log(`    [${s + 1}] 故意点 ${best.key}（槽内已有 ${bestN} 张）@设计(${best.x}, ${best.y})`);
+        const seq0 = pickableSeq(cdp);
         await cdp.clickAt(sx, sy);
         clicked++;
-        await sleep(700);
+        // 与 auto 同理：等这一步真的落地再决策，否则会对着过期列表重复点击
+        await waitNewPickable(cdp, seq0, 1400);
+        await sleep(gapMs);
     }
 
     // 判负后游戏会延迟 2 秒弹面板，等它出来再截图
@@ -331,6 +453,22 @@ const chrome = spawn(CHROME, [
     '--disable-dev-shm-usage',
     '--enable-unsafe-swiftshader',   // 无头环境用软件渲染跑 WebGL
     '--hide-scrollbars',
+    // ------------------------------------------------------------
+    //  ⚠️ 下面三个是**必需项**，删掉会让整局游戏的"状态流转"看起来像卡死
+    // ------------------------------------------------------------
+    //  【实测事故】无头 Chrome 会把**后台/被遮挡窗口的 setTimeout 节流到 1 秒**
+    //  （Chromium 的 background timer throttling）。而本工程的铁律是
+    //  「状态流转只走 setTimeout」——于是所有"落位 / 解锁 / 结算"的定时器
+    //  都被拉长到 ~1000ms。
+    //  后果极其隐蔽：设计上「拿牌 → 441ms 后落位」，实际 1000ms 才落位；
+    //  自动化每 800ms 点一次，第二次点击落在飞行窗口内 →
+    //  被 B7 判成"点错了、撤回"，于是日志里只剩
+    //      「拿牌 → 取消选中 → 拿牌 → 落位 → 落位放弃」
+    //  的循环，看上去像游戏有 bug，实际是测试环境把定时器改了。
+    //  加这三个开关后，定时器恢复真实时长，游戏行为与真机一致。
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-renderer-backgrounding',
     URL_,
 ], { stdio: 'ignore' });
 
@@ -436,13 +574,20 @@ try {
     for (const a of ACTIONS) {
         if (a.kind === 'auto') {
             console.log(`==> 自动试玩 ${a.steps} 步（坐标取自控制台里的「牌局」日志）`);
-            await autoPlay(cdp, cx, cy, a.steps, OUT_DIR, i);
+            await autoPlay(cdp, cx, cy, a.steps, OUT_DIR, i, a.gap, a.burst);
             i++;
             continue;
         }
         if (a.kind === 'dirty') {
             console.log(`==> 故意凑不成 ${a.steps} 步（负向测试：逼出槽位满的败局）`);
-            await dirtyPlay(cdp, cx, cy, a.steps, OUT_DIR, i);
+            await dirtyPlay(cdp, cx, cy, a.steps, OUT_DIR, i, a.gap);
+            i++;
+            continue;
+        }
+        if (a.kind === 'wait') {
+            await sleep(a.ms);
+            const p = await cdp.shot(`${String(i).padStart(2, '0')}-wait-${a.ms}`);
+            console.log(`==> 等待 ${a.ms}ms → 截图 ${p}`);
             i++;
             continue;
         }
@@ -450,7 +595,7 @@ try {
         const sy = a.design ? Math.round(cy - a.y) : a.y;   // Cocos y 轴向上 → 屏幕 y 向下
         console.log(`==> 点击 ${a.design ? `设计坐标(${a.x}, ${a.y})` : `屏幕坐标(${a.x}, ${a.y})`} → 屏幕(${sx}, ${sy})`);
         await cdp.clickAt(sx, sy);
-        await sleep(1600);
+        await sleep(a.delay ?? 1600);
         const p = await cdp.shot(`${String(i).padStart(2, '0')}-click-${a.label}`);
         console.log(`    已截图：${p}`);
         i++;

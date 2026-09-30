@@ -30,12 +30,48 @@
  * ============================================================
  */
 
-import { Director, director, log, warn } from 'cc';
+import { Director, director, log, profiler, warn } from 'cc';
 import { CFG } from './CFG';
 import { GameRoot } from './GameRoot';
 
 /** 场景里承载一切 UI 的根节点名（见 assets/scenes/Main.scene） */
 const CANVAS_NODE_NAME = 'Canvas';
+
+/**
+ * 按 CFG.DEBUG.STATS 决定是否显示引擎性能面板。
+ *
+ * 【为什么必须由项目代码来关，而不是改构建模板】
+ * web 模板里的 `Application` 类把 `showFPS` **写死成 true**
+ * （构建产物 application.js：`this.showFPS = true;`，
+ * 最终变成 `game.init({ overrideSettings: { profiling: { showFPS: true } } })`），
+ * 项目设置里也没有对应开关。所以只能运行期收掉。
+ *
+ * 【为什么不能直接放在模块顶层调用 —— 同一个"必然执行"的坑踩了第二次】
+ * `profiler.hideStats()` 第一件事就是 `director.root.pipeline.profiler = null`，
+ * 而 `director.root` 是**引擎第一次 tick 时才创建**的；项目脚本模块的执行时机
+ * 比它早，于是顶层调用会抛：
+ *     TypeError: Cannot set properties of null (setting 'profiler')
+ * 真正致命的地方不在这一行本身，而在于**异常中断了整个模块** ——
+ * 后面的 `mountGameRoot()` 一行都不会执行，表现是"整个游戏白屏、一张牌都点不了"，
+ * 而控制台的报错指向 profiler，与"游戏起不来"毫无因果关系（排查成本极高）。
+ *
+ * 所以这里定下三条规矩：
+ *   ① 整个函数包 try/catch —— 它失败也**绝不允许**影响启动主流程；
+ *   ② 用返回值告诉调用方"这次没成"，由调用方在更晚的时机重试；
+ *   ③ 真正的收口放在"场景启动完成"之后（那时 root 一定已经就位）。
+ */
+function applyStats(): boolean {
+    try {
+        if (CFG.DEBUG.STATS) {
+            profiler.showStats();
+        } else {
+            profiler.hideStats();
+        }
+        return true;
+    } catch (e) {
+        return false;   // 引擎还没准备好，交给下一次机会
+    }
+}
 
 /** 幂等挂载：Scene 就绪后把 GameRoot 挂到 Canvas 上 */
 function mountGameRoot(): void {
@@ -61,6 +97,22 @@ function mountGameRoot(): void {
     } catch (e) {
         warn('[Bootstrap] 挂载 GameRoot 失败：', e);
     }
+
+    // 场景起来了 → director.root 一定已就位 → 这是关性能面板的最佳时机
+    if (applyStats() && CFG.DEBUG.LOG_STATE) {
+        log(`[Bootstrap] 引擎性能面板：${CFG.DEBUG.STATS ? '已开启' : '已关闭'}`);
+    }
+}
+
+// ------------------------------------------------------------
+//  ⓪ 收掉引擎性能面板（见 applyStats 的注释）
+// ------------------------------------------------------------
+// 模块顶层这一发通常会失败（root 未创建），失败也不影响任何东西；
+// 真正生效的是下面 mountGameRoot 里那一发（场景启动完成之后）。
+// 这里多补两次延时重试，是为了让"面板还在闪"的窗口尽量短。
+if (!applyStats()) {
+    setTimeout(() => applyStats(), 0);
+    setTimeout(() => applyStats(), 300);
 }
 
 // ------------------------------------------------------------

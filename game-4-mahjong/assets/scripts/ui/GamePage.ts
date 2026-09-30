@@ -58,6 +58,8 @@ import {
     fillBox, frameRect, hex2color, strokeBox, toast,
 } from './UIFactory';
 import { RewardGate } from './RewardGate';
+import { AudioService } from './AudioService';
+import { Haptics } from './Haptics';
 import {
     EASE, FxPool, MotionFx, TAG, spawnDebris, spawnPulse, spawnRectFlash,
 } from './MotionFx';
@@ -82,6 +84,12 @@ interface SlotEntry {
 
 /** 四个道具 */
 type PropId = 'remove' | 'move' | 'shuffle' | 'addslot';
+
+/**
+ * 判负原因。由触发判负的入口写入，结算面板只负责展示。
+ * 'slotfull' = 槽位塞满；'timeout' = 限时关卡时间耗尽；'none' = 尚未判负。
+ */
+type FailReason = 'none' | 'slotfull' | 'timeout';
 
 /** 道具的静态定义。顺序 = 界面从左到右的顺序，改顺序只改这张表 */
 const PROP_DEFS: Array<{ id: PropId; name: string }> = [
@@ -121,6 +129,20 @@ export class GamePage extends PageBase {
     private _armedRemove = false;
     /** 本关已复活次数 */
     private _revives = 0;
+    /**
+     * 本关的判负原因，由**触发判负的那个入口**写入。
+     *
+     * 【为什么必须由入口写，而不是在结算页反推】
+     * 结算页原本写的是 `this._timeLeft <= 0 ? '时间到' : '槽位满了'` ——
+     * 看上去合理，其实错得离谱：**「不限时」关卡的 `_timeLeft` 恒为 0**，
+     * 于是无论玩家是被槽位塞满还是真的超时，面板一律显示"时间到"。
+     * 实测（第 1 关「试手气」故意塞满槽位）就撞上了：
+     *     日志 第 1 关 失败，已清 0/12 … / 失败面板已开 原因=时间到
+     * 而第 1 关明明写着"不限时"。
+     * 教训：**"为什么输"是一等公民的信息，必须在发生的那一刻记下来**，
+     * 事后靠另一个变量反推，迟早会因为"那个变量在某种关卡配置下不成立"而说谎。
+     */
+    private _failReason: FailReason = 'none';
 
     // ---- 计数与状态 ----
     private _cleared = 0;
@@ -195,6 +217,23 @@ export class GamePage extends PageBase {
     private _propFaces: Partial<Record<PropId, Graphics>> = {};
 
     private _failPanel: Node | null = null;
+
+    // ---- 连章（S7.5）----
+    /**
+     * 连章层数：连续消除的计数。1 = 没连上（本次消除与上一次隔得太久）。
+     * 由 bumpCombo() 维护，只在 playClear 里读写。
+     */
+    private _combo = 0;
+    /**
+     * 上一次消除的时间戳（毫秒）。
+     *
+     * 【为什么用"时间戳 + 窗口"而不是 scheduleOnce 重置】
+     * 用定时器重置的话，每次消除都要先取消上一个定时器再注册新的；
+     * 页面切走 / 结算 / 复活这些路径里任何一个忘了取消，
+     * 就会出现"玩家在菜单页待了 10 秒，回游戏还显示连章 ×3"的残留。
+     * 时间戳是**无状态**的：谁读谁算，不存在需要清理的东西。
+     */
+    private _comboAt = 0;
 
     // ========================================================
     //  构建
@@ -711,11 +750,24 @@ export class GamePage extends PageBase {
         for (let i = 0; i < tiles.length; i++) {
             const t = tiles[i];
             const view = new TileView(this._stackLayer, t.key, W);
-            view.node.setPosition(t.x, t.y, 0);
-            // A2 的起始态：每张牌先缩到 TILE_IN_SCALE_FROM，入场时按层错峰弹回 1.0。
-            // 在 build 期就摆好起始态（而不是等 onEnter 再摆），是为了避免
-            // "页面已经可见了，牌还先以 1.0 闪一帧再突然变小"这种闪帧。
-            view.node.setScale(M.TILE_IN_SCALE_FROM, M.TILE_IN_SCALE_FROM, 1);
+            // A1/A2 改版（S7.5）：起始态 = 屏幕外正上方 + 随机横移 + 随机角度 + 全透明。
+            //
+            // 【为什么在 build 期就摆好，而不是等 onEnter 再摆出去】
+            // 页面是"先淡入、再播入场动画"的。如果这里仍把牌摆在自己的位置上、
+            // 等到 onEnter 才挪到天上，玩家会看到"牌先在正确位置闪一帧，
+            // 然后集体跳上去再飞下来" —— 这是最典型的入场瑕疵。
+            // 起始态必须在**它第一次被看见之前**就摆好。
+            //
+            // 【随机值也在这里定死】
+            // playEnterMotion 会直接复用这个位置当起点（不再重新随机）。
+            // 重新随机一次的后果是**起点跳变**：牌在可见的第一帧瞬移一下。
+            view.node.setPosition(
+                t.x + (Math.random() * 2 - 1) * M.FLY_IN_SPREAD_X,
+                t.y + M.FLY_IN_FROM_Y,
+                0,
+            );
+            view.node.angle = (Math.random() * 2 - 1) * M.FLY_IN_ANGLE;
+            MotionFx.setFade(view.node, 0);
             // 开局就把被压住的牌画成"灰"的：玩家一眼能看出哪些能点
             view.setState(this._blocked[i] > 0 ? 'dim' : 'normal');
             this._views.push(view);
@@ -729,74 +781,93 @@ export class GamePage extends PageBase {
         }
         this._depthOrder = order;
 
-        // A1 的起始态：整堆先缩一点、全透明，入场时一起"浮现"上来
-        this._stackLayer.setScale(M.ENTER_SCALE_FROM, M.ENTER_SCALE_FROM, 1);
-        MotionFx.setFade(this._stackLayer, 0);
+        // ⚠️ S7.5 起牌堆层**不再整体缩放 / 淡出**。
+        //    入场改成逐张飞入后，每张牌自己负责自己的淡入；
+        //    如果这里还保留整体淡入，先飞进来的那几张会被"淡上再淡"，
+        //    看起来比后面的牌更透明 —— 一条时间轴上出现两种淡入速度。
+        //    （旧值 ENTER_SCALE_FROM / 整层 setFade(0) 已随之废弃。）
     }
 
     // ========================================================
     //  动效：入场（A1 / A2 / A3 / A4 / A5）
     // ========================================================
     /**
-     * 入场总编排。放在 onEnter 而不是 onBuild：
-     * onBuild 时页面还没淡入（UIOpacity=0），这时候播任何动效都是白播。
+     * 入场总编排（S7.5 改版：牌堆由「整体浮现」改为「**逐张飞入**」）。
      *
-     * 【时间轴】（全部并行，总长由最慢的一条决定）
-     *   t=0     A1 牌堆整体 scale 0.94→1.0 + alpha 0→1
-     *           A3 槽位条 / 暂存架 / 返回键从屏幕下方滑入 + 槽格描边依次点亮
-     *           A4 顶部状态条从上方下落淡入
-     *   t≈0     A2 每张牌按**层**错峰弹回 1.0（第 1 关只有一层，等于同时弹）
-     *   t=末尾  A5 首层可点牌做一次上浮提示（仅第 1 关）
+     * 【用户原话】"入场时逐张飞入"
      *
-     * 【为什么入场期间要锁输入】
-     * 牌堆容器此时正在缩放（0.94→1.0）。如果这时玩家点牌，飞牌要从
-     * StackLayer 换父到 FxLayer，两层的缩放不同步 → 牌会"跳"一下。
-     * 锁 0.6 秒的代价，远小于一张牌飞歪的代价。
+     * 【为什么旧版不算"飞入"】
+     * 旧版的牌**从头到尾都在自己的位置上**，只改了透明度和缩放 ——
+     * 玩家看到的是"一张一张亮起来"，不是"一张一张飞进来"。
+     * 差别不在"有没有动画"，而在**有没有空间轨迹**：
+     * 轨迹产生了"牌从别处来、落到这里"的叙事，入场这才变成"发牌"。
+     *
+     * 【时间轴】
+     *   t=0          底部三件套滑入 + 槽格描边依次点亮（A3）
+     *                顶部状态条下落淡入（A4）
+     *   0 ~ 1.05s    每张牌按**深度升序**从屏幕上方飞入（A1/A2 合并）：
+     *                  · 位移用 backOut（到位瞬间有过冲 = "啪"地扣上去）
+     *                  · 旋转从随机角度归零（"翻正"与"落下"必须是同一件事）
+     *                  · 淡入只占前半程（后程要能看清落下来的是什么牌）
+     *                  · 落位挤压（squash & stretch）+ 落牌声（节流）
+     *   末尾         首层可点牌做一次上浮提示（仅第 1 关，A5）
+     *
+     * 【为什么按深度升序（底层先落）】
+     * 底下的牌先落、上面的牌后压上去，顺序与"谁压住谁"的视觉逻辑一致。
+     * 反过来（顶层先落）会出现"上面的牌已经就位了、下面的牌还在天上飞"，
+     * 看起来像穿模。
+     *
+     * 【为什么入场期间仍然要锁输入】
+     * 飞行中每张牌的位置都在变，而命中测试用的是**数据坐标**；
+     * 这时候点下去，玩家点的是"他看见的位置"，判定却按落点算 —— 必然错位。
+     * 锁 1 秒的代价，远小于"点了没反应 / 点错牌"的代价。
      * ⚠️ 解锁必须走 setTimeout（铁律），不能用 tween 回调。
      */
     private playEnterMotion(): void {
         const M = CFG.MOTION;
         const L = CFG.GAME_LAYOUT;
+        const tiles = this._layout.tiles;
+        const n = tiles.length;
 
-        // ---------- A1：牌堆整体浮现 ----------
-        const enterDur = this._level.id === 1 ? M.ENTER_L1 : M.ENTER_OTHER;
-        MotionFx.to(this._stackLayer, { scale: v3(1, 1, 1) },
-            { duration: enterDur, easing: EASE.ENTER, tag: TAG.ENTER });
-        // ⚠️ 淡入的 tag 必须是 TAG.FADE，**不能**与上面那条缩放共用 TAG.ENTER。
-        //    MotionFx.launch() 的第一步就是 stop(key, tag) —— 共用 tag 会让这条
-        //    淡入把刚刚起的缩放补间当场停掉：牌堆永远停在 0.94，
-        //    直到解锁时的兜底复位才"啪"地跳回 1.0（观感是"入场动画没播"）。
-        //    A4（HUD 下落淡入）用的就是 ENTER + FADE 分通道，此处与之对齐。
-        MotionFx.fade(this._stackLayer, 255, enterDur, { easing: EASE.ENTER, tag: TAG.FADE });
+        // ---------- A1 / A2：逐张飞入 ----------
+        // 飞入顺序：深度升序（底层的先落到）
+        const order: number[] = [];
+        for (let i = 0; i < n; i++) order.push(i);
+        order.sort((a, b) => tiles[a].depth - tiles[b].depth);
 
-        // ---------- A2：按层错峰弹入 ----------
-        // 层号 = 该牌在"深度序"里的名次。用深度而不是行号：
-        // 行号相同的牌在视觉上本来就是一层，深度是会随洗牌改变的那一个，
-        // 而入场发生在洗牌之前，两者此刻等价 —— 但用深度能让语义和
-        // "谁压住谁"完全对齐（越靠上的层越晚弹出来，正好是"从下往上长"）。
-        const depths: number[] = [];
-        for (const t of this._layout.tiles) if (depths.indexOf(t.depth) < 0) depths.push(t.depth);
-        depths.sort((a, b) => a - b);
-        const layers = Math.max(1, depths.length);
+        // 错峰预算：牌多时**压缩间隔**，而不是把入场拉长到 2 秒。
+        // （第 4 关 24 张 × 28ms = 644ms，仍在 1.05s 预算内，不会真的被压缩；
+        //   这条兜底是为将来"牌数再翻倍"准备的。）
+        const budget = Math.max(0, M.FLY_IN_TOTAL_MAX - M.FLY_IN);
+        const stagger = n > 1 ? Math.min(M.FLY_IN_STAGGER, budget / (n - 1)) : 0;
 
-        // 错峰预算：不能超过 STACK_ENTER_TOTAL_MAX（否则第 4 关六层会拖到 1 秒）
-        const budget = Math.max(0, M.STACK_ENTER_TOTAL_MAX - M.TILE_IN);
-        const stagger = layers > 1
-            ? Math.min(M.STACK_STAGGER, budget / (layers - 1))
-            : 0;
-
-        for (let i = 0; i < this._layout.tiles.length; i++) {
-            const v = this._views[i];
+        for (let k = 0; k < n; k++) {
+            const id = order[k];
+            const v = this._views[id];
+            const t = tiles[id];
             if (!v || !v.node.isValid) continue;
-            const layerIdx = depths.indexOf(this._layout.tiles[i].depth);
-            MotionFx.to(v.node, { scale: v3(1, 1, 1) }, {
-                duration: M.TILE_IN,
-                delay: layerIdx * stagger,
-                easing: EASE.POP,
-                tag: TAG.STACK,
-            });
+
+            const delay = k * stagger;
+
+            // 起点**不重新随机** —— 直接沿用 buildStack 里摆好的那个点。
+            // 重新随机一次的后果是"起点跳变"：牌在它可见的第一帧瞬移一下。
+            MotionFx.to(v.node, { position: v3(t.x, t.y, 0) },
+                { duration: M.FLY_IN, delay, easing: EASE.POP, tag: TAG.STACK });
+            // 旋转归零：与位移同长同期，视觉上"翻正"和"落下"是一件事。
+            // 用独立通道 TAG.SPIN —— 它和 TAG.STACK 改的是不同属性，
+            // 共用一个 tag 只会互相打断（后起的把先起的 stop 掉）。
+            MotionFx.to(v.node, { angle: 0 },
+                { duration: M.FLY_IN, delay, easing: EASE.POP, tag: TAG.SPIN });
+            // 淡入只占前半程（0.55）。后程必须完全不透明：
+            // 牌在最后 150ms 是要被"看清是什么牌"的，那时还半透明就是废动作。
+            MotionFx.fade(v.node, 255, M.FLY_IN * 0.55,
+                { delay, easing: EASE.ENTER, tag: TAG.FADE });
+
+            // 落位挤压 + 落牌声：各自一个定时器（不走 tween 回调）
+            setTimeout(() => this.onFlyInLand(v, t.x, t.y),
+                MotionFx.unlockMs(delay + M.FLY_IN));
         }
-        const stackDone = stagger * (layers - 1) + M.TILE_IN;
+        const flyDone = stagger * Math.max(0, n - 1) + M.FLY_IN + M.FLY_IN_SQUASH;
 
         // ---------- A3：底部（槽位条 / 暂存架 / 返回）滑入 + 槽格依次点亮 ----------
         // 只做"底部三件套"一起滑：单独滑槽位条会让暂存架悬在半空，
@@ -826,19 +897,63 @@ export class GamePage extends PageBase {
         }
 
         // ---------- 解锁输入 ----------
-        // 取"最慢的一条 + 余量"：牌堆错峰、槽位滑入、HUD 下落里最长的那个。
-        const total = Math.max(enterDur, stackDone, M.SLOT_IN + M.SLOT_IN_STAGGER * this._slotCapacity, M.HUD_IN);
+        // 取"最慢的一条 + 余量"：逐张飞入、槽位滑入、HUD 下落里最长的那个。
+        const total = Math.max(flyDone, M.SLOT_IN + M.SLOT_IN_STAGGER * this._slotCapacity, M.HUD_IN);
         this._busy = true;
         setTimeout(() => {
             if (!this.node.isValid) return;
-            // 兜底复位：无论动效链路是否正常，终值一定要写死到位
-            // （避免"动效失效 → 牌永远停在 0.88 缩放"这种最难查的故障）
-            MotionFx.setScale(this._stackLayer, 1);
-            MotionFx.setFade(this._stackLayer, 255);
-            for (const v of this._views) MotionFx.setScale(v.node, 1);
+            // 兜底复位：无论动效链路是否正常，终值一定要写死到位。
+            // 入场这里尤其关键 —— 一旦某条 tween 丢了，那张牌会**永久停在屏幕外**，
+            // 表现为"这张牌凭空消失了"，而玩家完全不知道发生了什么。
+            // 所以位置也要按数据坐标复位，不能只复位 scale / opacity。
+            for (let i = 0; i < this._views.length; i++) {
+                const v = this._views[i];
+                const t = tiles[i];
+                if (!v || !v.node.isValid || !t) continue;
+                MotionFx.stopAll(v.node);
+                MotionFx.setScale(v.node, 1);
+                MotionFx.setFade(v.node, 255);
+                v.node.angle = 0;
+                v.node.setPosition(t.x, t.y, 0);
+            }
             this._busy = false;
             this.playFirstHint();
         }, MotionFx.unlockMs(total));
+    }
+
+    /**
+     * 单张牌落位（逐张飞入的收尾）：兜底复位 → 挤压 → 落牌声。
+     *
+     * 【为什么每张牌都要"兜底复位"】
+     * 这个 setTimeout 是"必然执行"路径上的一环。哪怕位移补间因为任何原因
+     * 没跑到终点，这里也会把牌写回精确坐标 —— 玩家永远不会看到一张
+     * 卡在半空的牌。铁律的另一半：复位走定时器，不依赖 tween 回调。
+     */
+    private onFlyInLand(v: TileView, x: number, y: number): void {
+        if (!this.node.isValid || !v.node.isValid) return;
+        const M = CFG.MOTION;
+
+        v.node.setPosition(x, y, 0);
+        v.node.angle = 0;
+        MotionFx.setFade(v.node, 255);
+        MotionFx.setScale(v.node, 1);
+
+        // 落位挤压：横向一撑、纵向一压，再弹回 1.0。
+        // 两条独立 tween 抢 scale 会有重叠帧，所以必须走 to2 的一条链。
+        MotionFx.to2(v.node,
+            { props: { scale: v3(M.SQUASH_X, M.SQUASH_Y, 1) },
+              duration: M.FLY_IN_SQUASH * 0.35, easing: EASE.EXIT },
+            { props: { scale: v3(1, 1, 1) },
+              duration: M.FLY_IN_SQUASH * 0.65, easing: EASE.POP },
+            { tag: TAG.SLOT });
+
+        // 落牌声。gapMs 放宽到 FLY_IN_LAND_GAP_MS：
+        // 24 张牌在 1 秒内落地，不节流会糊成一段白噪声；
+        // 错开到 130ms 一声才是"哒、哒、哒"的落牌感。
+        AudioService.play('land', {
+            gain: M.FLY_IN_LAND_GAIN,
+            gapMs: M.FLY_IN_LAND_GAP_MS,
+        });
     }
 
     /**
@@ -935,6 +1050,12 @@ export class GamePage extends PageBase {
         if (!v || !v.node.isValid) return;
 
         this._pressedId = id;
+        // 按下即出声 + 轻震（B1 的听觉/触觉分身）。
+        // 【为什么同样放在 TOUCH_START】与按压动画的理由完全一致：
+        // 人对"我摸到了它"的判定发生在手指落下那一瞬间，
+        // 声音和震动晚 80ms 到达，感官上就已经是"另一件事"了。
+        AudioService.play('tap');
+        Haptics.light();
         MotionFx.to(v.node,
             { position: v3(t.x, t.y - CFG.MOTION.TAP_DOWN_DY, 0),
               scale: v3(CFG.MOTION.TAP_DOWN_SCALE, CFG.MOTION.TAP_DOWN_SCALE, 1) },
@@ -1086,6 +1207,9 @@ export class GamePage extends PageBase {
         const view = this._views[id];
         if (!view || !view.node.isValid) return;
         const M = CFG.MOTION;
+        // 拒绝反馈也要有声音，但**不震**：
+        // 震动是"你做对了"的正向信号，误操作时震一下等于在肯定错误操作。
+        AudioService.play('reject');
         const t = this._layout.tiles[id];
         const x = t.x;
         const y = t.y;
@@ -1199,6 +1323,21 @@ export class GamePage extends PageBase {
         this._busy = true;
         this._pending = { id, view, ox: t.x, oy: t.y };
 
+        // 拿牌时间轴（自动化排障用）。把"从点击到落位到底要多久"打出来 ——
+        // 这个数直接决定"玩家点完多久能再点下一张"，也决定 B7 撤回窗口有多宽。
+        // 实测踩过的坑：这个值一旦超过玩家两次点击的间隔，
+        // 就会退化成「点一下、撤回一下」的死循环，而现象完全看不出是时长问题。
+        if (CFG.DEBUG.LOG_STATE) {
+            log(`[GamePage] 拿牌 id=${id} ${t.key}@${Math.round(t.x)},${Math.round(t.y)}`
+                + ` 选中 ${Math.round(M.PICK_SELECT * 1000)}ms + 飞行 ${Math.round(flySec * 1000)}ms`
+                + ` → 落位倒计时 ${Math.round(MotionFx.unlockMs(M.PICK_SELECT + flySec))}ms`);
+        }
+
+        // 起飞音：'pick' 是"呲"的一声上行扫频，对应"牌离手"这个动作。
+        // 它和落位音 'land'（"咔"）是一对，两者相隔一次飞行的时间（约 300ms），
+        // 听觉上正好是"呲——咔"，把"离手→到位"这条因果链补全。
+        AudioService.play('pick');
+
         // ⑥ B2 选中：上浮 + 放大 + 朱红描边到 3px（描边由 TileView 的 pick 态绘制）
         view.setState('pick');
         // ⑦ B3 飞行：两段式的一条链，选中段与飞行段的交界严格首尾相接
@@ -1212,7 +1351,7 @@ export class GamePage extends PageBase {
 
         // ⑧ 状态流转用定时器（铁律：绝不用 tween 回调驱动状态）
         setTimeout(() => {
-            if (!this.node.isValid) return;
+            if (!this.node.isValid) return;   // 页面已销毁，整页都在回收，不必留痕
             // ⚠️ 归属校验：这次落位必须仍属于"当前正在进行的这一次拿牌"。
             //    飞行窗口有 PICK_SELECT + flySec（约 380ms），玩家完全来得及
             //    在这段时间里再点一次同一张牌触发 B7 取消 —— cancelPick 会把
@@ -1221,8 +1360,26 @@ export class GamePage extends PageBase {
             //      · 槽位占用虚增 → 可能误判"槽满"直接判负；
             //      · `_left` 虚高 → 本关的已清数永远到不了满值，通不了关。
             //    归属不符就直接放弃落位（锁与挂起态此时已由取消方处理妥当）。
-            if (!this._pending || this._pending.id !== id) return;
+            //
+            //  【为什么放弃时要打一条日志 —— 这条是拿真实事故换来的】
+            //  下面两道 return 一旦命中，后果都是"牌停在空中、永不落槽"。
+            //  而它的**外在表现与原因完全对不上**：下一次点击会被 B7 判成
+            //  "点错了、撤回"（打出"取消选中"），于是现象是「点一下闪一下、
+            //  永远进不去槽」的死循环，日志里只有一条条"取消选中"，
+            //  真正拦下它的那一道校验一个字都不说 —— 排查成本极高。
+            //  自动化实测踩过：30 次点击、15 次"取消选中"、状态零变化，
+            //  光看日志完全定位不到原因。所以两道关都要自报家门。
+            if (!this._pending || this._pending.id !== id) {
+                if (CFG.DEBUG.LOG_STATE) {
+                    log(`[GamePage] 落位放弃 id=${id}：挂起态已不属于本次拿牌`
+                        + `（_pending=${this._pending ? this._pending.id : 'null'}）`);
+                }
+                return;
+            }
             if (!view.node.isValid) {
+                if (CFG.DEBUG.LOG_STATE) {
+                    log(`[GamePage] 落位放弃 id=${id}：视图节点已失效，按数据原样还原`);
+                }
                 // 视图失效但页面还在。这里不仅要收掉挂起态与锁（否则 `_busy`
                 // 永久为 true → 整局死锁），还必须把 pickTile ① 步**已经改过的数据
                 // 原样还原**：那张牌此刻在数据上是"已被拿走"，不还原就会凭空少一张
@@ -1263,7 +1420,15 @@ export class GamePage extends PageBase {
         view.setState('normal');   // 选中描边到此收掉
         this._pending = null;
 
+        if (CFG.DEBUG.LOG_STATE) {
+            log(`[GamePage] 落位 id=${id} → 槽 #${insertAt}（当前槽 ${this._slots.length}）`);
+        }
+
         this._slots.splice(insertAt, 0, { id, key, view });
+
+        // 落位音（'land'：闷一点的"咔"）。与落位压感同帧发声 ——
+        // 声音和视觉挤压必须对齐，差 1~2 帧就会觉得"声音飘"。
+        AudioService.play('land');
 
         // ② B5 聚拢：已有牌让位，让同牌面的三张相邻。
         //    ⚠️ 必须**先聚拢、后消除**：顺序反了会出现"三张还在各处却已开始消失"的错帧。
@@ -1345,6 +1510,9 @@ export class GamePage extends PageBase {
         this.logPickable();
         this.refreshHud();
         this.refreshPropBar();
+        // 取消选中用最轻的 'tap'："收回去了"是一件不需要被强调的事 ——
+        // 用和"拒绝"一样的低音会让玩家以为自己做错了什么。
+        AudioService.play('tap');
         log(`[GamePage] 取消选中 ${t.key}@${Math.round(t.x)},${Math.round(t.y)}`);
     }
 
@@ -1361,7 +1529,7 @@ export class GamePage extends PageBase {
         // 没消成 → 检查槽满
         this.refreshSlotWarn();
         if (this._slots.length >= this._slotCapacity) {
-            this.finish(false);
+            this.finish(false, 'slotfull');
             return;
         }
         this.logPickable();
@@ -1370,17 +1538,34 @@ export class GamePage extends PageBase {
     }
 
     /**
-     * 播放消除（C1 前摇 → C2 释放 → C3 碎屑 → C6 飘字 → C5 回补）。
+     * 播放消除：**蓄力 → 撞击 → 停一拍 → 一起炸开**（S7.5 重写）。
      *
-     * 【两段式的意义】
-     * 一条曲线从 1.12 直接跑到 0，看起来是"缩没了"；
-     * 先胀到 1.20 再收缩，看起来是"胀开了、然后被打散"。
-     * 前者是"消失"，后者是"消除"—— 差的正是那 60ms 的胀开。
+     * 【用户原话】"消除时要有更动感的效果，碰的效果是三张牌碰在一起，然后消除"
      *
-     * 【为什么前摇里必须有 70ms 的停顿】
-     * 前摇的作用是**预告**："这三张要没了"。没有停顿的话，
-     * 胀开与收缩会连成一坨，玩家的大脑来不及把"这三张"这一组识别出来，
-     * 只觉得"槽里少了点东西"。停顿给了它一次眨眼的时间。
+     * ------------------------------------------------------------
+     * 【旧版为什么不够"碰"】
+     * 旧版的三张牌**从头到尾都待在自己的槽格里**：上浮、放大、再缩到 0。
+     * 也就是说，它们之间从来没有发生过任何**空间关系** ——
+     * 玩家看到的是"三张牌各自胀了一下"，而不是"三张牌撞到了一起"。
+     * 差距全在下面这条时间轴上，而不在"幅度够不够大"。
+     *
+     * 【新版时间轴】（碰 / 杠；「吃」是同样的结构，只是三张依次错峰）
+     *   t=0           蓄力：三张牌朝**远离中心**的方向各退 12px（攒势）
+     *   t=90ms        冲刺：quadIn 加速，朝中心猛冲，最终中心间距压到槽格宽的 45%
+     *   t=200ms       ★ 撞击帧：挤压(squash & stretch) + 冲击圆环 + 碎屑
+     *                            + 牌堆上踢 + "碰"音 + 中档震动
+     *   t=290ms       停一拍（POP_HOLD）：给大脑一次眨眼，把"这三张是一组"读进去
+     *   t=290ms 起    释放：先胀到 1.20，再收缩到 0 并淡出
+     *   t=+240ms      数据收尾 → 连锁判定 → 连章判定
+     *
+     * 【为什么"撞击"必须是 quadIn 而不是 quadOut】
+     * quadOut 冲到终点时会减速，看起来像"小心翼翼地靠拢"；
+     * quadIn 是越冲越快、到位即最高速 —— 那才是撞上去。
+     *
+     * 【为什么撞完要"停一拍"】
+     * 撞击与消散直接连起来，玩家只记得"闪了一下"。
+     * 停 70ms 让"撞"和"散"成为两件可以被分别记住的事 ——
+     * 这是消除类游戏通用的一条节奏经验：先顿一下，再消失。
      */
     private playClear(m: MatchResult): void {
         const M = CFG.MOTION;
@@ -1392,74 +1577,316 @@ export class GamePage extends PageBase {
         const doomed = m.indices.map((i) => this._slots[i].view);
         const scale = this.slotScale();
 
-        // ② C6 飘字：**延后**起播（与前摇错开，避免抢注意力）
-        this.popMatchLabel(m.type);
+        // ② 连章判定（S7.5）。放在最前面 —— 它决定这一拍要不要"加戏"。
+        const layer = this.bumpCombo();
 
-        // ③ C1 前摇：上浮 + 放大到 1.12，然后停住
-        //    POP_IN 含 POP_HOLD，所以真正在动的只有 (POP_IN − POP_HOLD)
-        const moveSec = Math.max(0.01, M.POP_IN - M.POP_HOLD);
-        for (const v of doomed) {
+        // ③ 撞击几何
+        const slotW = this.slotWidth();
+        const n = doomed.length;
+        const centerX = this.clashCenterX(m.indices);
+        const centerY = CFG.GAME_LAYOUT.SLOT_BAR_Y;
+        // 「碰 / 杠」的三/四张牌**牌面完全相同** → 允许叠得很狠（叠了也不丢信息，
+        // 看到的就是"一张变厚了的牌"）；「吃」是三张不同的牌 → 叠太狠会看不清。
+        const overlap = m.type === 'chi' ? M.CLASH_OVERLAP_CHI : M.CLASH_OVERLAP_PENG;
+        const span = slotW * overlap;
+        // 「吃」的三张是**不同的牌**，同时撞上去会像"碰"；
+        // 依次接力才符合"三张牌被一张张凑过来"的观感。
+        const stagger = m.type === 'chi' ? M.CLASH_CHI_STAGGER : 0;
+
+        // ④ 蓄力 → 冲刺：**一条链**走完，绝不拆成两条 tween。
+        //    拆开的话，蓄力与冲刺会同时持有 position（两条 tween 抢同一属性），
+        //    在交界处必然出现重叠帧 —— 真机上是肉眼可见的一顿。
+        for (let k = 0; k < n; k++) {
+            const v = doomed[k];
             if (!v.node.isValid) continue;
-            MotionFx.to(v.node, {
-                position: v3(v.node.position.x, v.node.position.y + M.POP_UP, 0),
-                scale: v3(scale * M.POP_SCALE_IN, scale * M.POP_SCALE_IN, 1),
-            }, { duration: moveSec, easing: EASE.POP, tag: TAG.SLOT });
+            // 第 k 张朝远离中心的方向退：中间的（dir = 0）不动，两侧的向外退。
+            // 只动两侧就已经足够表达"攒势"了，中间那张也退反而像整体平移。
+            const dir = k < (n - 1) / 2 ? -1 : (k > (n - 1) / 2 ? 1 : 0);
+            const x0 = v.node.position.x;
+            const y0 = v.node.position.y;
+            const tx = centerX + (k - (n - 1) / 2) * span;
+            MotionFx.chain(v.node, [
+                { props: { position: v3(x0 + dir * M.CLASH_PULLBACK, y0, 0) },
+                  duration: M.CLASH_ANTICIPATE, easing: EASE.ENTER },
+                { props: { position: v3(tx, centerY, 0) },
+                  duration: M.CLASH_DASH, easing: EASE.DASH },
+            ], { tag: TAG.SLOT, delay: k * stagger });
         }
 
-        // ④ C2 释放：胀到峰值 → 收缩到 0 + 透明。
-        //    这条 tween 用 setTimeout 而不是链在 ③ 后面起：链在一起的话
-        //    "停住 70ms" 要靠 .delay() 表达，而 delay 期间 tag 还被占着，
-        //    任何外部打断（比如玩家点取消）都只能停在半路。
+        // ⑤ ★ 撞击帧：所有牌都撞到的时刻（吃是最后一张撞到的那一刻）
+        const hitAt = M.CLASH_ANTICIPATE + M.CLASH_DASH + Math.max(0, n - 1) * stagger;
         setTimeout(() => {
             if (!this.node.isValid) return;
+            this.onClash(doomed, m, layer, scale, centerX, centerY);
+        }, MotionFx.unlockMs(hitAt));
+    }
 
-            for (const v of doomed) {
-                if (!v.node.isValid) continue;
-                // C3 碎屑：在"被打散"的那一刻从牌的位置喷出来（而不是提前喷）
-                this.burstAtTile(v);
-                MotionFx.to2(v.node,
-                    { props: { scale: v3(scale * M.POP_SCALE_MAX, scale * M.POP_SCALE_MAX, 1) },
-                      duration: M.POP_OUT * 0.3, easing: EASE.POP },
-                    { props: { scale: v3(0, 0, 1) }, duration: M.POP_OUT * 0.7, easing: EASE.EXIT },
-                    { tag: TAG.SLOT });
-                MotionFx.fade(v.node, 0, M.POP_OUT * 0.7,
-                    { delay: M.POP_OUT * 0.3, easing: EASE.EXIT, tag: TAG.FADE });
+    /**
+     * ★ 撞击帧的全部表现。抽成独立方法是因为它要做 6 件事，
+     * 全塞进 playClear 的 setTimeout 闭包里会让那段代码彻底不可读。
+     */
+    private onClash(
+        doomed: TileView[], m: MatchResult, layer: number,
+        scale: number, centerX: number, centerY: number,
+    ): void {
+        const M = CFG.MOTION;
+
+        // ① 声音与触感 —— 这是全局唯一"值得震"的瞬间
+        AudioService.play('peng');
+        Haptics.medium();
+
+        // ② 挤压（squash & stretch）：撞上去的牌会被压扁一点、拉长一点。
+        //    两段式：先压（EXIT = 快，被撞的那一下是突然的），
+        //    再弹回（POP = 带过冲，材质有弹性）。一条曲线跑完的话，
+        //    回到 1.0 的过程没有"弹"的记忆，会像"缩放"而不是"碰撞"。
+        for (const v of doomed) {
+            if (!v.node.isValid) continue;
+            MotionFx.to2(v.node,
+                { props: { scale: v3(scale * M.CLASH_SQUASH_X, scale * M.CLASH_SQUASH_Y, 1) },
+                  duration: M.CLASH_RECOIL * 0.35, easing: EASE.EXIT },
+                { props: { scale: v3(scale, scale, 1) },
+                  duration: M.CLASH_RECOIL * 0.65, easing: EASE.POP },
+                { tag: TAG.SLOT });
+        }
+
+        // ③ 冲击圆环。坐标必须**换算**到特效层（槽位层与特效层是两个坐标系，
+        //    绝不去改任何一个的坐标系 —— 改了会把所有槽内逻辑一起带歪）。
+        const world = MotionFx.localToWorld(this._slotLayer, v3(centerX, centerY, 0));
+        const at = MotionFx.worldToLocal(this._fxLayer, world);
+        spawnPulse(this._fx, at.x, at.y, CFG.COLOR.GOLD, {
+            r0: M.CLASH_RING_R0,
+            r1: M.CLASH_RING_R1,
+            line: M.CLASH_RING_LINE,
+            life: M.CLASH_RING_LIFE,
+        });
+
+        // ④ 碎屑：从**每张牌**的位置喷，而不是只从中心喷一个点。
+        //    只在中心喷的话，"三张牌被打散"这件事就没有空间上的分布感。
+        for (const v of doomed) this.burstAtTile(v);
+
+        // ⑤ 牌堆上踢：把撞击的能量传导出去（替代被否掉的整屏镜头抖动，
+        //    理由见 CFG.MOTION.CLASH_KICK 的注释）
+        this.kickStack();
+
+        // ⑥ 飘字与连章：**二选一**。
+        //    连章的信息量（"连章 ×3"）已经覆盖了牌型，再叠一个 96px 的「碰」字，
+        //    两行大字会互相削弱 —— 玩家的视线在两点之间来回跳，两个都没看清。
+        if (layer >= 2) this.playCombo(layer);
+        else this.popMatchLabel(m.type);
+
+        // ⑦ 停一拍之后再释放
+        setTimeout(() => {
+            if (!this.node.isValid) return;
+            this.releaseClear(doomed, m, scale);
+        }, MotionFx.unlockMs(M.POP_HOLD));
+    }
+
+    /**
+     * 释放段：先胀到峰值，再收缩到 0 并淡出，然后做数据收尾。
+     *
+     * 【为什么是两段而不是一条曲线】
+     * 一条曲线从 1.0 直接跑到 0，看起来是"缩没了"；
+     * 先胀到 1.20 再收缩，看起来是"胀开了、然后被打散"。
+     * 前者是"消失"，后者是"消除"—— 差的正是那 60ms 的胀开。
+     */
+    private releaseClear(doomed: TileView[], m: MatchResult, scale: number): void {
+        const M = CFG.MOTION;
+
+        // 消散音：与"碰"的音效分工明确 —— 碰负责"撞上了"，clear 负责"散了"。
+        // 两者相隔一次 POP_HOLD（70ms）+ 挤压回弹，听觉上正好是"咚—唰"。
+        AudioService.play('clear');
+
+        for (const v of doomed) {
+            if (!v.node.isValid) continue;
+            MotionFx.to2(v.node,
+                { props: { scale: v3(scale * M.POP_SCALE_MAX, scale * M.POP_SCALE_MAX, 1) },
+                  duration: M.POP_OUT * 0.3, easing: EASE.POP },
+                { props: { scale: v3(0, 0, 1) }, duration: M.POP_OUT * 0.7, easing: EASE.EXIT },
+                { tag: TAG.SLOT });
+            MotionFx.fade(v.node, 0, M.POP_OUT * 0.7,
+                { delay: M.POP_OUT * 0.3, easing: EASE.EXIT, tag: TAG.FADE });
+        }
+
+        setTimeout(() => {
+            if (!this.node.isValid) return;
+            for (const v of doomed) v.destroy();
+
+            // 从槽数据里删掉（下标大的先删，避免删前面的之后后面全部错位）
+            const idx = m.indices.slice().sort((a, b) => b - a);
+            for (const i of idx) this._slots.splice(i, 1);
+
+            this._cleared += m.indices.length;
+            this._busy = false;
+
+            // C5 回补：剩余牌向左补齐空位
+            this.relayoutSlots();
+            this.refreshSlotWarn();
+            this.logPickable();
+            this.refreshHud();
+            this.refreshPropBar();
+
+            // ⑥ 消完之后槽里可能还有能消的（连锁）——
+            //    连锁会**继续累加连章层数**，这正是"连章"最有存在感的场景。
+            const keys = this._slots.map((s) => s.key);
+            const again = findMatch(keys, this._level.gang, -1);
+            if (again) {
+                this.playClear(again);
+                return;
             }
 
-            setTimeout(() => {
-                if (!this.node.isValid) return;
-                for (const v of doomed) v.destroy();
+            // ⑦ 胜负判定
+            if (this.isBoardEmpty()) {
+                this.finish(true);
+            } else if (this._slots.length >= this._slotCapacity) {
+                this.finish(false, 'slotfull');
+            }
+        }, MotionFx.unlockMs(M.POP_OUT));
+    }
 
-                // ⑤ 从槽数据里删掉（下标大的先删，避免错位）
-                const idx = m.indices.slice().sort((a, b) => b - a);
-                for (const i of idx) this._slots.splice(i, 1);
+    /**
+     * 连章计数：返回本次是第几层（1 = 没连上，2 起才算"连章"）。
+     *
+     * 【判定方式：时间戳窗口，不是定时器】
+     * 用定时器重置的话，每次消除都要"先取消上一个、再注册新的"；
+     * 页面切走 / 结算 / 复活这些路径里任何一处忘了取消，
+     * 就会出现"在菜单页待了 10 秒、回游戏还显示连章 ×3"这种残留。
+     * 时间戳是**无状态**的：谁读谁算，没有任何需要清理的东西。
+     */
+    private bumpCombo(): number {
+        const now = Date.now();
+        const winMs = CFG.MOTION.COMBO_WINDOW * 1000;
+        const gap = now - this._comboAt;
+        this._combo = (gap <= winMs) ? this._combo + 1 : 1;
+        this._comboAt = now;
 
-                this._cleared += m.indices.length;
-                this._busy = false;
+        // 这条日志是**窗口值的数据来源**：连章窗口该设多少秒，
+        // 不能拍脑袋，得看真实节奏下两次消除到底隔多久。
+        // 命令行无头验证时看不到调试器，只能靠这行把它量出来。
+        // （首轮就是靠它发现 2.4s 的窗口对真实节奏而言太窄。）
+        if (CFG.DEBUG.LOG_STATE) {
+            const g = this._combo > 1 ? Math.round(gap) : -1;
+            log(`[GamePage] 消除节奏 距上次 ${g}ms → 层数 ${this._combo}（窗口 ${winMs}ms）`);
+        }
+        return this._combo;
+    }
 
-                // C5 回补：剩余牌向左补齐空位
-                this.relayoutSlots();
-                this.refreshSlotWarn();
-                this.logPickable();
-                this.refreshHud();
-                this.refreshPropBar();
+    /** 本次要撞的那几张牌的中心 x（槽位层局部坐标） */
+    private clashCenterX(indices: number[]): number {
+        let min = Number.POSITIVE_INFINITY;
+        let max = Number.NEGATIVE_INFINITY;
+        for (const i of indices) {
+            const x = this.slotOffsetX(i);
+            if (x < min) min = x;
+            if (x > max) max = x;
+        }
+        if (!Number.isFinite(min) || !Number.isFinite(max)) return 0;
+        return (min + max) / 2;
+    }
 
-                // ⑥ 消完之后槽里可能还有能消的（连锁）
-                const keys = this._slots.map((s) => s.key);
-                const again = findMatch(keys, this._level.gang, -1);
-                if (again) {
-                    this.playClear(again);
-                    return;
-                }
+    /**
+     * 撞击的能量传导：牌堆整体上弹一下再落回。
+     *
+     * 【为什么抖"牌堆层"而不是"整屏镜头"】
+     * 见 CFG.MOTION.CLASH_KICK 的注释：全屏抖动会影响触摸坐标换算，
+     * 而且一局触发几十次会让人不适。抖牌堆层视觉等效、坐标系零改动。
+     */
+    private kickStack(): void {
+        const M = CFG.MOTION;
+        if (!this._stackLayer || !this._stackLayer.isValid) return;
+        MotionFx.to2(this._stackLayer,
+            { props: { position: v3(0, M.CLASH_KICK, 0) },
+              duration: M.CLASH_KICK_UP, easing: EASE.EXIT },
+            { props: { position: v3(0, 0, 0) },
+              duration: M.CLASH_KICK_DOWN, easing: EASE.POP },
+            { tag: TAG.KICK });
+    }
 
-                // ⑦ 胜负判定
-                if (this.isBoardEmpty()) {
-                    this.finish(true);
-                } else if (this._slots.length >= this._slotCapacity) {
-                    this.finish(false);
-                }
-            }, MotionFx.unlockMs(M.POP_OUT));
-        }, MotionFx.unlockMs(M.POP_IN));
+    /**
+     * 连章（连续消除）的「丝滑动效」（S7.5）。
+     *
+     * 【用户原话】"连章是使用一个丝滑的动效来表示"
+     *
+     * 【"丝滑"在动效语言里到底是三件什么事】
+     *   ① **够长** —— 0.46 / 0.92 秒，短了就是"闪"，长了才是"流"；
+     *   ② **首尾速度为零的曲线** —— 全程 EASE.IDLE（sineInOut），
+     *      起步不突兀、收尾不急刹；
+     *   ③ **无抖动、无闪烁** —— 不做任何"强调式"的顿挫。
+     * 这三点合起来与"碰"的 0.2 秒硬冲击形成鲜明对比：
+     * 一个是爆发，一个是流动。两者能并存而不打架，正是因为**时间尺度分了层**。
+     *
+     * 【三个元素的分工】
+     *   ① 流光带：一条金色光带横扫槽位条 —— "能量在槽位之间流动"的具象；
+     *   ② 连章文字：「连章 ×N」在槽位上方浮升 —— 把层数这件事说清楚；
+     *   ③ 音调递增：层数越高音越高（playbackRate 变速，一套素材覆盖任意层数）。
+     */
+    private playCombo(layer: number): void {
+        const M = CFG.MOTION;
+        const L = CFG.GAME_LAYOUT;
+        if (!this._fxLayer || !this._fxLayer.isValid) return;
+
+        // ③ 音效（层数越高音越高；层数无上限，靠变速而不是靠多份素材）
+        AudioService.playCombo(layer);
+
+        // ---------- ① 流光带 ----------
+        const bandY = L.SLOT_BAR_Y + M.COMBO_SWEEP_H * 0.2;
+        const band = createNode('ComboSweep', this._fxLayer, {
+            w: M.COMBO_SWEEP_W, h: M.COMBO_SWEEP_H, x: M.COMBO_SWEEP_FROM, y: bandY,
+        });
+        const bg = band.addComponent(Graphics);
+        // 两层同心光带：外层大而淡、内层窄而亮。
+        // 只画一层的话，边缘是硬切的矩形，看着像"一块色板滑过去"；
+        // 叠一层窄的之后才有"光心"，那才像流光。
+        fillBox(bg, 0, 0, M.COMBO_SWEEP_W, M.COMBO_SWEEP_H,
+            CFG.SHAPE.RADIUS_SLOT + 6, CFG.COLOR.GOLD);
+        fillBox(bg, 0, 0, M.COMBO_SWEEP_W * 0.32, M.COMBO_SWEEP_H * 1.06,
+            CFG.SHAPE.RADIUS_SLOT + 8, CFG.COLOR.PAPER);
+
+        MotionFx.setFade(band, 0);
+        // 横移用 sineInOut：起步与收尾速度为零 —— 这就是"丝滑"的来源。
+        MotionFx.to(band, { position: v3(M.COMBO_SWEEP_TO, bandY, 0) },
+            { duration: M.COMBO_SWEEP, easing: EASE.IDLE, tag: TAG.FX });
+        MotionFx.fadeChain(band, [
+            { to: M.COMBO_SWEEP_ALPHA, duration: M.COMBO_SWEEP * 0.34, easing: EASE.IDLE },
+            { to: 0, duration: M.COMBO_SWEEP * 0.66, easing: EASE.IDLE },
+        ], { tag: TAG.FADE });
+        // 一次性装饰节点，到期销毁。清理走 setTimeout 而不是 tween 回调 ——
+        // 回调丢了这里只是漏一个空节点，但一旦两种清理风格并存，后来的人一定会抄错。
+        setTimeout(() => { if (band.isValid) band.destroy(); },
+            MotionFx.unlockMs(M.COMBO_SWEEP + 0.05));
+
+        // ---------- ② 连章文字 ----------
+        const label = createLabel(this._fxLayer, `连章 ×${layer}`, {
+            y: L.SLOT_BAR_Y + 210,
+            fontSize: CFG.FONT.SIZE_H2 + 12,
+            color: CFG.COLOR.GOLD,
+            bold: true,
+            serif: true,
+            outline: CFG.COLOR.INK,
+            outlineWidth: 5,
+        });
+        const node = label.node;
+        const y0 = node.position.y;
+        MotionFx.setFade(node, 0);
+        node.setScale(v3(0.86, 0.86, 1));
+
+        // 上浮 + 缩放：全部 sineInOut，两段之间速度都为零，接起来没有顿点。
+        // （这也是它和 C6 飘字用 backOut 的区别：飘字是"被弹出去"，连章是"浮起来"。）
+        MotionFx.chain(node, [
+            { props: { position: v3(0, y0 + M.COMBO_RISE * 0.55, 0), scale: v3(1.06, 1.06, 1) },
+              duration: M.COMBO_DURATION * 0.45, easing: EASE.IDLE },
+            { props: { position: v3(0, y0 + M.COMBO_RISE, 0), scale: v3(1, 1, 1) },
+              duration: M.COMBO_DURATION * 0.55, easing: EASE.IDLE },
+        ], { delay: M.COMBO_DELAY, tag: TAG.FX });
+        MotionFx.fadeChain(node, [
+            { to: 255, duration: M.COMBO_DURATION * 0.24, easing: EASE.ENTER },
+            { to: 255, duration: M.COMBO_DURATION * 0.36 },
+            { to: 0, duration: M.COMBO_DURATION * 0.40, easing: EASE.EXIT },
+        ], { delay: M.COMBO_DELAY, tag: TAG.FADE });
+
+        setTimeout(() => { if (node.isValid) node.destroy(); },
+            MotionFx.unlockMs(M.COMBO_DELAY + M.COMBO_DURATION));
+
+        log(`[GamePage] 连章 ×${layer}`);
     }
 
     /** C3 在某个槽内牌处喷一小圈碎屑（位置取牌的**当前视觉位置**，换算到特效层） */
@@ -1651,6 +2078,10 @@ export class GamePage extends PageBase {
 
         // 起点：道具按钮的中心（世界坐标 → 特效层局部）
         const from = MotionFx.worldToLocal(this._fxLayer, MotionFx.worldPosOf(btn));
+
+        // 奖励音（上行四音琶音）。它与图标**同帧起飞** ——
+        // 声音是"东西离手了"的听觉证据，晚一点就和图标对不上了。
+        AudioService.play('reward');
 
         // 终点：按道具有意义的目标（槽位层 / 牌堆层的局部坐标 → 特效层局部）
         let target = v3(0, L.SLOT_BAR_Y, 0);
@@ -2046,6 +2477,11 @@ export class GamePage extends PageBase {
         this._busy = true;
         this._propUsed.shuffle++;
 
+        // 洗牌音（'唰'的纸牌摩擦声）。放在三段动画的**起点**而不是铺开时：
+        // 声音是"洗牌开始了"的信号，它和"牌收拢"同步；
+        // 如果放在铺开时，玩家会先看到牌缩成一团、再听到声音，因果反了。
+        AudioService.play('shuffle');
+
         // ① 暂存架的牌先回场（数据 + 视图），它们和场上的牌一起参与重排。
         //    视图先挂回牌堆层但**不急着摆位置** —— 第 ② 步会把它们收拢到原地，
         //    第 ③ 步才统一铺开。少了"收拢"这一步，暂存牌会从架子位置直接
@@ -2252,6 +2688,10 @@ export class GamePage extends PageBase {
         const M = CFG.MOTION;
         const L = CFG.GAME_LAYOUT;
 
+        // 加槽音（'咔哒—外扩'的机械感）。动作发生在按钮上，
+        // 所以声音也要在动作开始的同一帧响，而不是等新格长完。
+        AudioService.play('addslot');
+
         // ---------- ① 数据与布局（同步完成，不等动画）----------
         const beforeCap = this._slotCapacity;
         this._slotCapacity += CFG.PROP.ADD_SLOT_STEP;
@@ -2381,14 +2821,15 @@ export class GamePage extends PageBase {
         this.refreshHud();
         if (this._timeLeft <= 0) {
             warn('[GamePage] 超时');
-            this.finish(false);
+            this.finish(false, 'timeout');
         }
     }
 
-    private finish(win: boolean): void {
+    private finish(win: boolean, reason: FailReason = 'none'): void {
         if (this._over) return;
         this._over = true;
         this._busy = true;
+        if (!win) this._failReason = reason;
         this.unscheduleAllCallbacks();
         this._timing = false;
         this._armedRemove = false;
@@ -2398,6 +2839,17 @@ export class GamePage extends PageBase {
                 + `已清 ${this._cleared}/${this._layout.tiles.length}，用时 ${this._usedTime}s，`
                 + `道具 消除${this._propUsed.remove}/移出${this._propUsed.move}/`
                 + `洗牌${this._propUsed.shuffle}/加槽${this._propUsed.addslot}，复活${this._revives}`);
+        }
+
+        // 结算的声音与触感（S7.5）：通关与失败是两种完全不同的情绪，
+        // 音色严格对偶 —— 通关是上行大调（明亮、结束），失败是下行（低沉、终止）。
+        // 只有失败震（重档）：通关时玩家看的是"新纪录"的提示，
+        // 这时候来一下重震会把注意力从屏幕上打散。
+        if (win) {
+            AudioService.play('win');
+        } else {
+            AudioService.play('fail');
+            Haptics.heavy();
         }
 
         if (win) {
@@ -2423,7 +2875,9 @@ export class GamePage extends PageBase {
     private showFailPanel(): void {
         const F = CFG.REWARD.FAIL;
         const reviveLeft = CFG.REWARD.REVIVE_PER_LEVEL - this._revives;
-        const why = this._timeLeft <= 0 ? '时间到' : '槽位满了';
+        // 原因取自**判负入口**写入的 _failReason，不再用 _timeLeft 反推
+        // （不限时关卡的 _timeLeft 恒为 0，反推一定得到"时间到"）
+        const why = this._failReason === 'timeout' ? '时间到' : '槽位满了';
 
         const mask = createNode('FailMask', this._modalLayer, { w: 2000, h: 2000 });
         const mg = mask.addComponent(Graphics);
@@ -2486,6 +2940,12 @@ export class GamePage extends PageBase {
 
         this._revives += 1;
         log(`[GamePage] 复活 第 ${this._revives} 次`);
+
+        // 复活音（明亮上行）+ 中档震动：这是"雨过天晴"的情绪转折点，
+        // 值得一次明确的感官确认 —— 玩家刚看完 15 秒广告，
+        // 需要立刻知道"东西到手了"。
+        AudioService.play('revive');
+        Haptics.medium();
 
         // ① 关掉失败面板
         if (this._failPanel && this._failPanel.isValid) this._failPanel.destroy();

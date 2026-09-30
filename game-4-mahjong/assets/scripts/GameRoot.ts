@@ -27,6 +27,7 @@ import { CFG } from './CFG';
 import { PageManager } from './core/PageManager';
 import { SaveService } from './core/SaveService';
 import { GamePage } from './ui/GamePage';
+import { AudioService } from './ui/AudioService';
 import { LevelSelectPage } from './ui/LevelSelectPage';
 import { MenuPage } from './ui/MenuPage';
 
@@ -53,23 +54,32 @@ export class GameRoot extends Component {
         // ① UI 根容器
         const uiRoot = this.buildUIRoot();
         this._uiRoot = uiRoot;
-        this.step('[1/5] buildUIRoot 完成');
+        this.step('[1/6] buildUIRoot 完成');
+
+        // ①' 音频服务（S7.5）
+        // 必须在这里建，不能等到玩家第一次点牌 ——
+        // 声道池要在启动时建好、音效要在启动时发起加载，
+        // 等玩家点下去才建的话，头几次操作一定是"静音"的。
+        // 声道挂在 UIRoot 下（而不是某个页面下）：音效不跟着页面销毁，
+        // 否则从游戏页退回菜单页时，正在播的尾巴会被一起销毁。
+        AudioService.init(uiRoot);
+        this.step('[2/6] AudioService.init 完成');
 
         // ② 页面状态机（必须先 create，后面 register / open 才有宿主）
         PageManager.create(uiRoot);
-        this.step('[2/5] PageManager.create 完成');
+        this.step('[3/6] PageManager.create 完成');
 
         // ③ 注册页面
         this.registerPages();
-        this.step('[3/5] registerPages 完成');
+        this.step('[4/6] registerPages 完成');
 
         // ④ 存档预热
         this.preloadData();
-        this.step('[4/5] preloadData 完成');
+        this.step('[5/6] preloadData 完成');
 
         // ⑤ 进入首屏
         PageManager.instance.open(PAGE.MENU);
-        this.step('[5/5] open(menu) 完成');
+        this.step('[6/6] open(menu) 完成');
 
         // 屏幕尺寸变化（旋转 / 分屏 / 浏览器改窗口）时同步 UIRoot
         view.on('canvas-resize', this.syncUIRootSize, this);
