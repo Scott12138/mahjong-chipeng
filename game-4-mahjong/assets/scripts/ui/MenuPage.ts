@@ -14,6 +14,7 @@
 
 import { _decorator, Graphics, Node, tween, v3 } from 'cc';
 import { CFG } from '../CFG';
+import { AudioService } from './AudioService';
 import { PageBase } from './PageBase';
 import { TileView } from './TileRenderer';
 import {
@@ -110,6 +111,15 @@ export class MenuPage extends PageBase {
 
         // ---------- 右下角朱红方印 ----------
         this.buildSeal(L.SEAL_X, L.SEAL_Y, L.SEAL_SIZE);
+
+        // ---------- 音频：主菜单属于"游戏外"，收掉 BGM（S14）----------
+        // 【为什么写在这里，而不是写在各页的 onLeave 里】
+        //  BGM 该不该响，是由"**要去哪**"决定的，所以写在目的地这一侧。
+        //  如果改成"离开游戏页时停"，那么每多一条离场路径就要多记得停一次，
+        //  漏掉任何一条，音乐就会跟着飘进主菜单。
+        //  现在的分工：menu 停 / 选关与局内 播（各自 onBuild）。
+        //  启动时这一句是 no-op（那时本来就没在播）。
+        AudioService.stopBgm();
     }
 
     /** 分隔线：两段细墨线 + 中间一颗朱红菱形 */

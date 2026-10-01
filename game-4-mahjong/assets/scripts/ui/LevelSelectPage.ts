@@ -16,6 +16,7 @@ import { _decorator, Graphics, Node, UITransform, Label } from 'cc';
 import { CFG, LevelConfig } from '../CFG';
 import { SaveService } from '../core/SaveService';
 import { Family } from '../TileData';
+import { AudioService } from './AudioService';
 import { PageBase } from './PageBase';
 import { TileView } from './TileRenderer';
 import {
@@ -72,6 +73,14 @@ export class LevelSelectPage extends PageBase {
             fontSize: CFG.FONT.SIZE_BODY, color: CFG.COLOR.INK, bold: true,
         });
         back.on(Node.EventType.TOUCH_END, () => this.goto('menu'), back);
+
+        // ---------- 音频：进入"游戏进行中"的范畴，起 BGM（S14）----------
+        // ★ 必须在 onBuild 里调用，**不能**挪到 onEnter：
+        //   · onBuild 由 PageManager.open **同步**执行，而 open 又由
+        //     "点开始游戏 → goto" 同步触发 ⇒ **在手势栈内**，autoplay 放行 ✅
+        //   · onEnter 是 setTimeout(duration+20ms) 之后才调的 ⇒ 已出栈，播不响 ❌
+        // 幂等：从局内退回选关页时这里什么都不做，音乐不会从头重启。
+        AudioService.playBgm();
     }
 
     /** 两段细墨线 + 中间朱红菱形（与菜单页同一套装饰语言） */

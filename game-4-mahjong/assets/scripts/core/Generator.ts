@@ -28,8 +28,10 @@
  * ============================================================
  */
 
-import { CFG, LevelConfig } from '../CFG';
-import { ALL_PATTERNS, Family, FAMILIES, PatternKey, parsePattern, patternKey } from '../TileData';
+import { CFG, LevelConfig, SOLID_OVERHANG } from '../CFG';
+import {
+    ALL_PATTERNS, Family, FAMILIES, PatternKey, TILE_GEO, parsePattern, patternKey,
+} from '../TileData';
 import { findMatch, wouldMatch } from './MatchRule';
 
 // ============================================================
@@ -299,7 +301,43 @@ function buildGrid(level: LevelConfig): Grid {
     const spanY = (S.Y_MAX - T.h / 2) - (S.Y_MIN + T.h / 2);
 
     const cols = Math.max(1, Math.floor(spanX / cellW) + 1);
-    const rows = Math.max(1, Math.floor(spanY / cellH) + 1);
+
+    // ------------------------------------------------------------
+    //  ★ S14.2b 纵向行数：从"能塞几行塞几行"改成"整堆装得下反推"
+    // ------------------------------------------------------------
+    //  【旧写法错在哪 —— 它会把扩容的收益全吃掉】
+    //  旧版是 `rows = floor(spanY / cellH) + 1`，也就是**网格永远把纵向
+    //  填满**。S14.2b 把牌堆区从 664 扩到 762（+98）本意是给牌堆让位，
+    //  结果 spanY 跟着涨 98 → 行数从 8 涨到 10 → 行跨从 479 涨到 616，
+    //  **净结果反而多溢出 22px**（实测：下溢 29 → 51）。
+    //  这就是"扩区不解决问题"的根因：网格是自适应填满的，不是固定的。
+    //
+    //  【新写法】先把"层"和"抖动"的纵向开销扣掉，剩下的才是行的预算：
+    //     整堆纵向跨度 = 行跨 + 层跨 + 2×抖动 (+ 同格叠号的错开)
+    //     可用的牌心跨度 = 区高 − 牌高 − 立体上下溢（见 SOLID_OVERHANG）
+    //  于是  行跨 ≤ 可用 − 层跨 − 2×抖动 − 叠号余量
+    //  反推行数。这样"层高 = 牌厚"这条几何关系才不会被行数膨胀顶穿。
+    //
+    //  ⚠️ 层数必须用**关卡张数**现算，不能读 level.layers：
+    //     那个字段是设计意图，真正生效的是 planFloors 里的
+    //     `min(FLOOR.MAX, ceil(count / FLOOR.PER))`（L3 的 layers 写 5、实际也是 5，
+    //     但 L4 写 6、实际被 FLOOR.MAX 卡在 6 —— 一旦两者不同步，预算就算错）。
+    const F = S.FLOOR;
+    const solidScale = T.w / TILE_GEO.W;
+    const depthPx = CFG.TILE.SOLID.DEPTH * solidScale;
+    const nFloors = level.flat
+        ? 1
+        : Math.max(1, Math.min(F.MAX, Math.ceil(level.tileCount / F.PER)));
+    const layerSpan = (nFloors - 1) * depthPx * F.GAP_MUL;
+    const jitterY = level.flat ? S.JITTER_FLAT : S.JITTER_Y;
+    // 同格叠号的错开量：正常配置下同格很少超过 2 张，留 1 档就够（LAYER_MAX = 0 不设上限，
+    // 但真叠起来也不会叠到十几张 —— 那是采样异常，不该由行数预算兜着）
+    const stackSpan = cellH * S.LAYER_OFFSET;
+    const availY = (S.Y_MAX - T.h / 2 - SOLID_OVERHANG.UP * solidScale)
+        - (S.Y_MIN + T.h / 2 + SOLID_OVERHANG.DOWN * solidScale);
+    const rowBudget = availY - layerSpan - 2 * jitterY - stackSpan;
+
+    const rows = Math.max(1, Math.floor(rowBudget / cellH) + 1);
 
     // 居中：把格点阵列摆到区域正中，两侧留白均等
     const padX = (spanX - (cols - 1) * cellW) / 2;
@@ -778,7 +816,8 @@ function depthOfCell(grid: Grid, cell: CellPick): number {
  *      ⚠️ 位移**以上下对称的方式**算，不是"只往上挪"：
  *         只往上挪会让整堆随层数一起升高（层数越多、牌堆越靠上），
  *         只往下挪会顶穿下边界的暂存架。对称则两头都不跑偏。
- *   ④ 最后再夹一次边界，作为兜底。
+ *   ④ **纵向整体平移适配**：算出整堆的自然上下界后，给所有牌加**同一个位移**。
+ *      不是逐张夹取 —— 那样会把贴边处的层间错位抹平（详见函数内 ④ 的长注释）。
  */
 function resolvePositions(
     cells: CellPick[], grid: Grid, rng: Rng, level: LevelConfig,
@@ -788,18 +827,35 @@ function resolvePositions(
     // 三种"手感参数"都从 grid / level 现算，不接受外部传入 ——
     // 首次铺牌与洗牌重排共用同一处口径，不会出现"洗牌前后厚度不一样"的漂移。
     const jitterY = level.flat ? S.JITTER_FLAT : S.JITTER_Y;
-    const floorGapY = grid.cellH * S.FLOOR.GAP;
+
+    // ★ S14.2 真分层：层高 = **牌厚**(px) × GAP_MUL。
+    // 牌厚是设计坐标单位（以 132 宽为基准），所以要按本关的牌宽换算成 px ——
+    // 这样"牌小的关层就薄"，四关的堆叠比例一致，不必每关单独配。
+    // 与 GamePage/TileRenderer 里的 thickness 是**同一个来源**（CFG.TILE.SOLID.DEPTH），
+    // 一旦两边各写一份，就会出现"牌比层厚/层比牌厚"的穿模与浮空（见 CFG 里的长注释）。
+    // 设计坐标 → 本关像素的换算系数。牌厚与立体外扩**共用这一个**，
+    // 分成两处写迟早会出现"牌厚按牌宽缩了、外扩没缩"的不一致。
+    const scale = grid.tileW / TILE_GEO.W;
+    const depthPx = CFG.TILE.SOLID.DEPTH * scale;
+    const floorGapY = depthPx * S.FLOOR.GAP_MUL;
     const layerGapY = grid.cellH * S.LAYER_OFFSET;
 
+    // ★ S14.2c：立体装饰是画在牌体盒子**之外**的，边界必须一起让出来。
+    // 厚度侧壁往下画 DEPTH、投影往右下再扩，两者都不在 CFG.TILE.W×H 里
+    // （见 CFG.SOLID_OVERHANG 的长注释）。不让的话，贴边的牌会出现
+    // "牌面体在区内、侧壁和阴影糊在暂存架/提示语上"—— 不报错，只是难看。
+    //
     // 牌中心允许到达的范围（再往外牌就出区了）。
     // ⚠️ 半径取 **max(牌宽, 牌高) / 2**，不能只按牌宽算：
     //    牌会横躺（90° / 270°），此时视觉宽度反而更大，
     //    按牌宽留边会让横躺的牌探出牌堆区（实测每局 5~7 张越界）。
+    //    立体外扩则相反 —— 它是**屏幕方向**的（永远朝下、朝右），
+    //    不随牌旋转，所以直接加，不与 max() 混。
     const halfMax = Math.max(grid.tileW, grid.tileH) / 2;
-    const limL = S.X_MIN + halfMax;
-    const limR = S.X_MAX - halfMax;
-    const limT = S.Y_MAX - halfMax;
-    const limB = S.Y_MIN + halfMax;
+    const limL = S.X_MIN + halfMax + SOLID_OVERHANG.LEFT * scale;
+    const limR = S.X_MAX - halfMax - SOLID_OVERHANG.RIGHT * scale;
+    const limT = S.Y_MAX - halfMax - SOLID_OVERHANG.UP * scale;
+    const limB = S.Y_MIN + halfMax + SOLID_OVERHANG.DOWN * scale;
     // 算偏移量时先把抖动的额度扣掉，抖动就不会把自己顶出边界
     const safeL = limL + S.JITTER_X;
     const safeR = limR - S.JITTER_X;
@@ -835,8 +891,8 @@ function resolvePositions(
         offX.set(k, lo <= hi ? lo + rng() * (hi - lo) : 0);
     });
 
-    // ---- ② 抖动 + ③ 层间厚度 + ④ 边界兜底 ----
-    return cells.map((cell) => {
+    // ---- ② 抖动 + ③ 层间厚度：先算"自然位置"，边界问题留到第 ④ 步整体解决 ----
+    const raw = cells.map((cell) => {
         const off = offX.get(cell.floor * 1000 + cell.r) ?? 0;
         const jx = (rng() * 2 - 1) * S.JITTER_X;
         const jy = (rng() * 2 - 1) * jitterY;
@@ -846,11 +902,35 @@ function resolvePositions(
 
         // ③ 厚度位移（居中，见上方说明）+ 同层同格的叠放错开
         const dyFloor = (cell.floor - maxFloor / 2) * floorGapY;
-        let y = grid.yOf(cell.r) + jy + dyFloor + cell.layer * layerGapY;
-        if (y > limT) y = limT;
-        if (y < limB) y = limB;
+        const y = grid.yOf(cell.r) + jy + dyFloor + cell.layer * layerGapY;
         return { x, y };
     });
+
+    // ---- ④ 纵向**整体平移**适配（★ S14.2 改：不再是逐张夹取）----
+    //  【旧写法错在哪 —— 它把"分层"吃掉了】
+    //  旧版对每一张牌单独 `if (y > limT) y = limT;`。牌堆长高之后（层高从
+    //  13.6px 涨到 21.7px），上下两端的牌会成批撞到边界，**全部被夹到同一个 y 上** ——
+    //  于是那些牌看上去变成了同一层：层与层之间的错位被边界抹平，
+    //  侧壁互相穿透。而且夹取量各不相同，牌堆的纵向间距被**不均匀**地压缩，
+    //  "层高 = 牌厚"这条几何关系在贴边处直接失效。
+    //  这是"不报错、不崩、只是看起来不对"的典型，只能靠探针量（见
+    //  docs/verify/S14/probe 的"贴边张数"）：旧口径下 L4 的 12 局里就有 62 张·次贴边。
+    //
+    //  【新写法】先算出整堆的自然上下界，再给**所有牌加同一个位移**。
+    //  位移不改变任何两张牌的相对关系 → 分层错位永远完整。
+    //   · 堆得下  → 取一个不超过边界的位移；0 在合法区间内就取 0（保持既有观感）
+    //   · 堆不下  → 上下各让一半（居中），宁可整体占满也不局部压扁
+    let yMin = Infinity;
+    let yMax = -Infinity;
+    for (const p of raw) {
+        if (p.y < yMin) yMin = p.y;
+        if (p.y > yMax) yMax = p.y;
+    }
+    const lo = limB - yMin;          // 位移下限（再小下边就出界）
+    const hi = limT - yMax;          // 位移上限（再大上边就出界）
+    const shift = lo <= hi ? Math.min(Math.max(0, lo), hi) : (lo + hi) / 2;
+
+    return raw.map((p) => ({ x: p.x, y: p.y + shift }));
 }
 
 /**

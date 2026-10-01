@@ -32,25 +32,57 @@
  *
  *  ------------------------------------------------------------
  *  【设计要点：所有播放在"用户交互之后"】
- *  浏览器的 autoplay 策略要求音频播放必须发生在用户手势的调用栈里，
- *  否则会被静默拦截。本作的音效全部由点击触发，天然满足；
- *  入场（A1）**刻意不放音效**，就是因为它在 onBuild 里、不在手势栈内。
+ *  浏览器 / 微信的 autoplay 策略要求音频的**首次**播放必须发生在用户手势的
+ *  调用栈里，否则被静默拦截（不报错、日志也看不出，只是没声音）。
+ *
+ *  ⚠️ 这里有一个**极易误判**的地方：同样是"页面打开时播放"，
+ *     `onBuild` 与 `onEnter` 的处境**完全相反** ——
+ *       · `onBuild` 由 PageManager.open **同步**调用，而 open 又由
+ *         点击 → goto 同步触发  ⇒  **在手势栈内** ✅
+ *       · `onEnter` 是 `setTimeout(duration + 20ms)` 之后才调的
+ *         ⇒ **已经出栈**，在这里播什么都起不来 ❌
+ *     所以 BGM 的起播点必须挑 `onBuild`（详见 playBgm 的注释）。
+ *
+ *  首屏（menu）的 open 发生在 GameRoot.onLoad 里 —— 那一次**确实**不在
+ *  手势栈内，所以入场（A1）刻意不放任何声音；BGM 也因此不包括 menu 页。
  * ============================================================
  */
 
 import { AudioClip, AudioSource, Node, log, resources, warn } from 'cc';
 import { CFG } from '../CFG';
 
-/** 全部音效 id。与 tools/make-sfx.py 的 SFX 字典一一对应 */
+/**
+ * BGM 的资源路径（相对 assets/resources）。
+ * 不要写成 'audio/bgm.m4a' —— `resources.load` 的路径**不带扩展名**，
+ * 带上就会走到"加载失败只 warn 不报错"的静默分支里。
+ */
+const BGM_PATH = 'audio/bgm';
+
+/**
+ * 全部音效 id。
+ *
+ * 【两张"出生证明"要分清（S12.2）】
+ *   · 合成音（8 段）：与 tools/make-sfx.py 的 SFX 字典一一对应；
+ *   · 人声念白（2 段）：`peng` / `eat`，由 tools/make-voice.py 生成 ——
+ *     它们是**借真人 TTS 干声重写声调**得到的人声，
+ *     不是 make-sfx.py 那几个正弦/噪声基元能合成的。
+ * ⚠️ 所以「改某一个音效」之前，先看它归哪个脚本管：
+ *    改错脚本会让"重跑生成脚本"把刚做的改动直接冲掉。
+ *
+ * 【`flow` 已退役（S12.2）】它原来是「吃」的"流水汇合"音。
+ * 「吃」改成咀嚼之后没有调用方了，文件与 id 一并删除 ——
+ * 留着一个永远加载不到的 id，只会让"怎么没声音"变成一桩悬案
+ * （音频加载失败**只 warn 不报错**）。
+ */
 export type SfxId =
     | 'tap' | 'pick' | 'land' | 'reject'
-    | 'peng' | 'clear' | 'flow'
+    | 'peng' | 'clear' | 'eat'
     | 'shuffle' | 'reward' | 'fail' | 'revive' | 'addslot' | 'win';
 
 /** 与资源目录一致的清单（顺序无关，只用于遍历加载） */
 const ALL_SFX: SfxId[] = [
     'tap', 'pick', 'land', 'reject',
-    'peng', 'clear', 'flow',
+    'peng', 'clear', 'eat',
     'shuffle', 'reward', 'fail', 'revive', 'addslot', 'win',
 ];
 
@@ -75,6 +107,21 @@ export class AudioService {
     private static _loaded = false;
     /** 已成功加载的音效数量（全部就绪时打一条日志） */
     private static _readyCount = 0;
+
+    // ---- BGM（S14）------------------------------------------
+    /**
+     * BGM 的专用声道。
+     * 🔴 它**不进 `_voices` 池** —— 池里的声道会被音效按"最久没用"抢占用掉，
+     *    而 BGM 被掐断就是"整局没音乐"，跟"少一声点击音"完全不是一个量级的事故。
+     */
+    private static _bgm: AudioSource | null = null;
+    private static _bgmClip: AudioClip | null = null;
+    /** 业务侧的意图：「现在应该放 BGM」（由页面生命周期决定，与"是否真的响了"解耦） */
+    private static _bgmWanted = false;
+    /** 是否已经把 play() 发出去过（防止重复 play 把音乐从头打断） */
+    private static _bgmStarted = false;
+    /** 淡出链路上的定时器句柄（取消淡出时统一清掉） */
+    private static _bgmFadeIds: number[] = [];
 
     // --------------------------------------------------------
     //  初始化
@@ -105,6 +152,18 @@ export class AudioService {
             src.volume = CFG.AUDIO.MASTER;
             this._voices.push(src);
         }
+
+        // BGM 独占一条 AudioSource，挂在同一个宿主下。
+        // loop 由 AudioSource 自己维持（不需要监听"播完了"再手动接上 ——
+        // 那种写法在切后台/丢帧的瞬间会漏掉一次结尾，音乐就断了）。
+        const bgmNode = new Node('AudioVoice_BGM');
+        bgmNode.layer = host.layer;
+        host.addChild(bgmNode);
+        const bgm = bgmNode.addComponent(AudioSource);
+        bgm.playOnAwake = false;
+        bgm.loop = true;
+        bgm.volume = 0;
+        this._bgm = bgm;
 
         this.pinMuteSwitch();
         this.preload();
@@ -142,7 +201,7 @@ export class AudioService {
         }
     }
 
-    /** 预加载全部音效。失败的单个资源只告警，不影响其它音效 */
+    /** 预加载全部音效 + BGM。失败的单个资源只告警，不影响其它资源 */
     private static preload(): void {
         if (this._loaded) return;
         this._loaded = true;
@@ -164,6 +223,21 @@ export class AudioService {
                 }
             });
         }
+
+        // BGM 单独打一条日志：它 281K，是最大的一个音频资源，加载失败的后果
+        // 也最明显（整局没音乐）。命令行无头验证时要能一眼看出它到底就绪没有
+        // —— 混在"音效就绪 13/13"里是看不出来的（那 13 是 ALL_SFX.length）。
+        resources.load(BGM_PATH, AudioClip, (err, clip) => {
+            if (err || !clip) {
+                warn(`[AudioService] BGM 加载失败：${BGM_PATH}（${err ? String(err) : '空资源'}）`);
+                return;
+            }
+            this._bgmClip = clip;
+            log(`[AudioService] BGM 就绪：${BGM_PATH}（${clip.getDuration().toFixed(1)}s）`);
+            // 资源到位时补试一次。在**微信**里这一步通常就能直接起播
+            // （之前已经有过真实的用户交互）；浏览器会拦，那就等下一次点击借势。
+            this.tryStartBgm();
+        });
     }
 
     // --------------------------------------------------------
@@ -178,6 +252,12 @@ export class AudioService {
      */
     public static play(id: SfxId, opts: PlayOpts = {}): void {
         if (!CFG.AUDIO.ENABLED || this._muted) return;
+
+        // ★【借手势】BGM 的首次起播必须落在用户手势的调用栈里。
+        //   音效 100% 由点击触发，所以"玩家点下的这一下"就是天然的时机 ——
+        //   顺手把 BGM 带起来。这是一条兜底：页面 onBuild 那次若因为
+        //   资源还没加载完而没能播成，第一下点牌一定会成。
+        this.tryStartBgm();
 
         const clip = this._clips[id];
         // 还没加载好 → 静默跳过（理由见文件头：补播比少一声更糟）
@@ -221,6 +301,116 @@ export class AudioService {
     }
 
     // --------------------------------------------------------
+    //  BGM（S14）
+    // --------------------------------------------------------
+
+    /**
+     * 请求播放 BGM（**幂等**，重复调用是安全的，已在播则什么都不做）。
+     *
+     * ★【调用点必须在用户手势的调用栈里】
+     *   浏览器 / 微信的 autoplay 策略只对**首次**播放严格：不在手势栈内就会被
+     *   静默拦截 —— 不抛异常、日志也没有线索，表现只是"没声音"。
+     *   本作的调用点是各页面的 `onBuild`（由 PageManager.open 同步调用，
+     *   而 open 又由 点击 → goto 同步触发）⇒ 天然在手势栈内 ✅
+     *   ⚠️ **绝对不要挪到 onEnter**：它是 setTimeout 之后才调的，已经出栈了。
+     *
+     * 【为什么"想要"（_bgmWanted）和"已经发过 play"（_bgmStarted）要分成两个】
+     *   资源是异步加载的。玩家完全可能在世界还没就绪时就进了游戏页 ——
+     *   正确的做法是**记住这个意图**，等资源到位或下一次点击时补上；
+     *   而不是"没就绪就放弃，以后也不播了"。
+     */
+    public static playBgm(): void {
+        if (!CFG.AUDIO.ENABLED || !CFG.AUDIO.BGM_ENABLED) return;
+        // 先取消进行中的淡出：否则淡出链路末尾那句 stop() 会把刚起的 BGM 掐掉
+        // （快速"回菜单 → 又进游戏"时最容易踩到）
+        this.cancelFade();
+        this._bgmWanted = true;
+        this.tryStartBgm();
+    }
+
+    /**
+     * 请求停止 BGM（带淡出）。
+     * 语义是"业务侧不再需要 BGM"，所以会一并清掉 _bgmWanted。
+     */
+    public static stopBgm(): void {
+        this._bgmWanted = false;
+
+        const src = this._bgm;
+        if (!src || !src.isValid || !this._bgmStarted) return;
+
+        const total = Math.max(0, CFG.AUDIO.BGM_FADE_MS);
+        this.cancelFade();
+        if (total <= 0) {
+            src.stop();
+            src.volume = 0;
+            this._bgmStarted = false;
+            return;
+        }
+
+        const from = src.volume;
+        const steps = 6;
+        const stepMs = Math.max(16, Math.round(total / steps));
+        for (let i = 1; i <= steps; i++) {
+            const k = i / steps;
+            this._bgmFadeIds.push(setTimeout(() => {
+                if (!src.isValid || !this._bgmStarted) return;
+                src.volume = i === steps ? 0 : from * (1 - k);
+            }, stepMs * i) as unknown as number);
+        }
+        // 兜底：无论淡出链路有没有被打断，到点必须真的停下来。
+        // 铁律同 PageManager —— 状态流转走"必然执行"的路径，动效只负责好看。
+        this._bgmFadeIds.push(setTimeout(() => {
+            if (!src.isValid || !this._bgmStarted) return;
+            src.stop();
+            src.volume = 0;
+            this._bgmStarted = false;
+        }, total + 140) as unknown as number);
+    }
+
+    /** 真正把 play() 发出去。资源未就绪 / 已静音 / 已在播 都会安静返回 */
+    private static tryStartBgm(): void {
+        if (!this._bgmWanted) return;
+
+        const src = this._bgm;
+        if (!src || !src.isValid) return;
+
+        // 已在播：只把音量校正回该有的位置。
+        // 这一条是"选关 ↔ 局内来回切不重启音乐"的关键 ——
+        // 每次进页面都从头重播的话，音乐会不停从第 0 秒开始，非常廉价。
+        if (this._bgmStarted) {
+            if (!this._muted) src.volume = this.bgmVolume();
+            return;
+        }
+
+        if (this._muted || !this._bgmClip) return;   // 还没就绪：等"借势"
+
+        this._bgmStarted = true;
+        this.cancelFade();
+        src.stop();                 // 清掉可能残留的播放态，保证从第 0 秒干净开始
+        src.clip = this._bgmClip;
+        src.loop = true;            // 循环由 AudioSource 维持，不靠监听结束事件
+        src.volume = this.bgmVolume();
+        src.play();
+        log('[AudioService] BGM 起播（茶馆电音）');
+    }
+
+    /** BGM 该有的音量（MASTER × BGM_GAIN，夹到 0~1） */
+    private static bgmVolume(): number {
+        return Math.max(0, Math.min(1, CFG.AUDIO.MASTER * CFG.AUDIO.BGM_GAIN));
+    }
+
+    /** 清掉淡出链路上的定时器（不动 _bgmStarted，那由 tryStartBgm / stopBgm 决定） */
+    private static cancelFade(): void {
+        for (const id of this._bgmFadeIds) clearTimeout(id);
+        this._bgmFadeIds.length = 0;
+    }
+
+    /** 仅供测试/排查：BGM 是否已经起播 */
+    public static get bgmPlaying(): boolean {
+        return this._bgmStarted;
+    }
+
+    // --------------------------------------------------------
     //  静音（供后续设置页 / 顶部小喇叭按钮调用）
     // --------------------------------------------------------
 
@@ -229,10 +419,28 @@ export class AudioService {
     /** 静音。会立刻掐断所有正在播的声音，而不是等它们播完 */
     public static setMuted(m: boolean): void {
         this._muted = m;
-        if (!m) return;
-        for (const v of this._voices) {
-            if (v && v.isValid && v.playing) v.stop();
+
+        const bgm = this._bgm;
+        if (m) {
+            // 静音这个动作本身就该是**即时**的 —— 此时再给 BGM 做淡出，
+            // 玩家会觉得"我按了静音它还在响"。所以这里硬停。
+            for (const v of this._voices) {
+                if (v && v.isValid && v.playing) v.stop();
+            }
+            this.cancelFade();
+            if (bgm && bgm.isValid) {
+                bgm.stop();
+                bgm.volume = 0;
+            }
+            this._bgmStarted = false;
+            return;
         }
+
+        // 取消静音：若业务侧仍然"想要 BGM"，把它接回来。
+        // ⚠️ 注意 _bgmWanted 是**页面生命周期**给的意图，不因静音而丢弃 ——
+        //    否则"在局内点一下静音、再取消"，BGM 就再也回不来了。
+        if (bgm && bgm.isValid) bgm.volume = this.bgmVolume();
+        this.tryStartBgm();
     }
 
     public static toggleMuted(): boolean {

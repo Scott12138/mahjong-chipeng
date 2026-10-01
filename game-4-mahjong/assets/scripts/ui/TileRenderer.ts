@@ -319,6 +319,45 @@ function drawBird(g: Graphics, isDim: boolean, face: string, k: number): void {
 //  牌体框架（国潮：宣纸底 + 墨线双框 + 朱红角花 + 硬直角）
 // ============================================================
 
+/**
+ * ★ S14.1：把一张牌画成**厚牌** —— 投影 → 厚度壁 → 顶面（顺序不能变）。
+ *
+ * 【为什么不是"描两圈边"】
+ * 立体感的来源只有一条：**同一个轮廓在不同高度上出现两次**。
+ * 下移的那一份是"牌的另一端"，两份之间的那条带子就是"厚"。
+ * 所以厚度不是描边粗细的问题，是**位移**的问题 —— 这也是最容易做错的地方：
+ * 只要把厚度壁画在顶面**之外**（比如四周均匀外扩），立刻变成"描边变粗"。
+ *
+ * 【为什么投影要画多层】
+ * Graphics 只有硬边填充，没有模糊。硬边投影在牌堆里会变成一堆黑杠
+ * （尤其牌挨得近时），所以用 N 层同心矩形、每层 1/N 不透明度叠出渐变边缘。
+ * 从**最大最外**开始画、逐层收小 —— 叠出来就是"中间浓、边缘淡"。
+ *
+ * ⚠️ 所有几何量都按设计坐标（132 宽）描述，由 k 统一缩放。
+ *    这样"牌越小、厚度越薄"是自动的，不需要每关单独配。
+ */
+function drawSolid(g: Graphics, isDim: boolean, k: number): void {
+    const S = CFG.TILE.SOLID;
+    const B = G.BODY;
+
+    // ① 投影：从最大（最外）逐层收到最小
+    const layers = Math.max(1, S.SHADOW_LAYERS);
+    for (let i = layers - 1; i >= 0; i--) {
+        const sp = S.SHADOW_SPREAD * i;
+        rr(
+            g, B.x + S.SHADOW_DX - sp, B.y + S.SHADOW_DY - sp,
+            B.w + sp * 2, B.h + sp * 2, B.r + sp, k,
+            CFG.COLOR.SHADOW, undefined, 0, S.SHADOW_ALPHA,
+        );
+    }
+
+    // ② 厚度壁：牌体轮廓整体下移 DEPTH、右移 SIDE_DX
+    rr(
+        g, B.x + S.SIDE_DX, B.y + S.DEPTH, B.w, B.h, B.r, k,
+        isDim ? S.SIDE_DIM : S.SIDE, S.SIDE_EDGE, B.line * 0.7,
+    );
+}
+
 function drawFrame(g: Graphics, isDim: boolean, k: number): void {
     const face = isDim ? CFG.COLOR.FACE_DIM : CFG.COLOR.FACE;
     const frameCol = isDim ? CFG.COLOR.LOCK : CFG.COLOR.INK;
@@ -464,6 +503,8 @@ export class TileView {
         const g = this._g;
         g.clear();
 
+        // ★ S14.1：先铺投影与厚度壁，牌面压在上面 —— 这就是"厚"的全部秘密
+        drawSolid(g, isDim, k);
         drawFrame(g, isDim, k);
 
         const face = isDim ? CFG.COLOR.FACE_DIM : CFG.COLOR.FACE;
