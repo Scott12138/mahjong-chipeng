@@ -45,8 +45,8 @@ import {
 
 import { CFG, LevelConfig } from '../CFG';
 import {
-    BlockGraph, Layout, ReshufflePlan, TileInst, buildBlockGraph, generateLevel,
-    pickableIds, planReshuffle,
+    BlockGraph, Layout, ReshufflePlan, TileInst, boxOf, buildBlockGraph, generateLevel,
+    pickableIds, planReshuffle, tileSizeOf,
 } from '../core/Generator';
 import { MATCH_LABEL, MATCH_SIZE, MatchResult, findMatch } from '../core/MatchRule';
 import { SaveService } from '../core/SaveService';
@@ -74,8 +74,8 @@ const { ccclass } = _decorator;
 interface SlotEntry {
     /**
      * 原始的牌 id。
-     * 必须记下来 —— 复活时要把槽里的牌**退回场上**，如果只按牌面找，
-     * 遇到"同名牌面有好几张"就会还原到错误的那一张（视图与数据错位）。
+     * 必须记下来 —— 复活、洗牌这些操作要按 id 找回"槽里这张牌在布局里的哪一项"，
+     * 如果只按牌面找，遇到"同名牌面有好几张"就会还原到错误的那一张（视图与数据错位）。
      */
     id: number;
     key: PatternKey;
@@ -239,8 +239,14 @@ export class GamePage extends PageBase {
         this._timeLeft = level.timeLimit;
 
         if (CFG.DEBUG.LOG_STATE) {
+            // ⚠️ `certified` 必须打出来。大牌数关卡（63/96 张）常态就是
+            //    certified=false + 可解率 0% —— 那不是故障，而是"羊了个羊"
+            //    模式的设计结果（详见 CFG.STACK.MAX_RETRY 的注释）。
+            //    少了这个字段，排查的人会把"设计如此"读成"生成器坏了"。
             log(`[GamePage] 第 ${level.id} 关「${level.name}」：${n} 张牌 / `
-                + `${this._layout.attempts} 次采样命中 / 可解通过率 ${(this._layout.solveRate * 100).toFixed(0)}% / `
+                + `${this._layout.attempts} 次采样 / `
+                + `${this._layout.certified ? '已认证可解' : '仅认证开局不卡'}`
+                + `（可解率 ${(this._layout.solveRate * 100).toFixed(0)}%）/ `
                 + `生成耗时 ${genMs}ms / seed=${this._layout.seed}`);
         }
         this.logPickable();
@@ -531,17 +537,76 @@ export class GamePage extends PageBase {
      * 三个上限取最小：配置上限、格宽能放下的、格高能放下的。
      * 这样「加槽」把 8 格变 9 格时，牌会自动缩一点点继续放得下 ——
      * 不需要为"加槽后"单独写一套尺寸。
+     *
+     * 【口径为什么按「最长边」算（S10 T3）】
+     * 牌是四向随机朝向的，槽里的牌「保不保留原朝向」由开关控制
+     * （`CFG.STACK.SLOT_KEEP_ANGLE`，**当前为 false = 一律转正**）。
+     * 但**这个函数的口径不跟着开关走**：它按最长边 `max(W, H)` 取方形占位。
+     * 原因很实在 —— 开关一翻，槽里就会出现横躺（宽 114×高 85）的牌；
+     * 若此时仍按 `TILE.W` 去套 81.5px 的格宽，实际画出来是 114×scale，
+     * 直接顶出格子、压到邻格上。按最长边算则两种朝向一视同仁，
+     * 翻开关不会引入这个 bug（代价只是槽内牌比理论值小一点，肉眼看不出来）。
      */
     private slotScale(): number {
         const L = CFG.GAME_LAYOUT;
-        const hLimit = (L.SLOT_BAR_H - CFG.GAMEPLAY.SLOT_INSET_Y * 2) / CFG.TILE.H;
-        return Math.min(CFG.TILE.SLOT_SCALE, this.slotWidth() / CFG.TILE.W, hLimit);
+        const f = this.slotFootprint();
+        const hLimit = (L.SLOT_BAR_H - CFG.GAMEPLAY.SLOT_INSET_Y * 2) / f;
+        return Math.min(CFG.TILE.SLOT_SCALE, this.slotWidth() / f, hLimit);
     }
 
-    /** 暂存架里牌的缩放系数 */
+    /**
+     * 槽内 / 暂存架里牌的「视觉正方形边长」。
+     * 按最长边算的理由见 slotScale 的注释 —— 它是"翻开关也不会崩"的保险，
+     * 不是当前朝向的推导结果。
+     * 单独抽出来是因为它同时被槽位和暂存架两处用，改口径只能改这一处。
+     */
+    private slotFootprint(): number {
+        // ⚠️ 必须用**本关的真实牌面尺寸**（tileSizeOf 是唯一口径），
+        //    不能写死 CFG.TILE.W/H：L1 是 128、L2 起是基准 ×1.25，
+        //    写死基准的话槽内缩放会按旧尺寸算 —— 牌放大后就会顶出格子。
+        //    取自 `_layout.tiles[0]`（已在 onBuild 开头生成），保底回落到基准。
+        const t = this._layout?.tiles?.[0];
+        const w = t ? t.w : tileSizeOf(this._level).w;
+        const h = t ? t.h : tileSizeOf(this._level).h;
+        return Math.max(w, h);
+    }
+
+    /** 暂存架里牌的缩放系数（同样按最长边，暂存架里也不转正） */
     private tempScale(): number {
         const L = CFG.GAME_LAYOUT;
-        return Math.min(this.slotScale(), L.TEMP_SLOT_W / CFG.TILE.W, (L.TEMP_RACK_H - 6) / CFG.TILE.H);
+        const f = this.slotFootprint();
+        return Math.min(this.slotScale(), L.TEMP_SLOT_W / f, (L.TEMP_RACK_H - 6) / f);
+    }
+
+    /**
+     * 取某张牌在牌堆里的**朝向**（0 / 90 / 180 / 270）。
+     *
+     * 【为什么不把 angle 存进 SlotEntry / _temp，而是每次回牌堆里查】
+     * 朝向是牌的固有属性，真值只有一份 —— `_layout.tiles[id].angle`。
+     * 槽位、暂存架、飞行中的特效牌都只是**这张牌的不同视图状态**。
+     * 一旦在 SlotEntry 里再存一份，就多出"两份数据要同步"的义务：
+     * 洗牌会改牌堆布局（可能重算朝向）、移出/取回又会在槽与暂存架之间搬 ——
+     * 每一条路径都是一个漏同步的机会，
+     * 而漏掉的表现是"同一张牌在槽里躺着、回到场上却站起来了"，这种错位极难排查。
+     * 统一回牌堆查，就没有这个问题。
+     *
+     * 牌堆里查不到（id 越界 / 已从布局里删除）时退回 0，等价于旧行为。
+     */
+    private angleOf(id: number): number {
+        const t = this._layout.tiles[id];
+        return t ? t.angle : 0;
+    }
+
+    /**
+     * 槽位 / 暂存架里这张牌**该显示的**朝向。
+     *
+     * 与 `angleOf` 分开是有意的：牌堆里的朝向永远是牌自己的（不受开关影响，
+     * 否则"回场"时会把牌摆正、破坏四向随机的观感），只有**槽位与暂存架**
+     * 这两处展示位受 `CFG.STACK.SLOT_KEEP_ANGLE` 控制。
+     * 合成一个函数再传布尔参数就分不清"这里该不该受开关管"了。
+     */
+    private slotAngleOf(id: number): number {
+        return CFG.STACK.SLOT_KEEP_ANGLE ? this.angleOf(id) : 0;
     }
 
     /** 第 i 个槽格的中心 x（相对屏幕中心） */
@@ -726,13 +791,13 @@ export class GamePage extends PageBase {
     // --------------------------------------------------------
     private buildStack(): void {
         const tiles = this._layout.tiles;
-        const W = CFG.TILE.W;
         const M = CFG.MOTION;
 
         const order: number[] = [];
         for (let i = 0; i < tiles.length; i++) {
             const t = tiles[i];
-            const view = new TileView(this._stackLayer, t.key, W);
+            // 牌宽用**这张牌自己的** w（L1 = 128、L2 起 = 85），不能用全局基准
+            const view = new TileView(this._stackLayer, t.key, t.w);
             // A1/A2 改版（S7.5）：起始态 = 屏幕外正上方 + 随机横移 + 随机角度 + 全透明。
             //
             // 【为什么在 build 期就摆好，而不是等 onEnter 再摆出去】
@@ -836,10 +901,12 @@ export class GamePage extends PageBase {
             // 重新随机一次的后果是"起点跳变"：牌在它可见的第一帧瞬移一下。
             MotionFx.to(v.node, { position: v3(t.x, t.y, 0) },
                 { duration: M.FLY_IN, delay, easing: EASE.POP, tag: TAG.STACK });
-            // 旋转归零：与位移同长同期，视觉上"翻正"和"落下"是一件事。
+            // 旋转归位：与位移同长同期，视觉上"摆正"和"落下"是一件事。
+            // ⚠️ 归的是**这张牌自己的目标朝向** t.angle（0/90/180/270），不是 0 ——
+            //    入场时牌带着随机小角度飞过来，落定必须回到它在牌堆里的摆放方向。
             // 用独立通道 TAG.SPIN —— 它和 TAG.STACK 改的是不同属性，
             // 共用一个 tag 只会互相打断（后起的把先起的 stop 掉）。
-            MotionFx.to(v.node, { angle: 0 },
+            MotionFx.to(v.node, { angle: t.angle },
                 { duration: M.FLY_IN, delay, easing: EASE.POP, tag: TAG.SPIN });
             // 淡入只占前半程（0.55）。后程必须完全不透明：
             // 牌在最后 150ms 是要被"看清是什么牌"的，那时还半透明就是废动作。
@@ -847,7 +914,7 @@ export class GamePage extends PageBase {
                 { delay, easing: EASE.ENTER, tag: TAG.FADE });
 
             // 落位挤压 + 落牌声：各自一个定时器（不走 tween 回调）
-            setTimeout(() => this.onFlyInLand(v, t.x, t.y),
+            setTimeout(() => this.onFlyInLand(v, t.x, t.y, t.angle),
                 MotionFx.unlockMs(delay + M.FLY_IN));
         }
         const flyDone = stagger * Math.max(0, n - 1) + M.FLY_IN + M.FLY_IN_SQUASH;
@@ -896,7 +963,7 @@ export class GamePage extends PageBase {
                 MotionFx.stopAll(v.node);
                 MotionFx.setScale(v.node, 1);
                 MotionFx.setFade(v.node, 255);
-                v.node.angle = 0;
+                v.node.angle = t.angle;
                 v.node.setPosition(t.x, t.y, 0);
             }
             this._busy = false;
@@ -912,12 +979,12 @@ export class GamePage extends PageBase {
      * 没跑到终点，这里也会把牌写回精确坐标 —— 玩家永远不会看到一张
      * 卡在半空的牌。铁律的另一半：复位走定时器，不依赖 tween 回调。
      */
-    private onFlyInLand(v: TileView, x: number, y: number): void {
+    private onFlyInLand(v: TileView, x: number, y: number, angle: number): void {
         if (!this.node.isValid || !v.node.isValid) return;
         const M = CFG.MOTION;
 
         v.node.setPosition(x, y, 0);
-        v.node.angle = 0;
+        v.node.angle = angle;
         MotionFx.setFade(v.node, 255);
         MotionFx.setScale(v.node, 1);
 
@@ -1126,13 +1193,14 @@ export class GamePage extends PageBase {
      */
     private hitStackTile(local: Vec3): number {
         const tiles = this._layout.tiles;
-        const hw = CFG.TILE.W / 2;
-        const hh = CFG.TILE.H / 2;
         for (let k = this._depthOrder.length - 1; k >= 0; k--) {
             const id = this._depthOrder[k];
             if (this._taken[id]) continue;
             const t = tiles[id];
-            if (Math.abs(local.x - t.x) > hw || Math.abs(local.y - t.y) > hh) continue;
+            // 命中区必须用**这张牌旋转后的视觉包围盒**：
+            // 横躺的牌是"宽 114 × 高 85"，拿竖放尺寸去判会点不中两端、又误中上下。
+            const b = boxOf(t);
+            if (Math.abs(local.x - t.x) > b.hw || Math.abs(local.y - t.y) > b.hh) continue;
             return id;
         }
         return -1;
@@ -1146,9 +1214,12 @@ export class GamePage extends PageBase {
     private hitPending(local: Vec3): boolean {
         const p = this._pending;
         if (!p) return false;
-        const hw = CFG.TILE.W / 2;
-        const hh = CFG.TILE.H / 2;
-        return Math.abs(local.x - p.ox) <= hw && Math.abs(local.y - p.oy) <= hh;
+        // 用**这张牌自己的旋转后包围盒**，不是全局的 TILE.W/H：
+        // 牌现在可以躺倒（宽 = 牌高 114），拿竖放尺寸去判会"点不中两端、
+        // 又误中上下"，撤销就变成了碰运气。
+        const t = this._layout.tiles[p.id];
+        const b = t ? boxOf(t) : { hw: CFG.TILE.W / 2, hh: CFG.TILE.H / 2 };
+        return Math.abs(local.x - p.ox) <= b.hw && Math.abs(local.y - p.oy) <= b.hh;
     }
 
     /** 命中槽内 / 暂存架里的牌？ */
@@ -1332,6 +1403,31 @@ export class GamePage extends PageBase {
               duration: flySec, easing: EASE.MOVE },
             { tag: TAG.FLY });
 
+        // ⑦b 顺手把牌"理顺"（2026-10-01 需求 #1）
+        //     牌堆里是四向随机的（可能横躺 90°、倒立 180°），而槽位是玩家的
+        //     **信息区** —— 玩家要拿它判断"我手里有什么、还差哪张"，只许好读。
+        //     所以入槽一律摆正（CFG.STACK.SLOT_KEEP_ANGLE = false）。
+        //
+        //     ⚠️ 旋转放在**飞行段**，不是落位那一帧。落位瞬间直接改角度会表现为
+        //        "啪"地翻一下，看起来像渲染错帧；放进飞行里读起来是"被理顺了"，
+        //        这也正是这个开关的代价被接受的原因（见 CFG 里的说明）。
+        //     ⚠️ 走**最短转向**。Cocos 的 `angle` 是顺时针度数且不会自己取模，
+        //        270 → 0 若直连，牌会逆时针空转 270°（约 0.3 秒里转四分之三圈，
+        //        像被甩出去的）。改写成 270 → 360（落点朝向与 0 完全等价）。
+        //     ⚠️ 用独立 tag（SPIN），与位移 tween 改的不是同一个属性，互不干扰。
+        //     ⚠️ 已经正了的牌不建 tween：L1 教学关牌本来就正（upright），
+        //        多建一条 0→0 的空动画纯属浪费（12 张牌就是 12 条）。
+        {
+            const cur = view.node.angle;
+            const aim = this.slotAngleOf(id);
+            // 归一化到 (-180, 180]，得到最短转向量
+            const delta = ((aim - cur) % 360 + 540) % 360 - 180;
+            if (Math.abs(delta) > 0.01) {
+                MotionFx.to(view.node, { angle: cur + delta },
+                    { duration: flySec, easing: EASE.MOVE, tag: TAG.SPIN });
+            }
+        }
+
         // ⑧ 状态流转用定时器（铁律：绝不用 tween 回调驱动状态）
         setTimeout(() => {
             if (!this.node.isValid) return;   // 页面已销毁，整页都在回收，不必留痕
@@ -1400,6 +1496,10 @@ export class GamePage extends PageBase {
         view.node.setParent(this._slotLayer);
         view.node.setPosition(targetSlot);
         view.node.setSiblingIndex(this._slotLayer.children.length - 1);
+        // 朝向：入槽后是否保留原朝向由 CFG.STACK.SLOT_KEEP_ANGLE 决定。
+        // 这里必须是"兜底赋值"而不是等某条 tween 收敛 —— 飞行链路的最后一帧
+        // 若因故没跑到，牌就会顶着飞行途中的旋转角停在槽里，且日志里毫无痕迹。
+        view.node.angle = this.slotAngleOf(id);
         view.setState('normal');   // 选中描边到此收掉
         this._pending = null;
 
@@ -1484,7 +1584,7 @@ export class GamePage extends PageBase {
         view.node.setPosition(back);
         view.setState('normal');
         MotionFx.to(view.node,
-            { position: v3(t.x, t.y, 0), scale: v3(1, 1, 1) },
+            { position: v3(t.x, t.y, 0), scale: v3(1, 1, 1), angle: t.angle },
             { duration: CFG.MOTION.TAP_UP, easing: EASE.MOVE, tag: TAG.STACK });
 
         this._busy = false;
@@ -1506,6 +1606,17 @@ export class GamePage extends PageBase {
 
         if (m) {
             this.playClear(m);
+            return;
+        }
+
+        // ★ 没消成，但**场上已经空了** → 直接通关（S7.9 新口径）。
+        //   这一条**必须排在"槽满"之前**：点下最后一张牌时它可能同时让槽到达
+        //   上限，而按新口径"场上清空优先"。玩家能走到的典型路径 = 把最后一组
+        //   拆着点进槽（场上空了、槽里剩 1~2 张凑不成型）。
+        //   ⚠️ 走到这里时 `_slots` 里还留着刚入槽的那张 —— 数据**不清**：
+        //      finish 的显示口径会把它计入"已清"，收尾动画会把它收掉。
+        if (this.isFieldCleared()) {
+            this.finish(true);
             return;
         }
 
@@ -1756,8 +1867,9 @@ export class GamePage extends PageBase {
             return;
         }
 
-        // 胜负判定
-        if (this.isBoardEmpty()) {
+        // 胜负判定。顺序**不能调换**：场上清空优先级高于槽满
+        // （点下最后一张牌同时触发两者时，玩家赢了 —— 见 isFieldCleared）。
+        if (this.isFieldCleared()) {
             this.finish(true);
         } else if (this._slots.length >= this._slotCapacity) {
             this.finish(false, 'slotfull');
@@ -1899,9 +2011,25 @@ export class GamePage extends PageBase {
         spawnDebris(this._fx, local.x, local.y, count, CFG.COLOR.GOLD);
     }
 
-    /** 场上清空 **且** 槽与暂存都空 —— 三者齐了才是通关 */
-    private isBoardEmpty(): boolean {
-        return this._left === 0 && this._slots.length === 0 && this._temp.length === 0;
+    /**
+     * ★ 通关判定：**场上清空即通关**（S7.9 口径变更，2026-10-01）。
+     *
+     * 【为什么从"三者齐空"改成"只看场上"】
+     * 旧定义要求 `_left === 0 && 槽空 && 暂存空`，它有一个玩家**真的能走到**的
+     * 死角：把最后一组牌拆着点进槽（场上空了、槽里剩 1~2 张凑不成型、暂存架也空）
+     * —— 既不通关、也不判负，玩家对着空牌堆点哪儿都没反应，界面**没有任何出口**。
+     *
+     * 新定义下这种局面直接算赢：**牌是从场上被拿完的，这就是"清完了"**。
+     * 槽里那 1~2 张、暂存架里挂着的牌都不影响判定（它们只是"没来得及成型"）。
+     * 结算时进度条会把它们一并计入已清（见 finish 里的显示口径），
+     * 屏幕上残留的几张牌也会在通关动画里收掉（见 sweepLeftovers）。
+     *
+     * ⚠️ "槽满 = 失败"这条惩罚**照旧生效**，只是优先级低于本判定：
+     *    点下最后一张牌时若场上清空与槽满同时发生，判**通关**。
+     *    （顺序写在 afterInsert / finalizeClear 里，改代码时别调换。）
+     */
+    private isFieldCleared(): boolean {
+        return this._left === 0;
     }
 
     /**
@@ -2295,7 +2423,8 @@ export class GamePage extends PageBase {
             const keys = this._slots.map((s) => s.key);
             const again = findMatch(keys, this._level.gang, -1);
             if (again) { this.playClear(again); return; }
-            if (this.isBoardEmpty()) this.finish(true);
+            // 道具把场上最后一组消掉 → 同样按新口径判通关（槽里剩什么都不管）
+            if (this.isFieldCleared()) this.finish(true);
         }, MotionFx.unlockMs(harvestTotal));
     }
 
@@ -2334,6 +2463,10 @@ export class GamePage extends PageBase {
             if (!node.isValid) continue;
             const targetIndex = this._temp.length + k;
             const target = this.tempPos(targetIndex);
+            // 这张牌在"槽/暂存架展示位"上的朝向（受 SLOT_KEEP_ANGLE 控制）。
+            // 该开关现为 false → 恒为 0°（槽位是信息区，必须正放）。
+            // 移出只是"换个地方放"，不额外做转正动作 —— 它本来就是正的。
+            const a0 = this.slotAngleOf(entry.id);
 
             // 起飞点：当前视觉位置（世界坐标换算到特效层），
             // 这样"正在做补位动画的牌"也能从它真实所在处起飞
@@ -2343,7 +2476,7 @@ export class GamePage extends PageBase {
             node.setParent(this._fxLayer);
             node.setPosition(fromFx);
             node.setSiblingIndex(this._fxLayer.children.length - 1);
-            node.angle = 0;
+            node.angle = a0;
 
             // 抛物线的两个控制点：
             //   c1 = 起点往下沉 MOVE_OUT_DROP（"掉出槽位"）
@@ -2357,9 +2490,13 @@ export class GamePage extends PageBase {
             // 天生表达不了"顺便把角度也转了"；硬塞进同一条就得手写一串
             // 中间点 —— 那是在重新实现贝塞尔。
             // 分通道没有任何副作用：两条 tween 改的是不同属性。
+            //
+            // ⚠️ 旋转的**起点和终点都是 a0**（现为 0°）：这条 tween 表达的是
+            //    "被挪走时晃一下"这个手感，**不是**用来改朝向的 ——
+            //    写死 0 之外的终值会变成"移出顺手把牌转个角度"，与槽位正放的规则打架。
             MotionFx.chain(node, [
-                { props: { angle: M.MOVE_OUT_ANGLE }, duration: M.MOVE_OUT * 0.4, easing: EASE.MOVE },
-                { props: { angle: 0 }, duration: M.MOVE_OUT * 0.6, easing: EASE.MOVE },
+                { props: { angle: a0 + M.MOVE_OUT_ANGLE }, duration: M.MOVE_OUT * 0.4, easing: EASE.MOVE },
+                { props: { angle: a0 }, duration: M.MOVE_OUT * 0.6, easing: EASE.MOVE },
             ], { tag: TAG.SPIN });
             MotionFx.arc(node, fromFx, c1, c2, targetFx, M.MOVE_OUT,
                 { tag: TAG.FLY, easing: EASE.MOVE });
@@ -2381,7 +2518,7 @@ export class GamePage extends PageBase {
                 node.setParent(this._tempLayer);
                 node.setPosition(this.tempPos(this._temp.length + k));
                 node.setScale(v3(scale, scale, 1));
-                node.angle = 0;
+                node.angle = this.slotAngleOf(moving[k].id);
             }
             for (let k = 0; k < n; k++) {
                 this._temp.push(moving[k]);
@@ -2504,10 +2641,15 @@ export class GamePage extends PageBase {
         // 缩到 0.86 + 半透明 + 带 ±12° 随机角度。
         // 角度是"要被重新抛出去"的预告：静止的牌突然旋转，玩家的直觉是
         // "这堆东西在动了"，接下来的重排就有了"因"。
+        //
+        // ⚠️ 这个 ±12° 是**相对这张牌自己的朝向**（a0 + ang），不是绝对角：
+        //    牌是四向随机的，写绝对值会让大半牌在原地拧 90°~180° ——
+        //    那不再是"抖一下"，而是"整堆翻了个面"，看不出是同一批牌。
         for (const id of movingIds) {
             const v = this._views[id];
             if (!v || !v.node.isValid) continue;
-            const ang = (Math.random() * 2 - 1) * M.SHUFFLE_ANGLE;
+            const a0 = this.angleOf(id);
+            const ang = a0 + (Math.random() * 2 - 1) * M.SHUFFLE_ANGLE;
             MotionFx.chain(v.node, [
                 { props: { scale: v3(0.86, 0.86, 1), angle: ang },
                   duration: M.SHUFFLE_GATHER, easing: EASE.EXIT },
@@ -2546,7 +2688,7 @@ export class GamePage extends PageBase {
                 const t = tiles[m.id];
                 if (!t) continue;
                 t.x = m.x; t.y = m.y;
-                t.depth = m.depth; t.row = m.row; t.col = m.col;
+                t.depth = m.depth; t.row = m.row; t.col = m.col; t.floor = m.floor;
             }
             // 重建遮挡图（位置变了，遮挡关系全变）
             this._graph = buildBlockGraph(tiles, this._taken);
@@ -2586,8 +2728,11 @@ export class GamePage extends PageBase {
                 const v = this._views[m.id];
                 if (!v || !v.node.isValid) continue;
                 const layerIdx = depths.indexOf(tiles[m.id]?.depth ?? 0);
+                // 铺开时角度归到**这张牌自己的朝向**（不是 0）——
+                // 洗牌只换位置，不该顺手把所有牌摆正。
                 MotionFx.chain(v.node, [
-                    { props: { position: v3(m.x, m.y, 0), scale: v3(1, 1, 1), angle: 0 },
+                    { props: { position: v3(m.x, m.y, 0), scale: v3(1, 1, 1),
+                               angle: tiles[m.id].angle },
                       duration: M.SHUFFLE_SPREAD, easing: EASE.POP },
                 ], { tag: TAG.STACK, delay: layerIdx * stagger });
                 MotionFx.fade(this._views[m.id].node, 255, M.SHUFFLE_SPREAD,
@@ -2613,7 +2758,7 @@ export class GamePage extends PageBase {
                 MotionFx.stop(v.node, TAG.FADE);
                 v.node.setPosition(m.x, m.y, 0);
                 v.node.setScale(1, 1, 1);
-                v.node.angle = 0;
+                v.node.angle = tiles[m.id].angle;
                 MotionFx.setFade(v.node, 255);
             }
             // ⚠️ 收尾定时器**故意完全不碰 `_busy`**。
@@ -2852,6 +2997,17 @@ export class GamePage extends PageBase {
         }
 
         if (win) {
+            // 【S7.9 显示口径】新通关规则是"场上清空即通关"，所以通关时槽里 /
+            // 暂存架里**可能还留着** 1~2 张牌。它们不是"没清完"，而是"没来得及
+            // 成型就赢了"，因此进度条按**已清完**显示 —— 否则会出现
+            // 「已清 20 / 24」配「通关！」这种自相矛盾的观感。
+            // ⚠️ 只动**显示**：上面那条日志打的是真实消除数，这里不覆盖它、
+            //    也不掩盖数据（想核对真实值就看日志）。
+            this._cleared = this._layout.tiles.length;
+            this.refreshHud();
+            // 屏幕上那几张牌也要一起收掉：进度满了、牌还挂着，一样矛盾。
+            this.sweepLeftovers();
+
             const save = SaveService.instance;
             const best = save.getBestTime(this._level.id);
             save.markCleared(this._level.id, this._usedTime);
@@ -2866,6 +3022,37 @@ export class GamePage extends PageBase {
         }
 
         this.showFailPanel();
+    }
+
+    /**
+     * 【S7.9】通关清尾：把槽里 / 暂存架里**残留**的牌收掉（缩小 + 淡出）。
+     *
+     * 【触发时机只有一处】通关瞬间。它们不是被消除的（没凑成型、也没有碰撞），
+     * 所以只做"缩小 + 淡出"：不给碎屑、不给冲击圆环、不给飘字 ——
+     * 这不是庆祝动作，是收尾动作。错峰 SWEEP_STAGGER 让它们是"一张张被收走"，
+     * 同时消失会读成"闪了一下"。
+     *
+     * ⚠️ 只动**视觉**：`_slots` / `_temp` 两个数组一个字节都不改。
+     *    即使动效没跑完（玩家 2 秒内退到关卡页），游戏状态依然自洽 ——
+     *    何况 `_over = true` 已经把后续所有操作入口封死了。
+     */
+    private sweepLeftovers(): void {
+        const M = CFG.MOTION;
+        const leftovers: Node[] = [];
+        for (const e of this._slots) if (e.view.node.isValid) leftovers.push(e.view.node);
+        for (const e of this._temp) if (e.view.node.isValid) leftovers.push(e.view.node);
+        if (leftovers.length === 0) return;
+
+        for (let k = 0; k < leftovers.length; k++) {
+            const node = leftovers[k];
+            const delay = k * M.SWEEP_STAGGER;
+            MotionFx.to(node, { scale: v3(0, 0, 1) },
+                { duration: M.SWEEP_OUT, easing: EASE.EXIT, tag: TAG.SLOT, delay });
+            MotionFx.fade(node, 0, M.SWEEP_OUT,
+                { easing: EASE.EXIT, tag: TAG.FADE, delay });
+        }
+        log(`[GamePage] 通关清尾：收掉残留牌 ${leftovers.length} 张`
+            + `（槽 ${this._slots.length} + 暂存 ${this._temp.length}）`);
     }
 
     // --------------------------------------------------------
@@ -2899,17 +3086,24 @@ export class GamePage extends PageBase {
             { y: F.REASON_DY, fontSize: CFG.FONT.SIZE_SMALL, color: CFG.COLOR.INK_SOFT });
 
         // ① 复活：可选的最优解，插在第一位，但**不是唯一出路**
-        createButton(panel, 'ReviveBtn', {
-            y: F.REVIVE_DY, w: F.BTN_W, h: F.BTN_H,
-            // 文案刻意短于初版「看广告复活（清空槽位 + 洗牌）」：
-            // 那句在 400px 按钮里放不下（末字被裁），而按钮加宽到 448 后
-            // 再配 SIZE_BUTTON−12 刚好留出安全边距。语义没丢：清槽 + 洗牌。
-            text: reviveLeft > 0 ? '看广告复活（清槽 + 洗牌）' : '本关复活机会已用完',
-            fontSize: CFG.FONT.SIZE_BUTTON - 12, serif: true,
-            enabled: reviveLeft > 0,
-            enabledFill: CFG.COLOR.LOCK_BG,
-            onClick: () => { void this.doRevive(); },
-        });
+        //    文案里的张数**从参数算**，不写死 4 —— 「加槽」后槽容量变 9，
+        //    清掉一半就是 5，写死会与复活后的实际结果对不上（玩家会发现）。
+        {
+            const reviveClear = Math.ceil(CFG.GAMEPLAY.SLOT_CAPACITY
+                * CFG.REWARD.REVIVE_CLEAR_RATIO);
+            createButton(panel, 'ReviveBtn', {
+                y: F.REVIVE_DY, w: F.BTN_W, h: F.BTN_H,
+                // 文案刻意短：初版「看广告复活（清空槽位 + 洗牌）」在 400px 按钮里
+                // 放不下（末字被裁），加宽到 448 再配 SIZE_BUTTON−12 才留出安全边距。
+                text: reviveLeft > 0
+                    ? `看广告复活（消 ${reviveClear} 张 + 重排）`
+                    : '本关复活机会已用完',
+                fontSize: CFG.FONT.SIZE_BUTTON - 12, serif: true,
+                enabled: reviveLeft > 0,
+                enabledFill: CFG.COLOR.LOCK_BG,
+                onClick: () => { void this.doRevive(); },
+            });
+        }
 
         // ② 重开本关：永远免费的兜底
         createButton(panel, 'RestartBtn', {
@@ -2950,49 +3144,102 @@ export class GamePage extends PageBase {
         if (this._failPanel && this._failPanel.isValid) this._failPanel.destroy();
         this._failPanel = null;
 
-        // ② 槽位里的牌**退回场上**（不是清掉）
-        //    ⚠️ 牌是守恒的：把槽里那几张直接销毁，牌堆就永久少了几张，
-        //    "清空全部牌"这个通关条件再也达不成 —— 复活反而制造了一个死局。
-        //    这是复活功能最容易写错、后果也最严重的一处。
-        const returned = this._slots;
-        this._slots = [];
-        for (const e of returned) {
-            if (e.id >= 0 && e.id < this._taken.length) this._taken[e.id] = false;
-        }
-        // 暂存架同理，一并退回
-        const tempReturned = this._temp;
-        this._temp = [];
-        for (const e of tempReturned) {
-            if (e.id >= 0 && e.id < this._taken.length) this._taken[e.id] = false;
-        }
-        // 重新数一遍场上剩余（比"加减维护"更不容易错）
-        this._left = 0;
-        for (let i = 0; i < this._taken.length; i++) if (!this._taken[i]) this._left++;
+        // ② 槽内**最后 N 张直接消除**（2026-10-01 需求 #2）
+        //
+        //  【用户口径】「看完广告后，要把槽清掉一半（槽内最后4张牌直接消除掉），
+        //   而不是把牌又放回牌堆」
+        //
+        //  【旧做法（原样退回牌堆）为什么是坏的】
+        //  旧实现让槽里的牌**守恒地退回场上**再重排。玩家看完 15 秒广告回到游戏，
+        //  牌一张没少、槽位一张没空 —— 唯一的收获是"可以再点一次"。
+        //  「付出了代价、局面却没变」是复活最不该有的手感。
+        //  现在改成真的消掉一半：已清计数 +4 是**看得见、且留在账上**的进度。
+        //
+        //  【⚠️ 这里和本函数 2026-10-01 之前那条旧注释是矛盾的，说明一下为什么改】
+        //  旧注释写着"把槽里的牌直接销毁会制造死局（牌不再守恒、清空条件达不成）"。
+        //  那句话在**当时**成立，因为当时的前提是"每局都保证可解"。现在两条前提都变了：
+        //    · 本作自 v3.0 起不再承诺"每局必定可通关"（见 CFG.STACK.MAX_RETRY）；
+        //    · 消的是**连续的一段尾牌**，不是散着消 1 张。
+        //  旧注释里那条铁律仍然有效、仍然必须遵守 —— 只是它现在管的是**剩下的**牌：
+        //  **槽里留下的那几张必须留在槽里参与后续消除，绝不能一起销毁**，
+        //  否则玩家攒了一半的进度被"世界重置"抹掉，比不放回牌堆还糟。
+        //
+        //  【为什么取"尾牌"而不是任意 N 张】
+        //  槽位按入槽顺序从左往右排，尾 N 张正是玩家最后放进去的（他刚为它们腾过位置），
+        //  消这一段最"解气"；而且剩下的会自然聚拢到左侧，形成"我已经攒了一半"的样子。
+        const M = CFG.MOTION;
+        const clearN = Math.min(
+            this._slots.length,
+            Math.ceil(this._slotCapacity * CFG.REWARD.REVIVE_CLEAR_RATIO),
+        );
+        const doomed = this._slots.slice(this._slots.length - clearN);
+        this._slots = this._slots.slice(0, this._slots.length - clearN);
+        // 数据先落地（铁律：状态流转走"必然执行"的路径，动效只负责好看）。
+        // doomed 的 `_taken` 保持 true —— 它们本来就不在场上；且不再放回槽位，
+        // 于是这几张牌从本局彻底消失。
+        this._cleared += doomed.length;
+        // ⚠️ 暂存架**不动**。那里的牌是玩家主动「移出」寄存的，既不属于牌堆也不属于槽；
+        //    把它们的牌"放回去"才是真的踩了用户说的那件事。它们也不占槽位，不拖累续玩。
 
-        // ③ 洗牌：把刚退回来的牌也一起重新撒（复用「洗牌」道具的同一条链路）
-        //    这里不复用 applyShuffle：复活不需要道具计数，也不该吃掉道具次数。
+        // ③ 洗牌：把场上剩余的牌重新撒一遍
+        //    【为什么复活仍然要洗牌 —— 用户只说别把槽里的牌放回去，没说取消洗牌】
+        //    只"消 4 张 + 空出 4 格"还不够：玩家刚才是因为**牌堆表面全是不成组的牌**
+        //    才把槽塞满的。不换一副面，他很可能在 20 秒内再塞满一次，
+        //    而复活机会每关只有一次 —— 第二次失败等于白看了刚才那条广告。
+        //
+        //    ⚠️ 槽里留下的牌必须作为**既成事实**传给校验（第 4 个参数）。
+        //       传空数组等于假设"槽是空的"，会把明明通不了的局判成能通 ——
+        //       道具/复活的价值就建立在这个校验上，错了它就成了纯坑。
         const plan = planReshuffle(
-            this._level, this._layout.tiles, this._taken, [], this._slotCapacity, [], undefined,
+            this._level, this._layout.tiles, this._taken,
+            this._slots.map((e) => e.key), this._slotCapacity, [], undefined,
         );
         if (plan) {
-            const tiles = this._layout.tiles;
+            const ts = this._layout.tiles;
             for (const m of plan.moves) {
-                const t = tiles[m.id];
+                const t = ts[m.id];
                 if (!t) continue;
                 t.x = m.x; t.y = m.y;
-                t.depth = m.depth; t.row = m.row; t.col = m.col;
+                t.depth = m.depth; t.row = m.row; t.col = m.col; t.floor = m.floor;
             }
-            log(`[GamePage] 复活重排：第 ${plan.attempts} 次尝试，可解率 ${(plan.solveRate * 100).toFixed(0)}%`);
+            log(`[GamePage] 复活重排：第 ${plan.attempts} 次尝试，可解率 ${(plan.solveRate * 100).toFixed(0)}%`
+                + `（槽内保留 ${this._slots.length} 张参与校验）`);
         }
         this._graph = buildBlockGraph(this._layout.tiles, this._taken);
         for (let i = 0; i < this._layout.tiles.length; i++) {
             this._blocked[i] = this._graph.above[i].length;
         }
 
-        // ④ 视图复位：还在场上的牌（含刚退回的）回到牌堆层并按新坐标归位。
-        //    这里**复用的就是原视图对象** —— 槽里的牌视图本来就在，只是被换了父节点。
+        // ④ 视效 A：被消掉的那几张**在画面还亮着的时候**原地消失。
+        //    这是复活里唯一"玩家看得见的收益"，所以必须放在黑幕之前 ——
+        //    被黑幕盖住的话，玩家只会觉得"牌堆变了"，不会知道槽里少了 4 张。
+        //    动效刻意复用「消除」道具的收割节奏（依次缩放 + 淡出 + 碎屑）：
+        //    两者在语义上是同一件事（牌被永久移除），手感也该一致。
+        const doomedViews: TileView[] = [];
+        doomed.forEach((e, k) => {
+            const v = e.view;
+            if (!v || !v.node.isValid) return;
+            doomedViews.push(v);
+            const delay = k * M.HARVEST_STEP;
+            MotionFx.to(v.node, { scale: v3(0.01, 0.01, 1) },
+                { duration: M.HARVEST_ONE, easing: EASE.EXIT, tag: TAG.SLOT, delay });
+            MotionFx.fadeChain(v.node, [
+                { to: 255, duration: M.HARVEST_ONE * 0.3 },
+                { to: 0, duration: M.HARVEST_ONE * 0.7, easing: EASE.EXIT },
+            ], { delay, tag: TAG.FADE });
+            setTimeout(() => {
+                if (!this.node.isValid || !v.node.isValid) return;
+                this.burstAtTile(v);
+            }, MotionFx.unlockMs(delay));
+        });
+        const doomTotal = doomedViews.length > 0
+            ? M.HARVEST_ONE + M.HARVEST_STEP * (doomedViews.length - 1)
+            : 0;
+
+        // 视图复位：还在场上的牌回到牌堆层并按新坐标归位。
+        // ⚠️ 只处理**场上**的牌（`_taken` 为 false 的那些）。槽里留下的牌
+        //    与暂存架的牌都不动 —— 它们不该被这次"世界重置"抹掉位置。
         const tiles = this._layout.tiles;
-        const M = CFG.MOTION;
         for (let i = 0; i < tiles.length; i++) {
             if (this._taken[i]) continue;
             const v = this._views[i];
@@ -3001,6 +3248,10 @@ export class GamePage extends PageBase {
             v.node.setPosition(tiles[i].x, tiles[i].y, 0);
             v.node.setScale(v3(1, 1, 1));
             MotionFx.stopAll(v.node);
+            // 朝向也要复位：可能正卡在"移出"的旋转 tween 半途，
+            // stopAll 只停动效、不会把角度写回去，不复位就会有一张牌歪着站
+            // 在牌堆里（且日志完全看不出来）。
+            v.node.angle = tiles[i].angle;
             // 牌视图中途转过父（槽位层 → 牌堆层），透明度可能被上一段动效改过，
             // 必须显式复位，否则会有牌永远停在半透明状态
             MotionFx.setFade(v.node, 255);
@@ -3008,56 +3259,35 @@ export class GamePage extends PageBase {
         this.reorderStack();
         this.refreshStackStates();
 
-        // ---------- D6：屏幕由暗转亮 + 槽位牌逐张淡入，之后才解锁输入 ----------
-        // "由暗转亮"用一张纯黑遮罩盖住全屏、再淡出表达。
-        // 它的作用不是好看：复活是一次"世界重置"，玩家需要一个
-        // **明确的时刻**来重建对局面的认知。黑屏过渡把这个时刻标出来了，
-        // 没有它，牌会"啪"地一下全体换位置，玩家要重新数一遍。
-        const veil = createNode('ReviveVeil', this._modalLayer, { w: 2000, h: 2000 });
-        const vg = veil.addComponent(Graphics);
-        vg.fillColor = hex2color(CFG.COLOR.MASK, 255);
-        vg.rect(-1000, -1000, 2000, 2000);
-        vg.fill();
-        veil.on(Node.EventType.TOUCH_END, (e: EventTouch) => { e.propagationStopped = true; });
-        MotionFx.fade(veil, 0, M.REVIVE_FADE, { easing: EASE.ENTER, tag: TAG.FADE });
-        setTimeout(() => { if (veil.isValid) veil.destroy(); },
-            MotionFx.unlockMs(M.REVIVE_FADE));
-
-        // 「槽位牌逐张淡入」：退回来的那几张牌按顺序在牌堆里亮起来，
-        // 让玩家看清"它们回到哪儿去了"。这是复活里唯一交代"牌守恒"的环节 ——
-        // 没有它，玩家会怀疑"我的牌被系统吃掉了"。
-        const backIds: number[] = [];
-        for (const e of returned.concat(tempReturned)) {
-            if (e.id >= 0 && backIds.indexOf(e.id) < 0) backIds.push(e.id);
-        }
-        backIds.forEach((bid, k) => {
-            const v = this._views[bid];
-            if (!v || !v.node.isValid) return;
-            MotionFx.setFade(v.node, 0);
-            MotionFx.fade(v.node, 255, M.REVIVE_FADE * 0.6,
-                { delay: k * M.REVIVE_STAGGER, easing: EASE.ENTER, tag: TAG.FADE });
-        });
-        const reviveLock = M.REVIVE_FADE + M.REVIVE_STAGGER * Math.max(0, backIds.length - 1);
-
-        // ⚠️ 输入锁的解锁点必须晚于全部视觉复位（铁律：解锁用 setTimeout）。
-        //    这里刻意**包含**逐张淡入的时间：如果牌还没亮完就允许点击，
-        //    玩家会点到一张"看不见的牌" —— 那是最像 bug 的体验。
+        // ⑤ 视效 B：黑幕盖住"牌堆整体换位"这一下（原 D6 的"由暗转亮"）。
+        //    它的作用不是好看：复活是一次"世界重置"，玩家需要一个**明确的时刻**
+        //    来重建对局面的认知。没有它，牌会"啪"地一下全体换位置，玩家要重新数一遍。
+        //    ⚠️ 解锁时刻 = 收割动效 + 黑幕淡出，两者串起来算（见下）。
         this._busy = true;
         setTimeout(() => {
             if (!this.node.isValid) return;
-            for (const bid of backIds) {
-                const v = this._views[bid];
-                if (v && v.node.isValid) MotionFx.setFade(v.node, 255);
-            }
-            this._busy = false;
-        }, MotionFx.unlockMs(reviveLock));
+            // 收割结束：销毁残骸 + 让槽里剩下的牌滑到新位置（补位动画）
+            for (const v of doomedViews) if (v.node.isValid) v.destroy();
+            this.relayoutSlots();
+            this.refreshSlotWarn();
 
-        // ⑤ 续命：原本"时间到"判负的至少再给一段时间，
+            const veil = createNode('ReviveVeil', this._modalLayer, { w: 2000, h: 2000 });
+            const vg = veil.addComponent(Graphics);
+            vg.fillColor = hex2color(CFG.COLOR.MASK, 255);
+            vg.rect(-1000, -1000, 2000, 2000);
+            vg.fill();
+            veil.on(Node.EventType.TOUCH_END, (e: EventTouch) => { e.propagationStopped = true; });
+            MotionFx.fade(veil, 0, M.REVIVE_FADE, { easing: EASE.ENTER, tag: TAG.FADE });
+            setTimeout(() => { if (veil.isValid) veil.destroy(); },
+                MotionFx.unlockMs(M.REVIVE_FADE));
+        }, MotionFx.unlockMs(doomTotal));
+
+        // ⑥ 续命：原本"时间到"判负的至少再给一段时间，
         //    否则复活完立刻又超时 —— 玩家会觉得白看了一次广告
         this._over = false;
-        // 注意：_busy 在 D6 的解锁定时器里才置 false（上面那一段），
-        // 这里**不能**直接解锁 —— 否则 480ms 的亮屏过渡形同虚设，
-        // 玩家会在画面还是黑的、牌还没亮起来的时候就能点。
+        // ⚠️ 输入锁的解锁点必须晚于全部视觉复位（铁律：解锁用 setTimeout）。
+        //    两段动效串起来：收割（看得见的收益）→ 黑幕（看不见的重排）。
+        //    中间任何一段没跑完就放行，玩家都会点到"看不见的牌"。
         if (this._level.timeLimit > 0) {
             this._timeLeft = Math.max(this._timeLeft, CFG.REWARD.REVIVE_MIN_SECONDS);
             if (!this._timing) {
@@ -3065,11 +3295,17 @@ export class GamePage extends PageBase {
                 this.schedule(this.tickSecond, 1);
             }
         }
+        setTimeout(() => {
+            if (!this.node.isValid) return;
+            this._busy = false;
+        }, MotionFx.unlockMs(doomTotal + M.REVIVE_FADE));
 
         this.refreshSlotWarn();
         this.logPickable();
         this.refreshHud();
         this.refreshPropBar();
-        toast(this.root, `复活成功 · 退回 ${returned.length + tempReturned.length} 张牌并重排`, 2.0);
+        log(`[GamePage] 复活生效：槽内消除 ${doomed.length} 张（${doomed.map((e) => e.key).join(',')}），`
+            + `槽内保留 ${this._slots.length} 张，${plan ? '牌堆已重排' : '牌堆重排失败（保持原样）'}`);
+        toast(this.root, `复活成功 · 槽内消除 ${doomed.length} 张 + 牌堆重排`, 2.2);
     }
 }

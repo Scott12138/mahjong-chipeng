@@ -36,6 +36,12 @@
  *               auto 永远优先凑「碰」，而 dirty 拿的全是互不相同的单张，
  *               反而会撞上顺子。所以「吃」的动效验收必须用 dirty + 连拍
  *               （dirty:<n>@<gap>!<ms,...>，触发时见 dirtyPlay 的 wouldChi）。
+ *    fill:<n>   **安全地把槽塞到 n 张**。
+ *               ⚠️ dirty 填不满槽 —— 它只避开"同牌面已有 2 张"，槽里凑出 3 个
+ *               能连号的牌面就会立刻消掉一组，槽永远到不了 8 张。
+ *               fill 会把"这一步会不会消"完整预判一遍（碰 / 杠 / 吃都算），
+ *               只点不会引发消除的牌，因此能**必定**逼出「槽满判负」，
+ *               是验证「看广告复活」这条链路的唯一可靠手段。
  *    d:<x>,<y>@<ms>  点击 + **自定义截图延迟**。
  *               默认是点击后 1600ms 截图（等一切稳定）；
  *               但动效验收要看的恰恰是"动效中间的那一帧"，
@@ -56,6 +62,9 @@
  *    node tools/web-smoke.mjs … d:0,-118 d:0,275@150 wait:200 wait:200 wait:250 wait:400 auto:60
  *    （跳到 L3 专门抓「吃」的流水汇合中间帧）
  *    node tools/web-smoke.mjs … unlock:3 d:0,-118 d:0,-105 'dirty:24@700!150,300,450,700'
+ *    （塞满槽位 → 看广告复活：填槽后点「复活」→「看广告」→「跳过」）
+ *    node tools/web-smoke.mjs … unlock:0 d:0,-118 d:0,275 wait:1400 fill:8 wait:1500 \
+ *      d:0,60 wait:1600 d:0,112 wait:2600 d:0,-96 wait:2600
  *
  *  【产出】
  *    00-before.png / 01-click-*.png / console.log / metrics.json
@@ -63,7 +72,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 // ------------------------------------------------------------
@@ -130,6 +139,26 @@ const ACTIONS = process.argv.slice(4).map((s) => {
             steps: Number.isFinite(n) ? n : 12,
             gap: Number.isFinite(gap) ? gap : 800,
             burst,
+            label: s.replace(/[:.@!,\-]/g, '_'),
+        };
+    }
+    // fill:<n> / fill:<n>@<gapMs> —— **安全地把槽塞满**（专为逼出「槽满判负」）
+    //
+    //  【为什么不能拿 dirty 代替 —— 一个很隐蔽的区别】
+    //  dirty 只避开"同一牌面槽内已有 2 张"，它**允许撞上「吃」**（这正是它能抓
+    //  「吃」动效的原因）。于是槽内一旦凑出 3 个能连号的牌面，立刻就消掉一组 ——
+    //  **槽位永远到不了 8 张**，也就永远逼不出「槽满判负 + 复活」这条路径。
+    //  fill 把"这一步会不会消"完整预判一遍（碰 / 杠 / 吃都算），只点不会引发
+    //  消除的牌，才能真的把 8 格填满。
+    if (s.startsWith('fill')) {
+        const [nPart, rest] = s.slice(4).replace(/^:/, '').split('@');
+        const n = Number(nPart);
+        const gap = Number(rest);
+        return {
+            kind: 'fill',
+            steps: Number.isFinite(n) ? n : 8,
+            gap: Number.isFinite(gap) ? gap : 620,
+            burst: [],
             label: s.replace(/[:.@!,\-]/g, '_'),
         };
     }
@@ -506,6 +535,79 @@ async function dirtyPlay(cdp, cx, cy, steps, outDir, shotIndex, gapMs = 700, bur
 }
 
 /**
+ * 预判"把 key 放进槽之后会不会立刻消除"。
+ *
+ * ⚠️ 规则必须与 `MatchRule.findMatch` **一致**：碰 = 3 张相同、
+ *    杠 = 4 张相同、吃 = 同族（万/条/筒）连号 3 张。
+ *    这里只判断"会不会消"，不需要知道消哪三张，所以比 MatchRule 略简单；
+ *    但**族名与编号写法必须对齐**（`wan-5` 这种），否则会误判成"安全"，
+ *    结果 fill 一填就消、永远填不满槽 —— 而现象只是"槽没满、面板没弹"，
+ *    极难联想到判定规则写错了。
+ */
+function wouldMatch(slotKeys, key) {
+    const cnt = new Map();
+    for (const k of slotKeys) cnt.set(k, (cnt.get(k) || 0) + 1);
+    cnt.set(key, (cnt.get(key) || 0) + 1);
+    for (const n of cnt.values()) if (n >= 3) return true;   // 碰 / 杠
+    const has = new Set(cnt.keys());
+    for (const fam of ['wan', 'sou', 'ton']) {
+        for (let t = 1; t <= 7; t++) {
+            if (has.has(`${fam}-${t}`) && has.has(`${fam}-${t + 1}`)
+                && has.has(`${fam}-${t + 2}`)) return true;   // 吃
+        }
+    }
+    return false;
+}
+
+/**
+ * fill：把槽位"安全地"塞到指定张数，用于逼出「槽满判负 → 看广告复活」。
+ *
+ * 策略：每一步在可点牌里挑一张**放进去不会引发任何消除**的，
+ * 优先挑"槽内该牌面张数最少"的（保证分布均匀、能填得更满）。
+ * 一张都挑不出时立即结束 —— 那说明这局的牌面组合已经不允许再塞了
+ * （比如只剩两种牌面、各自再点一张就会凑成 3 张）。
+ */
+async function fillPlay(cdp, cx, cy, steps, outDir, shotIndex, gapMs = 620) {
+    let clicked = 0;
+    for (let s = 0; s < steps; s++) {
+        const line = latestPickableLine(cdp);
+        const list = parsePickable(line);
+        if (list.length === 0) {
+            console.log('    （已无可点牌，结束）');
+            break;
+        }
+        const slotKeys = parseSlotKeys(line);
+        const slotCnt = new Map();
+        for (const k of slotKeys) slotCnt.set(k, (slotCnt.get(k) || 0) + 1);
+
+        // 先按"槽内已有张数"升序，再取第一张安全的
+        const sorted = list.slice().sort(
+            (a, b) => (slotCnt.get(a.key) || 0) - (slotCnt.get(b.key) || 0),
+        );
+        const safe = sorted.find((t) => !wouldMatch(slotKeys, t.key));
+        if (!safe) {
+            console.log('    （剩下的牌一点就会消，槽无法再填，结束）');
+            break;
+        }
+
+        const sx = Math.round(cx + safe.x);
+        const sy = Math.round(cy - safe.y);
+        console.log(`    [${s + 1}] 填槽 ${safe.key}（槽内已有 ${slotCnt.get(safe.key) || 0} 张，`
+            + `当前槽 ${slotKeys.length} 张）@设计(${safe.x}, ${safe.y})`);
+        const seq0 = pickableSeq(cdp);
+        await cdp.clickAt(sx, sy);
+        clicked++;
+        await waitNewPickable(cdp, seq0, 1400);
+        await sleep(gapMs);
+    }
+
+    // 判负后游戏会延迟约 2 秒弹面板，等它出来再截图
+    await sleep(2400);
+    const p = await cdp.shot(`${String(shotIndex).padStart(2, '0')}-fill`);
+    console.log(`    已截图：${p}（点击 ${clicked} 次）`);
+}
+
+/**
  * 预测"这一张入槽之后，槽内是否会出现同花色 3 连号（=「吃」）"。
  *
  * 【为什么要预测而不是事后看日志】
@@ -561,6 +663,14 @@ const chrome = spawn(CHROME, [
     // 表现为 "WebSocket 已连接" 之后立刻断开、所有 CDP 调用永久挂起。
     // 必须关掉沙箱；这不影响 WebGL（GPU 仍走 swiftshader）。
     '--no-sandbox',
+    // 【2026-10-01 踩】环境里可能注入了 `HTTP_PROXY=http://127.0.0.1:<port>`
+    // （WorkBuddy 会给 Bash 会话注入透明代理），Chrome 会**继承**它 →
+    // 连 127.0.0.1:8123 也走代理 → 拿回 502 / 空白页。
+    // 现象极具迷惑性：CDP 连得上、视口设置成功、innerSize 正确，
+    // 但 `canvas === null`、console.log **一行都没有** —— 看起来像游戏挂了，
+    // 其实是页面压根没加载。加这个开关强制直连。
+    '--no-proxy-server',
+    '--proxy-bypass-list=127.0.0.1,localhost',
     '--disable-dev-shm-usage',
     '--enable-unsafe-swiftshader',   // 无头环境用软件渲染跑 WebGL
     '--hide-scrollbars',
@@ -677,6 +787,16 @@ try {
         console.log(ok
             ? `    ✅ 引擎可见尺寸 = 设计分辨率 ${DESIGN_W}×${DESIGN_H}，设计坐标 1:1 可用`
             : `    ⚠️ 引擎可见尺寸与设计分辨率不一致，坐标换算可能不准，请检查注入样式是否生效`);
+
+        // 【2026-10-01】看不见 canvas = 页面**根本没加载**（静态服务器没起 / 请求被
+        // HTTP_PROXY 拦走 / 中间产物缺失）。不在这里拦下的话，后面所有基于 canvas
+        // 的坐标计算都会以 `Cannot read properties of null (reading 'left')` 收场 ——
+        // 那个报错**完全指错方向**，会让人去查游戏代码。就地报出真因。
+        if (!mm.canvas) {
+            throw new Error('页面没有加载出 canvas：静态服务器没在跑，或请求被 HTTP_PROXY 拦走。'
+                + `\n      自检：curl --noproxy "*" ${URL_} 应返回 200`
+                + '\n      另请确认产物根目录存在 application.js（构建是否真的跑完）。');
+        }
         return mm;
     }
 
@@ -724,6 +844,13 @@ try {
             i++;
             continue;
         }
+        if (a.kind === 'fill') {
+            console.log(`==> 安全填槽 ${a.steps} 步（负向测试：**必定**逼出槽位满的败局，`
+                + `专门用于验证「看广告复活」）`);
+            await fillPlay(cdp, cx, cy, a.steps, OUT_DIR, i, a.gap);
+            i++;
+            continue;
+        }
         if (a.kind === 'wait') {
             await sleep(a.ms);
             const p = await cdp.shot(`${String(i).padStart(2, '0')}-wait-${a.ms}`);
@@ -739,6 +866,51 @@ try {
         const p = await cdp.shot(`${String(i).padStart(2, '0')}-click-${a.label}`);
         console.log(`    已截图：${p}`);
         i++;
+    }
+
+    // ---- 性能采样（2026-10-01 S10 新增）----
+    //  【为什么塞进冒烟脚本而不是单独写个工具】
+    //  性能必须**在真实玩法状态下**测 —— 菜单页只有 20 来个 draw call，
+    //  L4 的 96 张牌才是压力点。而冒烟脚本已经"走"到了目标关卡，
+    //  手上正握着那个状态，再单独起一次 Chrome 重走一遍纯属浪费。
+    //  ⚠️ `numDrawCalls` 是**每帧清零**的计数，读一次可能正好撞上清屏后的帧，
+    //     所以采 6 次取峰值（峰值才是"这一帧要画多少"的真实答案）。
+    {
+        const SAMPLE = `(() => {
+            const d = window.cc && window.cc.director;
+            if (!d) return null;
+            const dev = d.root && d.root.device;
+            return {
+                fps: Math.round(1 / d.getDeltaTime()),
+                frameMs: +(d.getDeltaTime() * 1000).toFixed(2),
+                dc: (dev && dev.numDrawCalls) || 0,
+                inst: (dev && dev.numInstances) || 0,
+            };
+        })()`;
+        const samples = [];
+        for (let k = 0; k < 6; k++) {
+            const s = await cdp.evaluate(SAMPLE);
+            if (s) samples.push(s);
+            await sleep(250);
+        }
+        if (samples.length > 0) {
+            const peak = samples.reduce((a, b) => (b.dc > a.dc ? b : a));
+            const avgMs = +(samples.reduce((a, b) => a + b.frameMs, 0) / samples.length).toFixed(2);
+            const perf = {
+                peakDrawCalls: peak.dc,
+                avgFrameMs: avgMs,
+                fps: Math.round(1000 / avgMs),
+                note: 'draw call 取 6 次采样峰值；FPS 由平均帧耗时反推（浏览器 vsync 上限 60）',
+                samples,
+            };
+            console.log(`    性能：峰值 draw call ${perf.peakDrawCalls}`
+                + ` / 平均帧 ${perf.avgFrameMs}ms → 约 ${perf.fps} FPS`);
+            const mPath = `${OUT_DIR}/metrics.json`;
+            try {
+                const old = JSON.parse(readFileSync(mPath, 'utf8'));
+                writeFileSync(mPath, JSON.stringify({ ...old, perf }, null, 2));
+            } catch { /* metrics.json 不在就跳过，不影响结论 */ }
+        }
     }
 
     // ---- 输出页面控制台（含我们自己的 [GameRoot]/[Diag] 日志）----

@@ -1,0 +1,26 @@
+{
+  "//": "工程外挂的『只做类型检查、不产出』配置，供 tools/tscheck.sh 使用。",
+  "//1": "为什么要单独一份：Cocos 自动生成的 temp/tsconfig.cocos.json 里 types 写的是",
+  "//2": "相对自身的路径（./temp/declarations/cc），那份配置只在编辑器进程里成立；",
+  "//3": "拿到命令行直接用 tsc -p tsconfig.json 会因为路径基准不对而报『找不到 cc』。",
+  "//4": "本文件把 declare 文件当普通输入 include 进来，绕开 types 的解析规则。",
+  "compilerOptions": {
+    "target": "ES2017",
+    "module": "ES2015",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "strict": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "types": []
+  },
+  "include": [
+    "assets/scripts/**/*.ts",
+    "temp/declarations/cc.custom-macro.d.ts",
+    "temp/declarations/cc.d.ts",
+    "temp/declarations/jsb.d.ts",
+    "temp/declarations/cc.env.d.ts"
+  ]
+}

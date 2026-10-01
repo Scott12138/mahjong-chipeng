@@ -13,6 +13,12 @@
 #   4) 【AppID 坑】--build 顶层的 appid=xxx 会被【静默忽略】，
 #      构建出来仍是模板自带的 demo AppID。唯一可靠的通道是
 #      --build "configPath=xxx.json"，在 JSON 里写 packages.wechatgame.appid。
+#   5) 【SIGTERM 假阳性坑，2026-10-01 踩】
+#      日志里出现 `Error: Exit process with code:null, signal:SIGTERM in task
+#      build-script` 是**常态噪音**（构建子进程回收）—— 它**同时**出现在
+#      成功的构建里。别被它吓到、也别被"目录存在"骗过：唯一可靠的判据是
+#      **产物根目录的入口文件在不在**（web 系 = application.js；微信 = game.js），
+#      它是构建**最后一步**才落盘的。脚本已按这条改过（原先只看目录存在）。
 #
 # 用法：
 #   bash tools/cocos-build.sh [平台] [debug|release] [工程] [动作]
@@ -88,8 +94,24 @@ CODE=$?
 grep -v -E "crash_report_database|gpu_process_host|network_service_instance|sandbox initialization|Failed to initialize sandbox|trackTimeEnd|^$" "$LOG" \
   | grep -E "Finished in|build task\(|error|Error|warn: Build" | tail -15
 
-if [ ! -d "$PROJ/build/$OUT" ]; then
-  echo "❌ 构建失败（退出码 ${CODE}），完整日志：$LOG"
+# ⚠️ 不能只看"产物目录存在"就报成功 —— Cocos 的构建子进程会被 SIGTERM 掐断，
+#    此时它只写出了半套产物（实测 2026-10-01：web-desktop 缺 src/application.js，
+#    目录存在、体积看着也对，但页面白屏、控制台一行日志都没有）。
+#    必须核对**入口文件**：它是构建最后一步才落盘的，它在 = 真的跑完了。
+# ⚠️ 入口文件在**产物根目录**（不是 src/ 下）：
+#    web 系 = application.js ／ wechatgame = game.js。两者都由最后一步落盘。
+case "$PLATFORM" in
+  wechatgame) ENTRY="$PROJ/build/$OUT/game.js" ;;
+  web-*)      ENTRY="$PROJ/build/$OUT/application.js" ;;
+  *)          ENTRY="" ;;
+esac
+
+if [ ! -d "$PROJ/build/$OUT" ] || { [ -n "$ENTRY" ] && [ ! -f "$ENTRY" ]; }; then
+  echo "❌ 构建失败（退出码 ${CODE}）：产物不完整（目录存在但入口文件缺失）"
+  [ -n "$ENTRY" ] && echo "   缺失入口：$ENTRY"
+  echo "   日志里的关键行："
+  [ -f "$LOG" ] && grep -E "SIGTERM|error|Error" "$LOG" | tail -6 | sed 's/^/     /'
+  echo "   完整日志：$LOG"
   exit 1
 fi
 

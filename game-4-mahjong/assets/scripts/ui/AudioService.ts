@@ -106,7 +106,40 @@ export class AudioService {
             this._voices.push(src);
         }
 
+        this.pinMuteSwitch();
         this.preload();
+    }
+
+    /**
+     * 钉死"跟随系统静音键"这个行为（S7.9）。
+     *
+     * ------------------------------------------------------------
+     * 【为什么只写一行、而且行为不变】
+     * 微信 `wx.setInnerAudioOption` 的 `obeyMuteSwitch` **默认就是 true**
+     * （仅在 iOS 生效，官网原文："是否遵循静音开关，设置为 false 之后，
+     * 即使是在静音模式下，也能播放声音"）。而且从基础库 2.3.0 起，
+     * `InnerAudioContext.obeyMuteSwitch` 单独设置已失效，改由这个接口统一控制 ——
+     * 也就是说"开静音拨杆 → 游戏静音"**本来就已经满足**，这一行不改变任何行为。
+     *
+     * 那为什么还要写？把这个**意图**写进代码。将来换引擎版本 / 换运行环境时，
+     * 一旦默认值发生漂移，这里会立刻暴露成一次"声音行为异常"，
+     * 而不是一次没人发现的行为静默变化（本工程已经在别处吃过这种亏）。
+     *
+     * ⚠️ 只在微信小游戏环境调用：浏览器 / 编辑器里没有 `wx`，
+     *    静默跳过。这一行是锦上添花，绝不该有能力把启动搞崩 —— 故包 try/catch。
+     * ------------------------------------------------------------
+     */
+    private static pinMuteSwitch(): void {
+        const api = (globalThis as {
+            wx?: { setInnerAudioOption?: (o: Record<string, unknown>) => void };
+        }).wx;
+        if (!api || typeof api.setInnerAudioOption !== 'function') return;
+        try {
+            api.setInnerAudioOption({ obeyMuteSwitch: true });
+        } catch (e) {
+            // 失败不影响玩法（音效照常走 Cocos 的音频通道），只留一条线索
+            warn(`[AudioService] setInnerAudioOption 调用失败（不影响玩法）：${String(e)}`);
+        }
     }
 
     /** 预加载全部音效。失败的单个资源只告警，不影响其它音效 */
