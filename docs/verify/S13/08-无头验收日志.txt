@@ -1,0 +1,234 @@
+==> 启动无头 Chrome 打开 http://127.0.0.1:8123/index.html
+==> CDP 已连接
+==> 等待游戏加载渲染（9 秒）…
+    视口/画布/引擎可见尺寸： {"inner":[720,1280],"canvas":{"cssW":720,"cssH":1280,"left":0,"top":0,"attrW":720,"attrH":1280},"visible":[720,1280]}
+    ✅ 引擎可见尺寸 = 设计分辨率 720×1280，设计坐标 1:1 可用
+    （点击换算中心：360,640）
+    已截图：/tmp/smoke-chi/00-before.png
+==> 直写存档：标记第 1..3 关已通关，然后重载页面
+==> 等待游戏加载渲染（9 秒） · unlock 后重载…
+    视口/画布/引擎可见尺寸： {"inner":[720,1280],"canvas":{"cssW":720,"cssH":1280,"left":0,"top":0,"attrW":720,"attrH":1280},"visible":[720,1280]}
+    ✅ 引擎可见尺寸 = 设计分辨率 720×1280，设计坐标 1:1 可用
+    已截图：/tmp/smoke-chi/01-unlock.png
+==> 点击 设计坐标(0, -118) → 屏幕(360, 758)
+    已截图：/tmp/smoke-chi/02-click-d_0,-118.png
+==> 点击 设计坐标(0, -105) → 屏幕(360, 745)
+    已截图：/tmp/smoke-chi/03-click-d_0,-105.png
+==> 故意凑不成 24 步（负向测试：逼出槽位满的败局）
+    节奏：每步间隔 700ms
+    消除帧连拍：若这一步会形成「吃」则 +[120, 240, 360, 480, 620, 760, 900]ms 各截一张
+    [1] 故意点 ton-3（槽内已有 0 张）@设计(209, 293)
+    [2] 故意点 wan-7（槽内已有 0 张）@设计(218, 271)
+    [3] 故意点 ton-5（槽内已有 0 张）@设计(20, 230)
+    [4] 故意点 wan-6（槽内已有 0 张）@设计(-215, 254)
+    [5] 故意点 sou-8（槽内已有 0 张）@设计(140, -98)
+    [6] 故意点 sou-6（槽内已有 0 张）@设计(223, -182)
+    [7] 故意点 sou-9（槽内已有 0 张）@设计(31, -167)
+    [8] 故意点 wan-8（槽内已有 0 张）@设计(-22, -194)  ← 预计形成「吃」
+       吃 120ms → /tmp/smoke-chi/04-chi-8-120ms.png
+       吃 240ms → /tmp/smoke-chi/04-chi-8-240ms.png
+       吃 360ms → /tmp/smoke-chi/04-chi-8-360ms.png
+       吃 480ms → /tmp/smoke-chi/04-chi-8-480ms.png
+       吃 620ms → /tmp/smoke-chi/04-chi-8-620ms.png
+       吃 760ms → /tmp/smoke-chi/04-chi-8-760ms.png
+       吃 900ms → /tmp/smoke-chi/04-chi-8-900ms.png
+    [9] 故意点 sou-7（槽内已有 0 张）@设计(-7, -209)  ← 预计形成「吃」
+       吃 120ms → /tmp/smoke-chi/04-chi-9-120ms.png
+       吃 240ms → /tmp/smoke-chi/04-chi-9-240ms.png
+       吃 360ms → /tmp/smoke-chi/04-chi-9-360ms.png
+       吃 480ms → /tmp/smoke-chi/04-chi-9-480ms.png
+       吃 620ms → /tmp/smoke-chi/04-chi-9-620ms.png
+       吃 760ms → /tmp/smoke-chi/04-chi-9-760ms.png
+       吃 900ms → /tmp/smoke-chi/04-chi-9-900ms.png
+    [10] 故意点 wan-6（槽内已有 0 张）@设计(86, 103)
+    [11] 故意点 sou-7（槽内已有 0 张）@设计(198, 120)
+    [12] 故意点 ton-6（槽内已有 0 张）@设计(127, 87)
+    [13] 故意点 wan-4（槽内已有 0 张）@设计(-1, 28)
+    [14] 故意点 sou-6（槽内已有 0 张）@设计(-138, -28)
+    [15] 故意点 sou-5（槽内已有 0 张）@设计(-94, -42)  ← 预计形成「吃」
+       吃 120ms → /tmp/smoke-chi/04-chi-15-120ms.png
+       吃 240ms → /tmp/smoke-chi/04-chi-15-240ms.png
+       吃 360ms → /tmp/smoke-chi/04-chi-15-360ms.png
+       吃 480ms → /tmp/smoke-chi/04-chi-15-480ms.png
+       吃 620ms → /tmp/smoke-chi/04-chi-15-620ms.png
+       吃 760ms → /tmp/smoke-chi/04-chi-15-760ms.png
+       吃 900ms → /tmp/smoke-chi/04-chi-15-900ms.png
+    [16] 故意点 ton-3（槽内已有 0 张）@设计(211, 292)
+    [17] 故意点 sou-3（槽内已有 0 张）@设计(-223, 100)
+    [18] 故意点 wan-5（槽内已有 0 张）@设计(-223, -156)
+    [19] 故意点 wan-8（槽内已有 0 张）@设计(-220, -184)
+    [20] 故意点 wan-3（槽内已有 0 张）@设计(-3, -94)
+    [21] 故意点 wan-4（槽内已有 0 张）@设计(3, -150)  ← 预计形成「吃」
+       吃 120ms → /tmp/smoke-chi/04-chi-21-120ms.png
+       吃 240ms → /tmp/smoke-chi/04-chi-21-240ms.png
+       吃 360ms → /tmp/smoke-chi/04-chi-21-360ms.png
+       吃 480ms → /tmp/smoke-chi/04-chi-21-480ms.png
+       吃 620ms → /tmp/smoke-chi/04-chi-21-620ms.png
+       吃 760ms → /tmp/smoke-chi/04-chi-21-760ms.png
+       吃 900ms → /tmp/smoke-chi/04-chi-21-900ms.png
+    [22] 故意点 ton-3（槽内已有 1 张）@设计(-223, 83)
+    [23] 故意点 sou-3（槽内已有 1 张）@设计(-23, 313)
+    （剩下的牌一点就会消，无负数路径可走，结束）
+    已截图：/tmp/smoke-chi/04-dirty.png（点击 23 次）
+    性能：峰值 draw call 139 / 平均帧 16.85ms → 约 59 FPS
+
+===== 页面控制台输出 =====
+  [timeEnd] Init Base: 7.409912109375 ms
+  [timeEnd] Init Infrastructure: 24.692138671875 ms
+  [log] [PHYSICS2D]: register box2d.
+  [timeEnd] Init SubSystem: 37.658203125 ms
+  [log] Cocos Creator v3.8.8
+  [log] Using custom pipeline: Builtin
+  [timeEnd] Init Project: 30.54296875 ms
+  [timeEnd] LoadScene db://assets/scenes/Main.scene: 18.406982421875 ms
+  [timeEnd] InitScene: 0.091064453125 ms
+  [timeEnd] AttachPersist: 0.002197265625 ms
+  [timeEnd] AutoRelease: 0.052978515625 ms
+  [timeEnd] Destroy: 0.072021484375 ms
+  [timeEnd] Activate: 2.45703125 ms
+  [log] Success to load scene: db://assets/scenes/Main.scene
+  [log] [GameRoot] 《麻麻大消除》v0.4.0 启动
+  [log] [GameRoot] [1/6] buildUIRoot 完成
+  [log] [GameRoot] [2/6] AudioService.init 完成
+  [log] [GameRoot] [3/6] PageManager.create 完成
+  [log] [GameRoot] [4/6] registerPages 完成
+  [log] [SaveService] 读档成功，已通关 3 关
+  [log] [SaveService] 读档成功，已通关 3 关
+  [log] [GameRoot] [5/6] preloadData 完成
+  [log] [PageManager] → menu
+  [log] [GameRoot] [6/6] open(menu) 完成
+  [log] [Bootstrap] GameRoot 已挂载到 "Canvas"
+  [log] [Bootstrap] 引擎性能面板：已关闭
+  [log] [AudioService] 音效就绪 13/13
+  [log] [AudioService] BGM 就绪：audio/bgm（34.3s）
+  [timeEnd] Init Base: 6.016845703125 ms
+  [timeEnd] Init Infrastructure: 8.630126953125 ms
+  [log] [PHYSICS2D]: register box2d.
+  [timeEnd] Init SubSystem: 30.423095703125 ms
+  [log] Cocos Creator v3.8.8
+  [log] Using custom pipeline: Builtin
+  [timeEnd] Init Project: 36.0908203125 ms
+  [timeEnd] LoadScene db://assets/scenes/Main.scene: 15.64208984375 ms
+  [timeEnd] InitScene: 0.02587890625 ms
+  [timeEnd] AttachPersist: 0.0029296875 ms
+  [timeEnd] AutoRelease: 0.0078125 ms
+  [timeEnd] Destroy: 0.02490234375 ms
+  [timeEnd] Activate: 1.053955078125 ms
+  [log] Success to load scene: db://assets/scenes/Main.scene
+  [log] [GameRoot] 《麻麻大消除》v0.4.0 启动
+  [log] [GameRoot] [1/6] buildUIRoot 完成
+  [log] [GameRoot] [2/6] AudioService.init 完成
+  [log] [GameRoot] [3/6] PageManager.create 完成
+  [log] [GameRoot] [4/6] registerPages 完成
+  [log] [SaveService] 读档成功，已通关 3 关
+  [log] [SaveService] 读档成功，已通关 3 关
+  [log] [GameRoot] [5/6] preloadData 完成
+  [log] [PageManager] → menu
+  [log] [GameRoot] [6/6] open(menu) 完成
+  [log] [Bootstrap] GameRoot 已挂载到 "Canvas"
+  [log] [Bootstrap] 引擎性能面板：已关闭
+  [log:error] Failed to load resource: net::ERR_SOCKET_NOT_CONNECTED
+  [log] [AudioService] BGM 就绪：audio/bgm（34.3s）
+  [log] [AudioService] 音效就绪 13/13
+  [log] [AudioService] BGM 起播（茶馆电音）
+  [log] [PageManager] → levelSelect
+  [log] [GamePage] 第 3 关「有点意思」：63 张牌 / 1 次采样 / 已认证可解（可解率 2%）/ 生成耗时 35ms / seed=738968840
+  [log] [GamePage] 牌局 已清=0 槽=0/8 槽内=[] 暂存=[] 可点=7 ｜ ton-3@209,293 ton-5@20,230 wan-6@-215,254 wan-6@86,103 wan-6@-147,126 sou-8@140,-98 sou-7@198,120
+  [log] [PageManager] → game
+  [log] [GamePage] 拿牌 id=46 ton-3@209,293 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=46 → 槽 #0（当前槽 0）
+  [log] [GamePage] 牌局 已清=0 槽=1/8 槽内=[ton-3] 暂存=[] 可点=7 ｜ wan-7@218,271 ton-5@20,230 wan-6@-215,254 wan-6@86,103 wan-6@-147,126 sou-8@140,-98 sou-7@198,120
+  [log] [GamePage] 牌局 已清=0 槽=1/8 槽内=[ton-3] 暂存=[] 可点=7 ｜ wan-7@218,271 ton-5@20,230 wan-6@-215,254 wan-6@86,103 wan-6@-147,126 sou-8@140,-98 sou-7@198,120
+  [log] [GamePage] 拿牌 id=33 wan-7@218,271 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=33 → 槽 #1（当前槽 1）
+  [log] [GamePage] 牌局 已清=0 槽=2/8 槽内=[ton-3,wan-7] 暂存=[] 可点=6 ｜ ton-5@20,230 wan-6@-215,254 wan-6@86,103 wan-6@-147,126 sou-8@140,-98 sou-7@198,120
+  [log] [GamePage] 牌局 已清=0 槽=2/8 槽内=[ton-3,wan-7] 暂存=[] 可点=6 ｜ ton-5@20,230 wan-6@-215,254 wan-6@86,103 wan-6@-147,126 sou-8@140,-98 sou-7@198,120
+  [log] [GamePage] 拿牌 id=53 ton-5@20,230 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=53 → 槽 #2（当前槽 2）
+  [log] [GamePage] 牌局 已清=0 槽=3/8 槽内=[ton-3,wan-7,ton-5] 暂存=[] 可点=6 ｜ ton-3@89,301 wan-6@-215,254 wan-6@86,103 wan-6@-147,126 sou-8@140,-98 sou-7@198,120
+  [log] [GamePage] 牌局 已清=0 槽=3/8 槽内=[ton-3,wan-7,ton-5] 暂存=[] 可点=6 ｜ ton-3@89,301 wan-6@-215,254 wan-6@86,103 wan-6@-147,126 sou-8@140,-98 sou-7@198,120
+  [log] [GamePage] 拿牌 id=57 wan-6@-215,254 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=57 → 槽 #3（当前槽 3）
+  [log] [GamePage] 牌局 已清=0 槽=4/8 槽内=[ton-3,wan-7,ton-5,wan-6] 暂存=[] 可点=6 ｜ ton-3@89,301 ton-3@-139,281 wan-6@86,103 wan-6@-147,126 sou-8@140,-98 sou-7@198,120
+  [log] [GamePage] 牌局 已清=0 槽=4/8 槽内=[ton-3,wan-7,ton-5,wan-6] 暂存=[] 可点=6 ｜ ton-3@89,301 ton-3@-139,281 wan-6@86,103 wan-6@-147,126 sou-8@140,-98 sou-7@198,120
+  [log] [GamePage] 拿牌 id=60 sou-8@140,-98 起飞延迟 0ms + 飞行 121ms → 落位倒计时 141ms
+  [log] [GamePage] 落位 id=60 → 槽 #4（当前槽 4）
+  [log] [GamePage] 牌局 已清=0 槽=5/8 槽内=[ton-3,wan-7,ton-5,wan-6,sou-8] 暂存=[] 可点=7 ｜ ton-3@89,301 ton-3@-139,281 sou-6@223,-182 wan-6@86,103 wan-6@-147,126 sou-9@31,-167 sou-7@198,120
+  [log] [GamePage] 牌局 已清=0 槽=5/8 槽内=[ton-3,wan-7,ton-5,wan-6,sou-8] 暂存=[] 可点=7 ｜ ton-3@89,301 ton-3@-139,281 sou-6@223,-182 wan-6@86,103 wan-6@-147,126 sou-9@31,-167 sou-7@198,120
+  [log] [GamePage] 拿牌 id=54 sou-6@223,-182 起飞延迟 0ms + 飞行 92ms → 落位倒计时 112ms
+  [log] [GamePage] 落位 id=54 → 槽 #5（当前槽 5）
+  [log] [GamePage] 牌局 已清=0 槽=6/8 槽内=[ton-3,wan-7,ton-5,wan-6,sou-8,sou-6] 暂存=[] 可点=6 ｜ ton-3@89,301 ton-3@-139,281 wan-6@86,103 wan-6@-147,126 sou-9@31,-167 sou-7@198,120
+  [log] [GamePage] 牌局 已清=0 槽=6/8 槽内=[ton-3,wan-7,ton-5,wan-6,sou-8,sou-6] 暂存=[] 可点=6 ｜ ton-3@89,301 ton-3@-139,281 wan-6@86,103 wan-6@-147,126 sou-9@31,-167 sou-7@198,120
+  [log] [GamePage] 拿牌 id=61 sou-9@31,-167 起飞延迟 0ms + 飞行 112ms → 落位倒计时 132ms
+  [log] [GamePage] 落位 id=61 → 槽 #6（当前槽 6）
+  [log] [GamePage] 牌局 已清=0 槽=7/8 槽内=[ton-3,wan-7,ton-5,wan-6,sou-8,sou-6,sou-9] 暂存=[] 可点=6 ｜ wan-8@-22,-194 ton-3@89,301 ton-3@-139,281 wan-6@86,103 wan-6@-147,126 sou-7@198,120
+  [log] [GamePage] 牌局 已清=0 槽=7/8 槽内=[ton-3,wan-7,ton-5,wan-6,sou-8,sou-6,sou-9] 暂存=[] 可点=6 ｜ wan-8@-22,-194 ton-3@89,301 ton-3@-139,281 wan-6@86,103 wan-6@-147,126 sou-7@198,120
+  [log] [GamePage] 拿牌 id=40 wan-8@-22,-194 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=40 → 槽 #7（当前槽 7）
+  [log] [GamePage] 牌局 已清=0 槽=8/8 槽内=[ton-3,wan-7,ton-5,wan-6,sou-8,sou-6,sou-9,wan-8] 暂存=[] 可点=6 ｜ sou-7@-7,-209 ton-3@89,301 ton-3@-139,281 wan-6@86,103 wan-6@-147,126 sou-7@198,120
+  [log] [GamePage] 消除 牌型=chi(吃) 张数=3 → 动效=撞击 ｜ wan-6 wan-7 wan-8
+  [log] [GamePage] 牌局 已清=3 槽=5/8 槽内=[ton-3,ton-5,sou-8,sou-6,sou-9] 暂存=[] 可点=6 ｜ sou-7@-7,-209 ton-3@89,301 ton-3@-139,281 wan-6@86,103 wan-6@-147,126 sou-7@198,120
+  [log] [GamePage] 拿牌 id=21 sou-7@-7,-209 起飞延迟 0ms + 飞行 90ms → 落位倒计时 110ms
+  [log] [GamePage] 落位 id=21 → 槽 #5（当前槽 5）
+  [log] [GamePage] 牌局 已清=3 槽=6/8 槽内=[ton-3,ton-5,sou-8,sou-6,sou-9,sou-7] 暂存=[] 可点=5 ｜ ton-3@89,301 ton-3@-139,281 wan-6@86,103 wan-6@-147,126 sou-7@198,120
+  [log] [GamePage] 消除 牌型=chi(吃) 张数=3 → 动效=撞击 ｜ sou-6 sou-7 sou-8
+  [log] [GamePage] 牌局 已清=6 槽=3/8 槽内=[ton-3,ton-5,sou-9] 暂存=[] 可点=5 ｜ ton-3@89,301 ton-3@-139,281 wan-6@86,103 wan-6@-147,126 sou-7@198,120
+  [log] [GamePage] 拿牌 id=58 wan-6@86,103 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=58 → 槽 #3（当前槽 3）
+  [log] [GamePage] 牌局 已清=6 槽=4/8 槽内=[ton-3,ton-5,sou-9,wan-6] 暂存=[] 可点=4 ｜ ton-3@89,301 ton-3@-139,281 wan-6@-147,126 sou-7@198,120
+  [log] [GamePage] 牌局 已清=6 槽=4/8 槽内=[ton-3,ton-5,sou-9,wan-6] 暂存=[] 可点=4 ｜ ton-3@89,301 ton-3@-139,281 wan-6@-147,126 sou-7@198,120
+  [log] [GamePage] 拿牌 id=62 sou-7@198,120 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=62 → 槽 #4（当前槽 4）
+  [log] [GamePage] 牌局 已清=6 槽=5/8 槽内=[ton-3,ton-5,sou-9,wan-6,sou-7] 暂存=[] 可点=4 ｜ ton-3@89,301 ton-3@-139,281 ton-6@127,87 wan-6@-147,126
+  [log] [GamePage] 牌局 已清=6 槽=5/8 槽内=[ton-3,ton-5,sou-9,wan-6,sou-7] 暂存=[] 可点=4 ｜ ton-3@89,301 ton-3@-139,281 ton-6@127,87 wan-6@-147,126
+  [log] [GamePage] 拿牌 id=51 ton-6@127,87 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=51 → 槽 #5（当前槽 5）
+  [log] [GamePage] 牌局 已清=6 槽=6/8 槽内=[ton-3,ton-5,sou-9,wan-6,sou-7,ton-6] 暂存=[] 可点=5 ｜ ton-3@89,301 ton-3@-139,281 wan-4@-1,28 wan-4@118,33 wan-6@-147,126
+  [log] [GamePage] 牌局 已清=6 槽=6/8 槽内=[ton-3,ton-5,sou-9,wan-6,sou-7,ton-6] 暂存=[] 可点=5 ｜ ton-3@89,301 ton-3@-139,281 wan-4@-1,28 wan-4@118,33 wan-6@-147,126
+  [log] [GamePage] 拿牌 id=50 wan-4@-1,28 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=50 → 槽 #6（当前槽 6）
+  [log] [GamePage] 牌局 已清=6 槽=7/8 槽内=[ton-3,ton-5,sou-9,wan-6,sou-7,ton-6,wan-4] 暂存=[] 可点=5 ｜ ton-3@89,301 ton-3@-139,281 wan-4@118,33 sou-6@-138,-28 wan-6@-147,126
+  [log] [GamePage] 牌局 已清=6 槽=7/8 槽内=[ton-3,ton-5,sou-9,wan-6,sou-7,ton-6,wan-4] 暂存=[] 可点=5 ｜ ton-3@89,301 ton-3@-139,281 wan-4@118,33 sou-6@-138,-28 wan-6@-147,126
+  [log] [GamePage] 拿牌 id=56 sou-6@-138,-28 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=56 → 槽 #7（当前槽 7）
+  [log] [GamePage] 牌局 已清=6 槽=8/8 槽内=[ton-3,ton-5,sou-9,wan-6,sou-7,ton-6,wan-4,sou-6] 暂存=[] 可点=5 ｜ sou-5@-94,-42 ton-3@89,301 ton-3@-139,281 wan-4@118,33 wan-6@-147,126
+  [log] [GamePage] 第 3 关 失败，已清 6/63，用时 16s，道具 消除0/移出0/洗牌0/加槽0，复活0
+  [log] [GamePage] 失败面板已开 原因=槽位满了 可复活=true
+  [log] [GamePage] 第 3 关「有点意思」：63 张牌 / 1 次采样 / 已认证可解（可解率 5%）/ 生成耗时 28ms / seed=738952111
+  [log] [GamePage] 牌局 已清=0 槽=0/8 槽内=[] 暂存=[] 可点=8 ｜ ton-3@211,292 ton-3@-28,173 sou-3@-223,100 sou-3@-23,313 sou-3@125,-36 sou-3@121,127 wan-5@-223,-156 wan-3@-3,-94
+  [log] [PageManager] → game
+  [log] [GamePage] 拿牌 id=48 ton-3@211,292 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=48 → 槽 #0（当前槽 0）
+  [log] [GamePage] 牌局 已清=0 槽=1/8 槽内=[ton-3] 暂存=[] 可点=7 ｜ ton-3@-28,173 sou-3@-223,100 sou-3@-23,313 sou-3@125,-36 sou-3@121,127 wan-5@-223,-156 wan-3@-3,-94
+  [log] [GamePage] 牌局 已清=0 槽=1/8 槽内=[ton-3] 暂存=[] 可点=7 ｜ ton-3@-28,173 sou-3@-223,100 sou-3@-23,313 sou-3@125,-36 sou-3@121,127 wan-5@-223,-156 wan-3@-3,-94
+  [log] [GamePage] 拿牌 id=52 sou-3@-223,100 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=52 → 槽 #1（当前槽 1）
+  [log] [GamePage] 牌局 已清=0 槽=2/8 槽内=[ton-3,sou-3] 暂存=[] 可点=7 ｜ ton-3@-223,83 ton-3@-28,173 sou-3@-23,313 sou-3@125,-36 sou-3@121,127 wan-5@-223,-156 wan-3@-3,-94
+  [log] [GamePage] 牌局 已清=0 槽=2/8 槽内=[ton-3,sou-3] 暂存=[] 可点=7 ｜ ton-3@-223,83 ton-3@-28,173 sou-3@-23,313 sou-3@125,-36 sou-3@121,127 wan-5@-223,-156 wan-3@-3,-94
+  [log] [GamePage] 拿牌 id=61 wan-5@-223,-156 起飞延迟 0ms + 飞行 101ms → 落位倒计时 121ms
+  [log] [GamePage] 落位 id=61 → 槽 #2（当前槽 2）
+  [log] [GamePage] 牌局 已清=0 槽=3/8 槽内=[ton-3,sou-3,wan-5] 暂存=[] 可点=7 ｜ ton-3@-223,83 ton-3@-28,173 wan-8@-220,-184 sou-3@-23,313 sou-3@125,-36 sou-3@121,127 wan-3@-3,-94
+  [log] [GamePage] 牌局 已清=0 槽=3/8 槽内=[ton-3,sou-3,wan-5] 暂存=[] 可点=7 ｜ ton-3@-223,83 ton-3@-28,173 wan-8@-220,-184 sou-3@-23,313 sou-3@125,-36 sou-3@121,127 wan-3@-3,-94
+  [log] [GamePage] 拿牌 id=53 wan-8@-220,-184 起飞延迟 0ms + 飞行 106ms → 落位倒计时 126ms
+  [log] [GamePage] 落位 id=53 → 槽 #3（当前槽 3）
+  [log] [GamePage] 牌局 已清=0 槽=4/8 槽内=[ton-3,sou-3,wan-5,wan-8] 暂存=[] 可点=6 ｜ ton-3@-223,83 ton-3@-28,173 sou-3@-23,313 sou-3@125,-36 sou-3@121,127 wan-3@-3,-94
+  [log] [GamePage] 牌局 已清=0 槽=4/8 槽内=[ton-3,sou-3,wan-5,wan-8] 暂存=[] 可点=6 ｜ ton-3@-223,83 ton-3@-28,173 sou-3@-23,313 sou-3@125,-36 sou-3@121,127 wan-3@-3,-94
+  [log] [GamePage] 拿牌 id=62 wan-3@-3,-94 起飞延迟 0ms + 飞行 118ms → 落位倒计时 138ms
+  [log] [GamePage] 落位 id=62 → 槽 #4（当前槽 4）
+  [log] [GamePage] 牌局 已清=0 槽=5/8 槽内=[ton-3,sou-3,wan-5,wan-8,wan-3] 暂存=[] 可点=6 ｜ ton-3@-223,83 ton-3@-28,173 sou-3@-23,313 sou-3@125,-36 sou-3@121,127 wan-4@3,-150
+  [log] [GamePage] 牌局 已清=0 槽=5/8 槽内=[ton-3,sou-3,wan-5,wan-8,wan-3] 暂存=[] 可点=6 ｜ ton-3@-223,83 ton-3@-28,173 sou-3@-23,313 sou-3@125,-36 sou-3@121,127 wan-4@3,-150
+  [log] [GamePage] 拿牌 id=60 wan-4@3,-150 起飞延迟 0ms + 飞行 107ms → 落位倒计时 127ms
+  [log] [GamePage] 落位 id=60 → 槽 #5（当前槽 5）
+  [log] [GamePage] 牌局 已清=0 槽=6/8 槽内=[ton-3,sou-3,wan-5,wan-8,wan-3,wan-4] 暂存=[] 可点=5 ｜ ton-3@-223,83 ton-3@-28,173 sou-3@-23,313 sou-3@125,-36 sou-3@121,127
+  [log] [GamePage] 消除 牌型=chi(吃) 张数=3 → 动效=撞击 ｜ wan-3 wan-4 wan-5
+  [log] [GamePage] 牌局 已清=3 槽=3/8 槽内=[ton-3,sou-3,wan-8] 暂存=[] 可点=5 ｜ ton-3@-223,83 ton-3@-28,173 sou-3@-23,313 sou-3@125,-36 sou-3@121,127
+  [log] [GamePage] 拿牌 id=47 ton-3@-223,83 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=47 → 槽 #1（当前槽 3）
+  [log] [GamePage] 牌局 已清=3 槽=4/8 槽内=[ton-3,ton-3,sou-3,wan-8] 暂存=[] 可点=4 ｜ ton-3@-28,173 sou-3@-23,313 sou-3@125,-36 sou-3@121,127
+  [log] [GamePage] 牌局 已清=3 槽=4/8 槽内=[ton-3,ton-3,sou-3,wan-8] 暂存=[] 可点=4 ｜ ton-3@-28,173 sou-3@-23,313 sou-3@125,-36 sou-3@121,127
+  [log] [GamePage] 拿牌 id=57 sou-3@-23,313 起飞延迟 0ms + 飞行 140ms → 落位倒计时 160ms
+  [log] [GamePage] 落位 id=57 → 槽 #3（当前槽 4）
+  [log] [GamePage] 牌局 已清=3 槽=5/8 槽内=[ton-3,ton-3,sou-3,sou-3,wan-8] 暂存=[] 可点=4 ｜ ton-3@95,308 ton-3@-28,173 sou-3@125,-36 sou-3@121,127
+  [log] [GamePage] 牌局 已清=3 槽=5/8 槽内=[ton-3,ton-3,sou-3,sou-3,wan-8] 暂存=[] 可点=4 ｜ ton-3@95,308 ton-3@-28,173 sou-3@125,-36 sou-3@121,127
+
+✅ 冒烟测试完成，产物目录：/tmp/smoke-chi

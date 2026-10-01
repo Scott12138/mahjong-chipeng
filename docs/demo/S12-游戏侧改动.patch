@@ -1,0 +1,796 @@
+diff --git a/game-4-mahjong/assets/scripts/CFG.ts b/game-4-mahjong/assets/scripts/CFG.ts
+index 7d9dd06..471d9e4 100644
+--- a/game-4-mahjong/assets/scripts/CFG.ts
++++ b/game-4-mahjong/assets/scripts/CFG.ts
+@@ -769,30 +769,52 @@ export const CFG = {
+          *    quadOut 冲过去会在到达时减速，看起来像"小心翼翼地靠拢"。
+          */
+         EASE_DASH: 'quadIn',
++        /**
++         * ★ 牌飞入槽位（S12.1 新增）。
++         *
++         * 【为什么必须单独给一条，不能改 EASE_MOVE】
++         * EASE_MOVE 是 quadOut（先快后慢），它同时被"槽位聚拢""洗牌铺开""HUD 下落"共用 ——
++         * 那些场景**就该**减速收尾（一排牌滑到位，末段慢慢贴合是对的）。
++         * 而"牌飞进槽"是**被吸进去**：末段减速会读成"小心翼翼地靠上去"，正是用户说的
++         * 「不够丝滑」。所以这里新起一条 quadIn，只给飞行用。
++         */
++        EASE_FLY: 'quadIn',
+ 
+         // ----------------------------------------------------
+         //  一、通用按压（B1 / B7 / D2 共用）
+         // ----------------------------------------------------
+         /** 按下反馈时长。必须 ≤80ms，否则会被感知为"点了没反应" */
+         TAP_DOWN: 0.06,
+-        /** 按下缩到多少 */
+-        TAP_DOWN_SCALE: 0.96,
+-        /** 按下时额外下压几像素（视觉上的"陷进去"） */
+-        TAP_DOWN_DY: 2,
++        /**
++         * ★ 牌的按下放大倍数（S12.1；原来是 TAP_DOWN_SCALE 缩到 0.96）。
++         * 【为什么从"缩"改成"放"】用户原话：「点击时可以增加微微放大，给人点击的手感」。
++         * 另一层原因是"缩"在多层牌堆里会被读成"牌变小了、是不是被拿走了"，
++         * 而"放大"只有一个意思：**这张牌被你抓住了**。
++         */
++        PRESS_SCALE: 1.08,
++        /** 按下时牌额外上抬几像素（负 = 向上）。与 PRESS_SCALE 一起构成"被拈起来" */
++        PRESS_DY: -3,
+         /** 抬手回弹时长（比按下长，"弹回来"要有余韵） */
+         TAP_UP: 0.12,
+ 
+         // ----------------------------------------------------
+         //  二、位移（B3 / B5 / C5）
+         // ----------------------------------------------------
+-        /** 位移速度基准（px/ms）。时长 = 距离 / 这个数，再夹到下面区间 */
+-        MOVE_SPEED: 1.6,
++        /**
++         * 位移速度基准（px/ms）。时长 = 距离 / 这个数，再夹到下面区间。
++         * S12.1：1.6 → 2.8。用户原话「加快速度飞入槽位」。
++         */
++        MOVE_SPEED: 2.8,
+         /** 位移时长下界（ms）。太短会"闪一下就没了" */
+-        MOVE_MIN: 180,
++        MOVE_MIN: 90,
+         /** 位移时长上界（ms）。太长会拖慢整局节奏 */
+-        MOVE_MAX: 300,
+-        /** 落位吸附时长（B4 的压感也用它） */
+-        SNAP: 0.14,
++        MOVE_MAX: 140,
++        /**
++         * 落位吸附时长（B4 的压感也用它）。
++         * S12.1：0.14 → 0.11。落位压感是"结果性"动效、可以慢，但它现在**不再锁输入**，
++         * 所以这里只影响观感 —— 稍微收短一点，与更快的飞行配起来才不脱节。
++         */
++        SNAP: 0.11,
+         /** 落位瞬间的横向拉伸（squash & stretch 的 stretch） */
+         SQUASH_X: 1.06,
+         /** 落位瞬间的纵向压扁（squash & stretch 的 squash） */
+@@ -803,11 +825,28 @@ export const CFG = {
+         // ----------------------------------------------------
+         //  三、选中（B2 / B7）
+         // ----------------------------------------------------
+-        /** 选中强调时长 */
+-        PICK_SELECT: 0.18,
+-        /** 选中上浮像素 */
++        /**
++         * ★ 起飞前的"原地站立"时长。**S12.1 起为 0（原 0.18）**。
++         *
++         * 【为什么原来要留这 180ms 的顿挫】
++         * S7.5 的论证写在 GamePage.pickTile 里：让玩家看清"按下的牌 → 抬起来的牌 →
++         * 飞走的牌"这条因果链，之后视线就可以直接跟到槽位。
++         *
++         * 【为什么现在归零】
++         * 用户 2026-10-01 原话：「点击牌到牌动明显有延迟，**肉眼可见**」。
++         * 问题在于这 180ms 里牌**位置几乎不动**（只上浮 6px），人眼把它读成"卡住"。
++         * 而那条因果链**不需要**用"原地站着不动"来换：
++         *   · "哪张牌被选中" → 由按下时的 PRESS_SCALE 放大 + 朱红描边在这 180ms 之前就给到了；
++         *   · "它去哪了"     → 由飞行本身给到，而且 130ms 的飞行比 180ms 的站立更好跟。
++         * 所以归零不是妥协，是把"从容"换成了更值钱的东西。
++         *
++         * ⚠️ 语义保留：改回 > 0 就是回到"两段式起飞"（原地站立 → 飞行）。
++         *    pickTile 里保留了这个分支，方便对比与回退。
++         */
++        PICK_SELECT: 0,
++        /** 选中上浮像素（仅两段式起飞时用；S12.1 后由上抬由 PRESS_DY 承担） */
+         PICK_LIFT: 6,
+-        /** 选中放大倍数 */
++        /** 选中放大倍数（仅两段式起飞时用；S12.1 后由 PRESS_SCALE 承担） */
+         PICK_SCALE: 1.12,
+         /** 选中描边线宽（配色仍取 CFG.COLOR.VERMILION） */
+         PICK_OUTLINE: 3,
+@@ -1057,7 +1096,7 @@ export const CFG = {
+         CLASH_KICK_DOWN: 0.17,
+ 
+         // ----------------------------------------------------
+-        //  十五、「吃（顺子）」的流水汇合（S7.5 修正）
++        //  十五、「吃（顺子）」的**咀嚼**（S12 重做；S7.5 原为"流水汇合"）
+         // ----------------------------------------------------
+         //  【术语 —— 两个词不是一回事，别再混称】
+         //    「吃」  = **原有玩法** = 顺子（234条 / 456万），也就是
+@@ -1067,23 +1106,128 @@ export const CFG = {
+         //             + bumpCombo/playCombo + combo*.m4a ×4），**已整体删除**，
+         //             现在源码里连它的名字都不该再出现。
+         //
+-        //  【用户要求的分工（原话）】
+-        //    "碰的效果是三张牌碰在一起，然后消除"  → 撞击（§十四）
+-        //    "连章是使用一个丝滑的动效来表示"      → 〔此处「连章」即「吃」〕
+-        //                                            流水汇合（本节）
++        //  ------------------------------------------------------------
++        //  【S12 为什么推翻 S7.5 的做法 —— 改这一节之前务必读完】
++        //
++        //  S7.5 把「吃」做成"流水汇合"：三张依次滑向中心、到齐后一起上浮淡出，
++        //  并且**刻意不加**挤压 / 冲击环 / 碎屑 / 牌堆上踢。当时的理由是
++        //  「丝滑是减出来的，不是加出来的」。
++        //
++        //  那条推演本身没错，但结论错了 —— 它把"撞击的语汇"连同
++        //  **"动作本身"一起减掉了**。结果是玩家只看到"三张牌挪到一起、
++        //  然后淡出"，**读不出"吃"这个动作**；甚至连「碰」有的飘字它都没有。
++        //  （用户 2026-10-01 原话：「触发吃的时候，没有碰那样的特效…
++        //   有一种小黄人吃豆子的那种感觉，把吃这个动作表达好」）
++        //
++        //  【正确的解法：换语汇，而不是比谁的元素多】
++        //    碰 / 杠 = 蓄力(后退) → 猛冲 → 撞 → 炸   语汇：**圆** · 硬 · 同时
++        //    吃      = 被吸 → 咬 → 嚼 → 吞           语汇：**楔弧** · 软 · 依次
++        //  两者都"满配"，但**没有一个元素是共用的**。
++        //  ⚠️ 这条是两条路径的**差异底线**：若哪天给「吃」加上圆环 + 圆碎屑，
++        //     两个牌型在体感上就会合并成一种，飘字也救不回来。
++        //
++        //  【"小黄人吃豆子"只有三个要素】（多一个都不是它）
++        //    ① 张嘴     —— 嘴先张开，豆子才被吃
++        //    ② 一口一个 —— 依次被吃、有节奏，不是一次吞完一片
++        //    ③ 即触即消 —— 嘴碰到豆子那一帧豆子就没了
++        //  ★ 与 S7.5 最大的差别就在 ②：旧实现是"三张**到齐**后一起消散"，
++        //    整个消除只有 **1 个**节奏点；改成"**到一张咬一张**"之后有 **3 个**
++        //    —— "咔嚓、咔嚓、咔嚓"才是"吃"。
+         //
+-        //  【"流水汇合"为什么长这样】
+-        //  它与「碰」的撞击**处处互为反面**：
+-        //    · 碰：三张**同时**动     ／ 吃：三张**依次**汇入（错峰 70ms）
+-        //    · 碰：蓄力后退→猛冲(quadIn，越冲越快)　
+-        //      吃：**没有蓄力**，全程 sineInOut（首尾速度为零，起停都不见棱角）
+-        //    · 碰：挤压 + 冲击圆环 + 碎屑 + 牌堆上踢
+-        //      吃：**一个都不要**（这些元素本身就是"冲击"的语义）
+-        //    · 碰：停一拍 → 胀到 1.20 再缩到 0（"炸开"）
+-        //      吃：到齐后**轻微上浮 + 淡出**（"流走"，全程不缩放）
++        //  【一口的时间轴】（一口的周期 = EAT_STAGGER，共 3 口）
++        //    t0                                牌起步 + 上下颚**开始张开**
++        //                                      （整个吸行过程都在张开，"张嘴"才看得见）
++        //    t0 + EAT_SUCK                     牌到位 → 颚片**合拢** + 牌被压扁
++        //                                      + 咀嚼残渣 + 小脉冲 + "咔"
++        //    t0 + EAT_SUCK + EAT_BITE_RECOIL   牌缩到 0（被咬没了）
++        //    最后一口咬完 + EAT_BURP_DELAY     "打嗝"：大脉冲 + 飘字「吃」+ 牌堆轻踢
+         //
+-        //  ★ 一句话总结：丝滑不是"加东西"，而是**减东西** ——
+-        //    把撞击那套元素全部拿掉、把时长拉长、把曲线换成首尾零速。
++        //  ⚠️ 数据收尾仍是**一次性**的（末尾统一调 finalizeClear）——
++        //     逐口只在**视觉上**消失，`_slots` 到最后一并 splice。理由见
++        //     GamePage.playFlowClear：边咬边 splice 会让还没被咬的牌提前左移、
++        //     咬合点与牌的位置对不上。
++        // ----------------------------------------------------
++        /**
++         * 单张牌被"吸"向嘴的时长。
++         * 比 S7.5 的 FLOW_SLIDE(0.30) 短：**吸是快的**，"流"才是慢的。
++         * 末段加速（EASE.DASH）—— 被吸住之后是"突然被吞进去"，不是匀速漂移。
++         */
++        EAT_SUCK: 0.20,
++        /** 相邻两口之间的错峰。★ 它是"一口一个"的节奏本身，改它就是改"吃"的观感 */
++        EAT_STAGGER: 0.13,
++        /**
++         * 汇拢程度：相邻两张牌的中心间距 = 槽格宽 × 这个比例。
++         *   0 = 完全叠死（看不清牌面）；1 = 等于没动。
++         * 比「碰」的 0.45 松 —— 吃的是三种**不同**的牌，叠死就看不出是哪三张了。
++         */
++        EAT_OVERLAP: 0.55,
++        /** 嘴（上下颚片）的宽度 */
++        EAT_MOUTH_W: 96,
++        /** 上下颚**完全张开**时，单侧离开中线的距离（像素） */
++        EAT_MOUTH_OPEN: 30,
++        /** 颚片合拢的时长。要快 —— 咬是一瞬间的事 */
++        EAT_MOUTH_BITE: 0.06,
++        /** 颚片弧线的线宽（张开/合拢只改 position，不改形状，所以线宽恒定） */
++        EAT_MOUTH_LINE: 7,
++        /** 颚片合拢后停留多久再淡出（留一点"嚼完还在"的余韵） */
++        EAT_MOUTH_HOLD: 0.05,
++        /** 颚片淡出时长 */
++        EAT_MOUTH_FADE: 0.10,
++        /** 被咬住时纵向压扁到多少（squash）—— 咬合的主要观感就是这一下 */
++        EAT_BITE_SQUASH_Y: 0.52,
++        /** 被咬住时横向撑开到多少（stretch）—— 压扁的同时往外撑，才是"被咬"不是"被缩小" */
++        EAT_BITE_SQUASH_X: 1.12,
++        /** 挤压回弹时长（压下去 → 弹回一点点，材质感） */
++        EAT_BITE_RECOIL: 0.07,
++        /** 被咬掉之后缩到 0 的时长 */
++        EAT_BITE_VANISH: 0.09,
++        /**
++         * 每口的咀嚼残渣：个数 / 半径 / 飞散距离 / 寿命。
++         * ⚠️ 形状是**方点**（不是「碰」的圆碎屑）—— 见 EAT_* 的语汇约定：
++         *    圆 = 能量的爆开，方 = 被嚼碎的渣。混用等于抹掉差异底线。
++         */
++        EAT_CRUMB_COUNT: 4,
++        EAT_CRUMB_R: 5,
++        EAT_CRUMB_SPREAD: 36,
++        EAT_CRUMB_LIFE: 0.22,
++        /**
++         * 每口咬合的小脉冲（楔弧形，比「碰」的冲击环小得多）。
++         * 它是"这一口确实咬下来了"的句号；没有它，牌会显得是"凭空没了"。
++         */
++        EAT_PULSE_R0: 10,
++        EAT_PULSE_R1: 46,
++        EAT_PULSE_LINE: 3,
++        EAT_PULSE_LIFE: 0.16,
++        /**
++         * 「吃」所有脉冲的**扁度**（纵向半径 ÷ 横向半径）。
++         *   1   = 正圆 —— ⚠️ 那是「碰」的语汇，**不要**给吃用；
++         *   0.42 = 扁椭圆，读作"嘴横向开合留下的缝"。
++         * 两个脉冲（每口的咬合、最后的打嗝）共用它，所以只留一个参数。
++         */
++        EAT_FLAT: 0.42,
++        /** 最后一口咬完到"打嗝"之间的间隔 */
++        EAT_BURP_DELAY: 0.06,
++        /** "打嗝"的上浮脉冲（大而软，是整段咀嚼的收束） */
++        EAT_BURP_R0: 16,
++        EAT_BURP_R1: 96,
++        EAT_BURP_LINE: 4,
++        EAT_BURP_LIFE: 0.26,
++        /** "打嗝"时牌堆上踢的幅度。「碰」是 CLASH_KICK=5，这里**减半**（软一点） */
++        EAT_KICK: 2.5,
++        /** 「吃」的飘字延迟（相对打嗝）。「碰」的飘字是撞击帧立即弹，吃稍慢一拍 */
++        EAT_LABEL_DELAY: 0.02,
++
++        // ----------------------------------------------------
++        //  十五·B、**现行**「吃」= 流水汇合（S7.5）—— 暂留，勿删
++        // ----------------------------------------------------
++        //  【为什么上面写了 EAT_*，这里还留着一整套 FLOW_*】
++        //  这两套是「吃」的两个版本，**当前跑的是下面这一套**：
++        //    · GamePage.playFlowClear / releaseFlow 仍在引用 FLOW_* ；
++        //    · 上面的 EAT_*（咀嚼）只有参数与 MotionFx 基元就位，
++        //      **GamePage 的接线尚未做** —— 用户要的是"先出 demo，拍板了再进游戏"。
++        //  ⚠️ 所以删 FLOW_* 必须与「把 playFlowClear 换成咀嚼」**同一个提交**里做。
++        //     只删常量不改 GamePage，tween 会拿到 `undefined` 时长（动效静默失效，
++        //     且 TypeScript 在改动 CRLF/缓存不同步时可能不报错）—— 2026-10-01 就踩过。
+         // ----------------------------------------------------
+         /** 三张依次汇入的错峰。比碰撞的接力错峰长，才看得清是"陆续汇入" */
+         FLOW_STAGGER: 0.07,
+@@ -1327,7 +1471,19 @@ export const CFG = {
+             reject: 0.50,   // 拒绝
+             peng: 0.95,     // ★ 碰——撞击，本作最响的一击
+             clear: 0.85,    // 碰撞之后的消散（与 peng 组成"咚—唰"二连）
+-            flow: 0.80,     // 「吃」（顺子）的流水汇合——柔和上行，不许有棱角
++            flow: 0.80,     // 〔S12 起「吃」不再用它〕旧「吃」的流水汇合音
++            /**
++             * ★「吃」的人声念白（S12 新增）。整段咀嚼的"名字"。
++             * 音量给到接近 peng —— 它是这一段的识别符号，必须压得住底下
++             * 三声机械的"咔"，否则人声会被当成背景噪声听不清。
++             */
++            eat: 0.90,
++            /**
++             * ★「吃」每口的咀嚼"咔"（S12 新增）。一口一声，共 3 声。
++             * 比 eat 低不少：它是**节奏**不是**主角**。
++             * 三个音同时响会糊，让"咔"退到背景才听得见人声。
++             */
++            bite: 0.55,
+             shuffle: 0.80,  // 洗牌
+             reward: 0.90,   // 奖励到账
+             fail: 0.88,     // 失败
+diff --git a/game-4-mahjong/assets/scripts/ui/GamePage.ts b/game-4-mahjong/assets/scripts/ui/GamePage.ts
+index a5f8961..50e0287 100644
+--- a/game-4-mahjong/assets/scripts/ui/GamePage.ts
++++ b/game-4-mahjong/assets/scripts/ui/GamePage.ts
+@@ -211,6 +211,27 @@ export class GamePage extends PageBase {
+     /** 当前被手指按住的牌（-1 = 没有）。B1 的按压态必须能被精确地还回去 */
+     private _pressedId = -1;
+ 
++    /**
++     * ★ 输入缓冲（S12.1 新增）：被"忙"挡掉的那一次点击，记在这里，稍后补做。
++     *
++     * 【为什么需要它】
++     * 改之前，`_busy` 期间的点击是**直接丢弃**的（`if (this._busy) return`）。
++     * 用户描述的"点了没反应"就是这个：手快的人连着点两张，第二张凭空消失。
++     * S12.1 把锁窗口从 ~510ms 压到 ~150ms（见 CFG.MOTION 的 PICK_SELECT / MOVE_*），
++     * 但**只要还有窗口，窗口里的点击就会丢** —— 所以补这一道缓冲。
++     *
++     * 【为什么只缓冲"最后一次"，不做真正的队列】
++     * 队列（允许多张同时在空中）要处理五个风险点：插入顺序按点击序、连锁判定要等排空、
++     * 槽满预占要把在飞的也算上、B7 撤回要能撤队列里任意一张、道具/洗牌要能整体作废。
++     * 那是另一个量级的改动，且每一处都可能踩到"`_busy` 永久为 true → 整局死锁"。
++     * 而"记住最后一次点击、解锁后补做"用**一个字段**就消掉了 90% 的挫败感，
++     * 且天然不会并发 —— 补做的那一次一定在上一张完全落位、判定跑完之后才发起。
++     *
++     * ⚠️ 补做前必须**重新校验**（见 drainBufferedPick）：期间局面可能变了
++     *    （那张牌被别的操作拿走、或者被压住了），照单执行会凭空多占一格。
++     */
++    private _buffered: number | null = null;
++
+     // ---- 道具按钮引用（只建一次，状态变化时改文字与颜色，不重建节点）----
+     private _propSubs: Partial<Record<PropId, Label>> = {};
+     private _propNames: Partial<Record<PropId, Label>> = {};
+@@ -668,11 +689,14 @@ export class GamePage extends PageBase {
+             this._propNodes[def.id] = btn;
+ 
+             // D2：按压反馈。**与 B1 共用同一组常量**（CFG.MOTION.TAP_DOWN /
+-            // TAP_DOWN_SCALE / EASE）—— 道具按钮与牌如果按压手感不一致，
++            // PRESS_SCALE / EASE）—— 道具按钮与牌如果按压手感不一致，
+             // 玩家会觉得"有两套物理规则"，那是最廉价的不精致。
++            // S12.1：跟着牌一起从"缩小 0.96"改成"放大 1.08"。
++            // 原来那对 TAP_DOWN_SCALE / TAP_DOWN_DY 已经**删掉**了，不是留着不用 ——
++            // 留着的常量迟早会让人以为"还有另一条按压路径"。
+             const press = () => {
+                 if (this._modal) return;
+-                MotionFx.to(btn, { scale: v3(CFG.MOTION.TAP_DOWN_SCALE, CFG.MOTION.TAP_DOWN_SCALE, 1) },
++                MotionFx.to(btn, { scale: v3(CFG.MOTION.PRESS_SCALE, CFG.MOTION.PRESS_SCALE, 1) },
+                     { duration: CFG.MOTION.TAP_DOWN, easing: EASE.MOVE, tag: TAG.PRESS });
+                 const gl = this._propGlows[def.id];
+                 if (gl) gl.opacity = 70;
+@@ -1075,13 +1099,20 @@ export class GamePage extends PageBase {
+     //  交互：统一命中测试
+     // ========================================================
+     /**
+-     * B1 触摸按下：牌**立刻**缩到 0.96 并下压 2px。
++     * B1 触摸按下：牌**立刻**放大到 1.08 并上抬 3px。
+      *
+      * 【为什么必须在 TOUCH_START 而不是 TOUCH_END】
+      * 这是"手感"里唯一一条不能商量的：人对"我按到了"的判定发生在手指落下的
+      * 那一瞬间，超过 ~80ms 没有反馈就会被读成"这点不动"。
+      * 而 TOUCH_END 要等抬手，抬手本身就有几十到几百毫秒的随机延迟 ——
+      * 反馈的不确定性比反馈的幅度更伤人。
++     *
++     * 【S12.1：按下由"缩小"改成"放大"】
++     * 用户原话：「点击时可以增加微微放大，给人点击的手感」。
++     * 另外还有一层原因：多层牌堆里"牌缩小"会被读成"牌变小了、是不是被拿走了"，
++     * 而"放大 + 上抬"只有一个意思 —— 这张牌被拈起来了。
++     * ⚠️ 上抬方向由 PRESS_DY 决定（负 = 向上）。原来的 TAP_DOWN_DY 是**下压**，
++     *    语义相反，二者不能混用；道具按钮仍用下压那一组（见 setPropBar）。
+      */
+     private onTouchStart(e: EventTouch): void {
+         if (this._over || this._modal || this._busy || this._armedRemove) return;
+@@ -1106,10 +1137,11 @@ export class GamePage extends PageBase {
+         // 声音和震动晚 80ms 到达，感官上就已经是"另一件事"了。
+         AudioService.play('tap');
+         Haptics.light();
++        const M = CFG.MOTION;
+         MotionFx.to(v.node,
+-            { position: v3(t.x, t.y - CFG.MOTION.TAP_DOWN_DY, 0),
+-              scale: v3(CFG.MOTION.TAP_DOWN_SCALE, CFG.MOTION.TAP_DOWN_SCALE, 1) },
+-            { duration: CFG.MOTION.TAP_DOWN, easing: EASE.MOVE, tag: TAG.PRESS });
++            { position: v3(t.x, t.y + M.PRESS_DY, 0),
++              scale: v3(M.PRESS_SCALE, M.PRESS_SCALE, 1) },
++            { duration: M.TAP_DOWN, easing: EASE.MOVE, tag: TAG.PRESS });
+     }
+ 
+     /** 手指滑出 / 被打断：把按压态还回去，否则会留下一张永远缩着的牌 */
+@@ -1149,10 +1181,15 @@ export class GamePage extends PageBase {
+             return;
+         }
+ 
+-        if (this._busy || this._over || this._modal) return;
++        // ⚠️ S12.1：这里**不再**一刀切 `if (this._busy) return`。
++        //    原来这一行就是"点了没反应"的源头：手快的人连点两张，第二张凭空消失。
++        //    现在改成"只有**牌堆上**的点击进输入缓冲（见 ③），其余途径照旧直接忽略"——
++        //    暂存取回、消除就绪态本来就依赖槽位状态，缓冲它们只会把状态搅乱。
++        if (this._over || this._modal) return;
+ 
+         // 「消除」就绪时，本页进入"只认槽内牌"的子模式
+         if (this._armedRemove) {
++            if (this._busy) return;
+             const hit = this.hitSlotOrTemp(local);
+             if (hit && hit.where === 'slot') {
+                 this.applyRemoveSlot(hit.index);
+@@ -1167,7 +1204,7 @@ export class GamePage extends PageBase {
+         // ① 先看暂存架（它在槽位条上方，可能与飞行动画重叠，优先响应）
+         const tempHit = this.hitSlotOrTemp(local);
+         if (tempHit) {
+-            if (tempHit.where === 'temp') this.takeFromTemp(tempHit.index);
++            if (tempHit.where === 'temp' && !this._busy) this.takeFromTemp(tempHit.index);
+             return;
+         }
+ 
+@@ -1179,7 +1216,57 @@ export class GamePage extends PageBase {
+             // B6：命中的是被压住的牌 → **必须给出拒绝反馈**。
+             // 不"穿透"去找下面那张 —— 玩家点的是他看见的那张。
+             // 但"点了没反应"是绝对不能接受的：玩家会以为游戏卡了。
+-            this.rejectBlocked(id);
++            // ⚠️ 忙的时候不抖：这一下本来就该被拒，再叠一个抖会与正在播的
++            //    消除动效抢注意力；而且它**不该进输入缓冲** —— 它不是"丢掉的点击"，
++            //    它是"点错了"，稍后补做等于把错误的手势执行了一遍。
++            if (!this._busy) this.rejectBlocked(id);
++            return;
++        }
++
++        // ③ ★ S12.1 输入缓冲：忙 → **记下来**（而不是丢掉），解锁后补做。
++        //    只缓冲牌堆上的点击（见上面 onTap 开头那段说明）。
++        if (this._busy) {
++            this._buffered = id;
++            if (CFG.DEBUG.LOG_STATE) {
++                log(`[GamePage] 输入缓冲：id=${id} 暂时忙，等解锁后补做`);
++            }
++            return;
++        }
++        this.pickTile(id);
++    }
++
++    /**
++     * ★ S12.1：把输入缓冲里那一次点击补做掉。
++     *
++     * 【为什么必须先重新校验，不能照单执行】
++     * 从"记下这一下"到"补做"之间隔着 150ms 左右，期间局面可能已经变了：
++     *   · 那张牌被别的途径拿走（B7 撤回、道具、洗牌）；
++     *   · 那张牌被**压住**了（比如它上面那张刚被放回去）。
++     * 照单执行就会凭空多占一个槽位 —— 严重时直接误判"槽满"判负。
++     * 所以这里把 onTap 里那两道校验**原样重做**一遍。
++     */
++    private drainBufferedPick(): void {
++        const id = this._buffered;
++        if (id === null || id < 0) return;
++
++        // 【第一类：上下文已失效 → 丢弃】结算 / 弹窗 / 移出待点 / 页面销毁，
++        // 都说明"这一下"已经不属于当前情境了，留着它只是祸根。
++        if (!this.node.isValid || this._over || this._modal || this._armedRemove) {
++            this._buffered = null;
++            return;
++        }
++        // 【第二类：还忙 → 留着】正常情况下 drainBufferedPick 是在 _busy 归零
++        // 之后才被调的，走不到这里；但万一被别处提前唤起，这一下点击应该被
++        // **保留**而不是吞掉 —— 吞掉就等于玩家白点了一次。
++        if (this._busy) return;
++
++        // 【第三类：牌没了 / 被压住了 → 丢弃】照单执行会凭空多占一个槽位。
++        this._buffered = null;
++        if (this._taken[id] || this._blocked[id] > 0) {
++            if (CFG.DEBUG.LOG_STATE) {
++                log(`[GamePage] 输入缓冲作废：id=${id}`
++                    + `（taken=${this._taken[id] ? 1 : 0} blocked=${this._blocked[id] || 0}）`);
++            }
+             return;
+         }
+         this.pickTile(id);
+@@ -1383,7 +1470,7 @@ export class GamePage extends PageBase {
+         // 就会退化成「点一下、撤回一下」的死循环，而现象完全看不出是时长问题。
+         if (CFG.DEBUG.LOG_STATE) {
+             log(`[GamePage] 拿牌 id=${id} ${t.key}@${Math.round(t.x)},${Math.round(t.y)}`
+-                + ` 选中 ${Math.round(M.PICK_SELECT * 1000)}ms + 飞行 ${Math.round(flySec * 1000)}ms`
++                + ` 起飞延迟 ${Math.round(M.PICK_SELECT * 1000)}ms + 飞行 ${Math.round(flySec * 1000)}ms`
+                 + ` → 落位倒计时 ${Math.round(MotionFx.unlockMs(M.PICK_SELECT + flySec))}ms`);
+         }
+ 
+@@ -1394,14 +1481,31 @@ export class GamePage extends PageBase {
+ 
+         // ⑥ B2 选中：上浮 + 放大 + 朱红描边到 3px（描边由 TileView 的 pick 态绘制）
+         view.setState('pick');
+-        // ⑦ B3 飞行：两段式的一条链，选中段与飞行段的交界严格首尾相接
+-        MotionFx.to2(view.node,
+-            { props: { position: v3(fromFx.x, fromFx.y + M.PICK_LIFT, 0),
+-                       scale: v3(M.PICK_SCALE, M.PICK_SCALE, 1) },
+-              duration: M.PICK_SELECT, easing: EASE.POP },
+-            { props: { position: targetFx, scale: v3(scale, scale, 1) },
+-              duration: flySec, easing: EASE.MOVE },
+-            { tag: TAG.FLY });
++        // ⑦ B3 飞行
++        if (M.PICK_SELECT > 0) {
++            // 两段式起飞（S7.5 的做法）。PICK_SELECT 归零后这条不再走，
++            // 但**保留分支**：把它调回 > 0 就能一键回退，也方便做 A/B 对比。
++            // 代价就是那 180ms：牌在原地只上浮 6px、位置几乎不动，人眼读成"卡住"。
++            MotionFx.to2(view.node,
++                { props: { position: v3(fromFx.x, fromFx.y + M.PICK_LIFT, 0),
++                           scale: v3(M.PICK_SCALE, M.PICK_SCALE, 1) },
++                  duration: M.PICK_SELECT, easing: EASE.POP },
++                { props: { position: targetFx, scale: v3(scale, scale, 1) },
++                  duration: flySec, easing: EASE.FLY },
++                { tag: TAG.FLY });
++        } else {
++            // ★ S12.1：**当帧起飞**。
++            // 起点不用在这里再摆一次 —— 上面第 ② 步已经 `stop(TAG.PRESS)`，
++            // 而 `fromFx` 是在 stop **之后**用 `worldPosOf` 读的，
++            // 所以按下时那个"放大到 1.08 + 上抬 3px"的样子原样成了飞行起点。
++            // （位置与缩放是同一个通道，两条 tween 同时写会打架 —— 这也是
++            //   第 ② 步必须显式 stop 掉 PRESS 的原因，不是可选项。）
++            // 曲线用 EASE_FLY（quadIn，越飞越快），不是 EASE_MOVE（quadOut，
++            // 末段减速会读成"小心翼翼地贴上去"，那正是"不丝滑"的来源之一）。
++            MotionFx.to(view.node,
++                { position: targetFx, scale: v3(scale, scale, 1) },
++                { duration: flySec, easing: EASE.FLY, tag: TAG.FLY });
++        }
+ 
+         // ⑦b 顺手把牌"理顺"（2026-10-01 需求 #1）
+         //     牌堆里是四向随机的（可能横躺 90°、倒立 180°），而槽位是玩家的
+@@ -1528,11 +1632,21 @@ export class GamePage extends PageBase {
+         this.refreshSlotWarn();
+         this.logPickable();
+ 
+-        // ④ 聚拢走完再判定（这就是"先聚拢、后消除"的落地方式）
++        // ④ ★ S12.1：解锁提前到落位**当帧**。
++        //    改之前是"聚拢走完（SHIFT_PER_SLOT = 90ms）才解锁"，那 90ms 纯属白等 ——
++        //    聚拢做的是"槽里已有的牌让位"，它跟"能不能点下一张"没有任何关系，
++        //    把它算进锁的窗口只会让手感变钝。
++        //    `_busy` 从此只覆盖"这次拿牌真正在飞的那段时间"（MOVE_MIN ~ MOVE_MAX = 90~140ms）。
++        this._busy = false;
++
++        // ⑤ 判定仍然**延后**到聚拢结束 —— 那一步需要的是"槽位已经排好序"，
++        //    而不是"输入被锁住"。把这两件事拆开，是这一版手感的关键。
++        //    ⚠️ 补做输入缓冲必须放在 afterInsert **之后**：afterInsert 可能触发消除
++        //    （消除会 splice `_slots`），在它之前发起下一次拿牌，算出来的插入位是过期的。
+         setTimeout(() => {
+             if (!this.node.isValid) return;
+-            this._busy = false;
+             this.afterInsert(insertAt);
++            this.drainBufferedPick();
+         }, MotionFx.unlockMs(M.SHIFT_PER_SLOT));
+     }
+ 
+@@ -2956,6 +3070,8 @@ export class GamePage extends PageBase {
+         // 各回调里都有 `if (!this.node.isValid) return;` 兜底，这里再断一次引用。
+         this._fx.clear();
+         this._pending = null;
++        // S12.1：同上，缓冲属于"局内"状态，离场一律归零。
++        this._buffered = null;
+     }
+ 
+     private tickSecond(): void {
+@@ -2977,6 +3093,10 @@ export class GamePage extends PageBase {
+         this.unscheduleAllCallbacks();
+         this._timing = false;
+         this._armedRemove = false;
++        // S12.1：结算时必须清缓冲。缓冲点击是"这一局"里玩家手快存的意图，
++        // 若跨局存活，重新开局/复活后的第一次落位会把它当成本局点击执行 ——
++        // 凭空多消一张牌，且玩家根本没按过。
++        this._buffered = null;
+ 
+         if (CFG.DEBUG.LOG_STATE) {
+             log(`[GamePage] 第 ${this._level.id} 关 ${win ? '通关' : '失败'}，`
+@@ -3285,6 +3405,10 @@ export class GamePage extends PageBase {
+         // ⑥ 续命：原本"时间到"判负的至少再给一段时间，
+         //    否则复活完立刻又超时 —— 玩家会觉得白看了一次广告
+         this._over = false;
++        // S12.1：复活 = 局面被大幅重排（收割 4 张 + 补位滑移），
++        // 进复活流程前缓冲的那次点击指向的牌可能已经没了。
++        // 这里一并清掉，让玩家复活后重新做决定。
++        this._buffered = null;
+         // ⚠️ 输入锁的解锁点必须晚于全部视觉复位（铁律：解锁用 setTimeout）。
+         //    两段动效串起来：收割（看得见的收益）→ 黑幕（看不见的重排）。
+         //    中间任何一段没跑完就放行，玩家都会点到"看不见的牌"。
+diff --git a/game-4-mahjong/assets/scripts/ui/MotionFx.ts b/game-4-mahjong/assets/scripts/ui/MotionFx.ts
+index be144e7..3995984 100644
+--- a/game-4-mahjong/assets/scripts/ui/MotionFx.ts
++++ b/game-4-mahjong/assets/scripts/ui/MotionFx.ts
+@@ -90,6 +90,15 @@ export const EASE = {
+     DROP: CFG.MOTION.EASE_DROP,
+     /** 冲刺 / 撞击（越冲越快 = 力量感，与 DROP 数值相同但语义不同） */
+     DASH: CFG.MOTION.EASE_DASH,
++    /**
++     * ★ 牌飞入槽位（S12.1 新增）。
++     * 数值上与 DASH 相同（都是 quadIn），但**语义不同、不能互相替代**：
++     *   · DASH 是"撞过去"（碰/杠的三张牌互撞）；
++     *   · FLY  是"被槽位吸走"（玩家点完牌，牌加速离场）。
++     * 之所以不直接复用 DASH，是为了让阅读代码的人看到 EASE.FLY 就知道
++     * 这是"入槽"那条链路 —— 顺手把 DASH 调成别的曲线时不会误伤飞行。
++     */
++    FLY: CFG.MOTION.EASE_FLY,
+ } as const;
+ 
+ /**
+@@ -530,7 +539,7 @@ export class MotionFx {
+ // ============================================================
+ 
+ /** 特效种类（池子的分桶键）。同类节点结构一致，才能复用 */
+-export type FxKind = 'debris' | 'pulse' | 'flash' | 'icon';
++export type FxKind = 'debris' | 'pulse' | 'flash' | 'icon' | 'jaw';
+ 
+ interface PoolBucket {
+     free: Node[];
+@@ -661,35 +670,56 @@ export class FxPool {
+ // ============================================================
+ 
+ /**
+- * C3「爆开」：一圈小圆点四散淡出。
++ * C3「爆开」：一圈小点四散淡出。
+  *
+- * 【为什么是圆点而不是方块】圆点的半径可以随着"飞散"一起缩小，
+- * 视觉上是"碎屑"，方块缩小时更像"缩放的贴图"。而且真牌的碎屑本来就该是圆的。
++ * 【为什么是圆点而不是方块（S12 追加了例外，见下）】圆点的半径可以随着"飞散"
++ * 一起缩小，视觉上是"碎屑"，方块缩小时更像"缩放的贴图"。而且真牌的碎屑本来就该是圆的。
++ *
++ * 【S12 的例外：「吃」的咀嚼残渣用**方**点】
++ * 这是「碰 / 吃」**差异底线**的一部分（见 CFG.MOTION §十五）：
++ *   · 圆点 = 能量从中心**炸开**（碰）；
++ *   · 方点 = 被**嚼碎**的渣（吃）。
++ * 两者用同一个函数、靠一个 `square` 开关区分 —— 刻意不复制一份实现，
++ * 因为复制出来的两份迟早会分叉（改了一处忘了另一处）。
+  *
+  * 【为什么碎屑要独立节点而不是画在一张 Graphics 上】
+  * 一张 Graphics 上画 8 个圆，它们只能整体缩放/淡出，
+  * "四散"这个方向性就丢了。8 个节点走池子复用，成本可控。
++ *
++ * @param opt S12 新增，全部可选；不传 = 与 S12 之前的行为逐字节一致。
+  */
+ export function spawnDebris(
+     pool: FxPool, localX: number, localY: number, count: number, color: string,
++    opt: { square?: boolean; r?: number; spread?: number; life?: number } = {},
+ ): void {
+     const M = CFG.MOTION;
+     const g = pool.layer;
+     if (!g) return;
+ 
++    const baseR = opt.r ?? M.DEBRIS_R;
++    const spread = opt.spread ?? M.DEBRIS_SPREAD;
++    const life = opt.life ?? M.DEBRIS_DURATION;
++
+     for (let i = 0; i < count; i++) {
+         const node = pool.rent('debris');
+         // 圆周均分起角 + 一点随机：均分保证"360° 都有人"，
+         // 随机保证不像仪仗队（纯均分一眼就看出是程序生成的）。
+         const ang = (Math.PI * 2 * i) / count + Math.random() * 0.6;
+-        const dist = M.DEBRIS_SPREAD * (0.6 + Math.random() * 0.6);
+-        const r = M.DEBRIS_R * (0.55 + Math.random() * 0.75);
++        const dist = spread * (0.6 + Math.random() * 0.6);
++        const r = baseR * (0.55 + Math.random() * 0.75);
+ 
+         const gg = node.getComponent(Graphics);
+         if (gg) {
+             gg.clear();
+             gg.fillColor = hex2color(color);
+-            gg.circle(0, 0, r);
++            if (opt.square) {
++                // 方点：边长按"面积近似相等"取自半径 —— 直接拿 r 当半边长会让
++                // 方点看着比圆点大一圈（πr² vs (2r)²=4r²），两种碎屑的"分量"就串了。
++                const half = r * 0.886;                 // √π / 2
++                gg.rect(-half, -half, half * 2, half * 2);
++            } else {
++                gg.circle(0, 0, r);
++            }
+             gg.fill();
+         }
+         node.setPosition(localX, localY, 0);
+@@ -698,26 +728,33 @@ export function spawnDebris(
+         MotionFx.to(node,
+             { position: v3(localX + Math.cos(ang) * dist, localY + Math.sin(ang) * dist, 0),
+               scale: v3(0.3, 0.3, 1) },
+-            { duration: M.DEBRIS_DURATION, easing: EASE.MOVE, tag: TAG.FX });
+-        MotionFx.fade(node, 0, M.DEBRIS_DURATION, { easing: EASE.MOVE, tag: TAG.FADE });
++            { duration: life, easing: EASE.MOVE, tag: TAG.FX });
++        MotionFx.fade(node, 0, life, { easing: EASE.MOVE, tag: TAG.FADE });
+ 
+         // 到期强制回收（不依赖 tween 回调 —— 回调丢了池子就漏）
+-        pool.autoRecycle('debris', node);
++        pool.autoRecycle('debris', node, Math.max(M.FX_MAX_LIFE, life + 0.06));
+     }
+ }
+ 
+ /**
+- * D1「落点脉冲」：一圈由小到大、同时淡出的描边圆环。
++ * D1「落点脉冲」：一圈由小到大、同时淡出的描边环。
+  * 它是"奖励到了"的句号 —— 只有飞行没有落点反馈，玩家会怀疑"到底生效没有"。
+  *
+  * 【opt 参数的意义（S7.5 新增）】
+  * 原来它的尺寸写死用 CFG.MOTION.PULSE_*（为"奖励到账"调的，小而精致）。
+  * "碰"的撞击环需要**更大更狠**：它是三张牌撞在一起的能量释放，
+  * 用奖励环的尺寸会显得"不够响"。与其复制一份代码，不如把三个尺寸参数开放出来。
++ *
++ * 【opt.flat（S12 新增）：把正圆压成扁椭圆】
++ * 「吃」的咬合脉冲**不能是正圆**：正圆是「碰」的语汇（能量向四周炸开），
++ * 「吃」的脉冲要像"嘴横向开合留下的缝"，所以压成扁椭圆。
++ *   flat = 1   → 正圆（碰、奖励，S12 之前的全部调用）
++ *   flat = 0.42 → 扁椭圆（吃）
++ * 这是「碰 / 吃」差异底线的一部分，不是审美微调（见 CFG.MOTION §十五）。
+  */
+ export function spawnPulse(
+     pool: FxPool, localX: number, localY: number, color: string,
+-    opt: { r0?: number; r1?: number; line?: number; life?: number } = {},
++    opt: { r0?: number; r1?: number; line?: number; life?: number; flat?: number } = {},
+ ): void {
+     const M = CFG.MOTION;
+     if (!pool.layer) return;
+@@ -725,6 +762,7 @@ export function spawnPulse(
+     const r0 = opt.r0 ?? M.PULSE_R0;
+     const r1 = opt.r1 ?? M.PULSE_R1;
+     const life = opt.life ?? M.PULSE;
++    const flat = opt.flat ?? 1;
+ 
+     const node = pool.rent('pulse');
+     const gg = node.getComponent(Graphics);
+@@ -732,7 +770,15 @@ export function spawnPulse(
+         gg.clear();
+         gg.lineWidth = opt.line ?? M.PULSE_LINE;
+         gg.strokeColor = hex2color(color);
+-        gg.circle(0, 0, r0);
++        // flat = 1 时必须走 circle()，不能用 ellipse(0,0,r,r)：
++        // 两者在多数后端结果一致，但 circle 是各自后端的原生路径
++        // （WebGL 走 arc、原生走圆弧），而 ellipse 需要额外的变换。
++        // 已经渲染正常的"碰"不该因为一个默认参数被换实现。
++        if (flat === 1) {
++            gg.circle(0, 0, r0);
++        } else {
++            gg.ellipse(0, 0, r0, r0 * flat);
++        }
+         gg.stroke();
+     }
+     node.setPosition(localX, localY, 0);
+@@ -749,6 +795,90 @@ export function spawnPulse(
+     pool.autoRecycle('pulse', node, Math.max(M.FX_MAX_LIFE, life + 0.06));
+ }
+ 
++/**
++ * S12 新增：「吃」的**上下颚片** —— 张嘴 → 咬合 → 收走。
++ *
++ * ------------------------------------------------------------
++ * 【它为什么必须存在：这是"一口一个"里唯一带"嘴"的东西】
++ * 「碰」的所有表现（冲击环、圆碎屑、上踢）表达的都是"能量往外炸"；
++ * 「吃」要表达的是"被咬进去"，而"咬"必须有一个**开合**的动作载体。
++ * 没有颚片的话，逐口消失看起来只是"三张牌依次缩没了"，仍然读不出"吃"。
++ *
++ * 【为什么是两条弧、而不是一个"嘴"的图形】
++ *   ① 零贴图：本工程全程矢量画，加一张嘴的 PNG 会破坏这条路（也吃包体）；
++ *   ② 弧线只靠 position 就能开合 —— 若画成一个闭合图形，开合只能靠 scaleY，
++ *      而 scaleY 会把线宽一起拉粗（张开时线宽 ×5，糊成一团）。
++ *      用两条独立节点各改各的 position，**线宽恒定**，这才是"张嘴"该有的样子。
++ *
++ * 【上下颚的形状约定（决定了它读起来像不像嘴）】
++ *   上颚：(−w/2, 0) → 控制点 (0, −bow) → (w/2, 0)，即向上拱的弧
++ *   下颚：(−w/2, 0) → 控制点 (0, +bow) → (w/2, 0)，即向下拱的弧
++ *   合拢（各自 y=0）时两弧拼成一个透镜 ◇ —— 读作"紧闭的嘴"；
++ *   张开时两弧各自离开中线 open 距离 → 中间空出 2·(open − bow) 的开口。
++ *   ⚠️ 因此 **open 必须大于 bow**，否则"张开"时两弧仍叠在一起、看不出开口。
++ *
++ * 【时间轴】由调用方决定 openDur / biteDur / holdDur / fadeDur，
++ * 但内部的**顺序是固定的**：先张嘴、再咬合、再收走。顺序反了就不是嘴了。
++ * 特别是**不能"先闭合再张开"** —— 那是"吐"不是"吃"。
++ *
++ * @param openDur  张嘴时长。调用方通常传"牌的吸行时长"，
++ *                 让"张嘴"占满整个吸行过程（这样玩家一定看得见）。
++ * @returns 整段（张嘴+咬合+停留+淡出）的总秒数，供调用方安排下一口 / 数据收尾。
++ */
++export function spawnJaw(
++    pool: FxPool, localX: number, localY: number, color: string,
++    opt: {
++        w: number; open: number; bow?: number; line?: number;
++        openDur: number; biteDur: number; holdDur: number; fadeDur: number;
++    },
++): number {
++    const bow = opt.bow ?? 10;
++    const line = opt.line ?? CFG.MOTION.EAT_MOUTH_LINE;
++
++    const up = pool.rent('jaw');
++    const dn = pool.rent('jaw');
++
++    const draw = (node: Node, upArc: boolean): void => {
++        const gg = node.getComponent(Graphics);
++        if (!gg) return;
++        gg.clear();
++        gg.lineWidth = line;
++        gg.strokeColor = hex2color(color);
++        gg.moveTo(-opt.w / 2, 0);
++        gg.quadraticCurveTo(0, upArc ? -bow : bow, opt.w / 2, 0);
++        gg.stroke();
++    };
++    draw(up, true);
++    draw(dn, false);
++
++    // 起点 = **合拢**（两弧都在中线），然后张开。
++    // ⚠️ 这一点很关键：如果起点就是张开的，玩家看到的只是"嘴本来就在那"，
++    //    而看不到"张开"这个动作本身 —— 而"张嘴"正是"吃"的三要素之一。
++    up.setPosition(localX, localY, 0);
++    dn.setPosition(localX, localY, 0);
++
++    const stopTotal = opt.openDur + opt.biteDur + opt.holdDur;
++
++    for (const [node, dir] of [[up, 1], [dn, -1]] as Array<[Node, number]>) {
++        MotionFx.chain(node, [
++            { props: { position: v3(localX, localY + dir * opt.open, 0) },
++              duration: opt.openDur, easing: EASE.ENTER },
++            { props: { position: v3(localX, localY, 0) },
++              duration: opt.biteDur, easing: EASE.EXIT },
++            // "停留"段：位置写回同一个值。用 chain 的空转段而不是 setTimeout，
++            // 是为了让"张—咬—停—收"严格首尾相接（几条独立 tween 会在交界处重叠出顿挫）。
++            { props: { position: v3(localX, localY, 0) }, duration: opt.holdDur },
++        ], { tag: TAG.FX });
++        MotionFx.fade(node, 0, opt.fadeDur,
++            { delay: stopTotal, easing: EASE.EXIT, tag: TAG.FADE });
++    }
++
++    const life = stopTotal + opt.fadeDur + 0.06;
++    pool.autoRecycle('jaw', up, life);
++    pool.autoRecycle('jaw', dn, life);
++    return life;
++}
++
+ /**
+  * 洗牌结束的"整堆白闪"（E3）：一个覆盖整片牌堆区的描边矩形闪一下。
+  * 用途是给洗牌一个**明确的结束句号** —— 没有它，牌铺开之后

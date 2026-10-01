@@ -1,0 +1,269 @@
+/**
+ * ============================================================
+ *  PhysicsProbe.ts · 物理引擎可行性探针（一次性，验完即删）
+ * ============================================================
+ *  【为什么要有这个文件】
+ *  用户拍板要「真物理引擎」（不是脚本演），但本工程此前是**纯 2D、引擎裁剪**
+ *  的状态：`engine.json` 里连 `3d` 都是关的。在把 3600 行的 GamePage 推倒重来
+ *  之前，必须先拿到三个**事实**，否则后面全是猜：
+ *
+ *    ① **能不能跑** —— 裁剪过的引擎 + 微信小游戏运行时，physics/cannon 到底装没装上。
+ *       （体积实测过 3.05MB，但那只是字节数，不代表能初始化）
+ *    ② **稳不稳** —— 一堆盒子自由落体后能不能**静下来**。
+ *       物理引擎的经典失败是"永远在抖"（约束求解器残留速度），
+ *       表现是每张牌的坐标每秒漂零点几 —— 在消除类游戏里等于"牌自己在动"。
+ *    ③ **能不能复现** —— 同样的初始条件跑两次，落定后每张牌的位置差多少。
+ *       这一条直接决定「每局可解 / 开局不卡」这套保证还能不能留。
+ *       如果两次差出半个牌宽，那"认证可解"就成了空话。
+ *
+ *  【它不做的事】
+ *  不参与游戏逻辑、不建任何节点到 Canvas 上、不改任何既有模块。
+ *  全部产物就是控制台里那几行 `[PHYSPROBE]` —— 命令行链路下唯一的可观测性来源。
+ *
+ *  【坐标与尺度】
+ *  物理世界按"米"理解，牌取真麻将的比例压到工程单位：
+ *      宽 0.80 ｜ 厚 0.20 ｜ 深 1.00   （真牌约 30×20×40mm，比例 ≈ 0.75/0.5/1）
+ *  厚度 0.2 是**关键的一个数**：它就是"层"在物理世界里的物理尺寸。
+ *  层高必须 ≥ 厚度，否则物理上两张牌会互相穿透（求解器把重叠推开 → 牌自己弹开）。
+ *  → 推论：「真分层」的视觉层距，在物理上**下限就是这个厚度**，不能再像
+ *     现在那样只错开 13.6px 糊弄过去。
+ * ============================================================
+ */
+
+import {
+    BoxCollider, director, ERigidBodyType, Node, PhysicsSystem, RigidBody, Vec3, log, warn,
+} from 'cc';
+
+// ------------------------------------------------------------
+//  牌与堆的参数（与 CFG.TILE 的真实值解耦 —— 这只是一次尺度实验）
+// ------------------------------------------------------------
+
+/** 牌：宽 / 厚 / 深 */
+const BX = 0.80;
+const BY = 0.20;
+const BZ = 1.00;
+
+/** 牌数：够摆出多层，又不至于让落定时间长得离谱 */
+const COUNT = 12;
+
+/**
+ * ★★ 实验变体（2026-10-01 第一轮探针的直接结论）★★
+ *
+ * 第一轮把 12 张牌**互不重叠**地撒下来，结果是：
+ *     高度分布 = 0.100 ×12 ｜ 堆高 0.000 ｜ 一张都没叠起来。
+ * 也就是说：**平放的牌在物理世界里不会自发成"层"** ——
+ * 它们各自找个空地躺下就完事了，因为"层"从来不是物理涌现出来的，
+ * 而是**布局作者指定的**（羊了个羊的层是画上去的，不是落出来的）。
+ *
+ * 想让它们叠，物理上只有一条路：**加容器（四面墙）把它们框住**，
+ * 让它们被迫往上挤 —— 就像把牌装进一个盒子里摇一摇。
+ * 这个变体就是干这个的，用来回答唯一重要的那个问题：
+ *     「框住之后，它能叠出几层？稳不稳？」
+ */
+const WALL = true;
+/** 容器内壁尺寸（只比牌略大一点，逼着它们往上垒） */
+const BOX_W = 1.7;
+const BOX_D = 2.1;
+/** 墙高：要能兜住预期的堆高 */
+const WALL_H = 1.6;
+
+/** 采样时刻（毫秒）：4s 看作"已落定"，6s 用来看"落定之后还漂不漂" */
+const T_SETTLE = 4000;
+const T_STILL = 6000;
+
+/** 固定步长 —— 与真实帧率解耦，否则每台机器的物理轨迹都不一样 */
+const FIXED_DT = 1 / 60;
+
+/**
+ * 确定性伪随机（LCG）。
+ * ⚠️ 这里**必须**用它而不是 Math.random()：本探针的第三个问题是"能不能复现"，
+ *    如果初始条件本身就随机，两次跑出来的差异就分不清是"物理不确定"还是
+ *    "初始条件不同" —— 那这个实验等于白做。
+ */
+function makeRng(seed: number): () => number {
+    let s = seed >>> 0;
+    return () => {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        return s / 4294967296;
+    };
+}
+
+interface Probe {
+    node: Node;
+    body: RigidBody;
+}
+
+const boxes: Probe[] = [];
+
+/** 把一批位置取出来，压成一行可比较的字符串 */
+function snapshot(): string {
+    return boxes.map((b) => {
+        const p = b.node.position;
+        return `${p.x.toFixed(3)},${p.y.toFixed(3)},${p.z.toFixed(3)}`;
+    }).join(' | ');
+}
+
+/** 两次快照之间每张牌移动了多少（最大位移，用于判断"静没静下来"） */
+function maxDrift(a: string, b: string): number {
+    const pa = a.split(' | ').map((s) => s.split(',').map(Number));
+    const pb = b.split(' | ').map((s) => s.split(',').map(Number));
+    let m = 0;
+    for (let i = 0; i < Math.min(pa.length, pb.length); i++) {
+        const dx = pb[i][0] - pa[i][0];
+        const dy = pb[i][1] - pa[i][1];
+        const dz = pb[i][2] - pa[i][2];
+        m = Math.max(m, Math.sqrt(dx * dx + dy * dy + dz * dz));
+    }
+    return m;
+}
+
+/**
+ * 跑一次探针。全程 try/catch —— 它失败也**绝不能**影响游戏启动
+ * （Bootstrap 里踩过这个坑：一个探测函数抛异常，整个模块后续代码全不执行）。
+ *
+ * ⚠️ 场景不是"叫了就有"的：Bootstrap 里 setTimeot(500) 那一发实测拿到的是 null
+ *    （`director.getScene()` 在场景真正 launch 之前一直返回 null，且**不报错**）。
+ *    所以这里自己轮询等待，而不是指望调用方掐准时间。
+ */
+export function runPhysicsProbe(): void {
+    let attempts = 0;
+    const tryRun = (): void => {
+        try {
+            const scene = director.getScene();
+            if (!scene) {
+                if (++attempts > 60) {
+                    warn('[PHYSPROBE] 等待场景超时（15s），放弃');
+                    return;
+                }
+                setTimeout(tryRun, 250);
+                return;
+            }
+            setup(scene);
+        } catch (e) {
+            warn('[PHYSPROBE] 探针失败：', e);
+        }
+    };
+    tryRun();
+}
+
+function setup(scene: ReturnType<typeof director.getScene> & object): void {
+    // ---- ① 引擎在不在 ----
+    const sys = PhysicsSystem.instance;
+    log(`[PHYSPROBE] PhysicsSystem 就绪=${sys != null}｜物理世界=${sys ? (sys.physicsWorld != null) : false}`);
+    sys.enable = true;
+    sys.gravity = new Vec3(0, -9.8, 0);
+    sys.fixedTimeStep = FIXED_DT;
+    // ⚠️ maxSubSteps = 1：一次 tick 最多补一帧物理。设大了会让"慢帧"时
+    //    物理追帧 → 每台机器步数不同 → 复现性直接没了。
+    (sys as unknown as { maxSubSteps: number }).maxSubSteps = 1;
+
+    boxes.length = 0;
+
+    // ---- ② 舞台：地面 + N 张牌 ----
+    const root = new Node('PhysicsProbe');
+    root.layer = scene.layer;
+    scene.addChild(root);
+
+    const ground = new Node('Ground');
+    ground.layer = scene.layer;
+    root.addChild(ground);
+    ground.setPosition(0, -BY / 2, 0);
+    const gBody = ground.addComponent(RigidBody);
+    gBody.type = ERigidBodyType.STATIC;
+    const gCol = ground.addComponent(BoxCollider);
+    gCol.size = new Vec3(30, BY, 30);
+
+    // ---- ★ 容器（变体 B）：四面墙。见 WALL 常量的说明 ----
+    if (WALL) {
+        const t = 0.1;   // 墙厚
+        const halfW = BOX_W / 2;
+        const halfD = BOX_D / 2;
+        const spec: Array<[string, number, number, number, number, number, number]> = [
+            // 名称        x        y          z        尺寸x  尺寸y  尺寸z
+            ['WallX-', -halfW - t / 2, WALL_H / 2, 0, t, WALL_H, BOX_D + t * 2],
+            ['WallX+', halfW + t / 2, WALL_H / 2, 0, t, WALL_H, BOX_D + t * 2],
+            ['WallZ-', 0, WALL_H / 2, -halfD - t / 2, BOX_W + t * 2, WALL_H, t],
+            ['WallZ+', 0, WALL_H / 2, halfD + t / 2, BOX_W + t * 2, WALL_H, t],
+        ];
+        for (const [name, x, y, z, sx, sy, sz] of spec) {
+            const w = new Node(name);
+            w.layer = scene.layer;
+            root.addChild(w);
+            w.setPosition(x, y, z);
+            const b = w.addComponent(RigidBody);
+            b.type = ERigidBodyType.STATIC;
+            const c = w.addComponent(BoxCollider);
+            c.size = new Vec3(sx, sy, sz);
+        }
+        log(`[PHYSPROBE] 容器：内壁 ${BOX_W}×${BOX_D}，墙高 ${WALL_H}`);
+    }
+
+    const rng = makeRng(20261001);
+    // 容器里从上方撒；不设容器时退回原来的 3 列网格
+    const cols = WALL ? 2 : 3;
+    for (let i = 0; i < COUNT; i++) {
+        const r = Math.floor(i / cols);
+        const c = i % cols;
+        const n = new Node(`Box_${i}`);
+        n.layer = scene.layer;
+        root.addChild(n);
+        // 从高处撒下来，横向留一点点随机，避免完全对称卡死
+        const spanX = WALL ? BOX_W * 0.42 : BX * 1.05;
+        const spanZ = WALL ? BOX_D * 0.42 : BZ * 1.05;
+        n.setPosition(
+            (c - (cols - 1) / 2) * spanX + (rng() - 0.5) * 0.06,
+            BY / 2 + 1.2 + r * 0.22 + (rng() - 0.5) * 0.04,
+            (r - 2) * spanZ + (rng() - 0.5) * 0.06,
+        );
+
+        const body = n.addComponent(RigidBody);
+        body.type = ERigidBodyType.DYNAMIC;
+        body.mass = 1;
+        body.useGravity = true;
+        body.linearDamping = 0.1;
+        body.angularDamping = 0.1;
+        body.allowSleep = true;
+
+        const col = n.addComponent(BoxCollider);
+        col.size = new Vec3(BX, BY, BZ);
+
+        boxes.push({ node: n, body });
+    }
+    log(`[PHYSPROBE] 已投放 ${boxes.length} 张牌｜尺寸 ${BX}×${BY}×${BZ}｜重力 -9.8`);
+
+    // ---- ③ 采样 ----
+    let s1 = '';
+    let s2 = '';
+
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+        const t = Date.now() - t0;
+        if (t >= T_SETTLE && !s1) {
+            s1 = snapshot();
+            log(`[PHYSPROBE] t=${t}ms 落定快照 → ${s1}`);
+        }
+        if (t >= T_STILL) {
+            s2 = snapshot();
+            log(`[PHYSPROBE] t=${t}ms 静置快照 → ${s2}`);
+            log(`[PHYSPROBE] ★静止漂移(4s→6s 最大位移) = ${maxDrift(s1, s2).toFixed(4)}`);
+            // 落定后的高度分布：直接告诉我们在物理世界里堆了几层
+            const ys = boxes.map((b) => b.node.position.y).sort((a, b) => a - b);
+            log(`[PHYSPROBE] ★高度分布 → ${ys.map((v) => v.toFixed(3)).join(', ')}`);
+            const lo = ys[0];
+            const hi = ys[ys.length - 1];
+            log(`[PHYSPROBE] ★堆高 ${(hi - lo).toFixed(3)} = 约 ${((hi - lo) / BY).toFixed(1)} 张牌厚`);
+
+            // 层数：把落定高度按"半张牌厚"聚类，看实际堆出了几个可辨识的层
+            const levels: number[] = [];
+            for (const y of ys) {
+                if (!levels.length || y - levels[levels.length - 1] > BY * 0.5) levels.push(y);
+            }
+            log(`[PHYSPROBE] ★层数（按半张牌厚聚类）= ${levels.length} ｜ 各层高度 ${levels.map((v) => v.toFixed(3)).join(', ')}`);
+
+            // 每层的牌数 —— 如果最上层只有 1~2 张，说明是"塔尖"，开局可点会很少
+            const perLevel = levels.map((lv) => ys.filter((y) => Math.abs(y - lv) <= BY * 0.5).length);
+            log(`[PHYSPROBE] ★每层张数（由低到高）→ ${perLevel.join(' : ')}`);
+            clearInterval(iv);
+        }
+    }, 100);
+}

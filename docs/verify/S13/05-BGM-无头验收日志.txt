@@ -1,0 +1,51 @@
+==> 启动无头 Chrome 打开 http://127.0.0.1:8123/index.html
+==> CDP 已连接
+==> 等待游戏加载渲染（9 秒）…
+    视口/画布/引擎可见尺寸： {"inner":[720,1280],"canvas":{"cssW":720,"cssH":1280,"left":0,"top":0,"attrW":720,"attrH":1280},"visible":[720,1280]}
+    ✅ 引擎可见尺寸 = 设计分辨率 720×1280，设计坐标 1:1 可用
+    （点击换算中心：360,640）
+    已截图：/tmp/smoke-bgm2/00-before.png
+==> 点击 设计坐标(0, -118) → 屏幕(360, 758)
+    已截图：/tmp/smoke-bgm2/01-click-d_0,-118.png
+==> 点击 设计坐标(0, -505) → 屏幕(360, 1145)
+    已截图：/tmp/smoke-bgm2/02-click-d_0,-505.png
+==> 点击 设计坐标(0, -118) → 屏幕(360, 758)
+    已截图：/tmp/smoke-bgm2/03-click-d_0,-118.png
+    性能：峰值 draw call 29 / 平均帧 16.48ms → 约 61 FPS
+
+===== 页面控制台输出 =====
+  [timeEnd] Init Base: 8.598876953125 ms
+  [timeEnd] Init Infrastructure: 13.375 ms
+  [log] [PHYSICS2D]: register box2d.
+  [timeEnd] Init SubSystem: 38.681884765625 ms
+  [log] Cocos Creator v3.8.8
+  [log] Using custom pipeline: Builtin
+  [timeEnd] Init Project: 32.348876953125 ms
+  [timeEnd] LoadScene db://assets/scenes/Main.scene: 17.468017578125 ms
+  [timeEnd] InitScene: 0.100830078125 ms
+  [timeEnd] AttachPersist: 0.001953125 ms
+  [timeEnd] AutoRelease: 0.057861328125 ms
+  [timeEnd] Destroy: 0.0859375 ms
+  [timeEnd] Activate: 2.19091796875 ms
+  [log] Success to load scene: db://assets/scenes/Main.scene
+  [log] [GameRoot] 《麻麻大消除》v0.4.0 启动
+  [log] [GameRoot] [1/6] buildUIRoot 完成
+  [log] [GameRoot] [2/6] AudioService.init 完成
+  [log] [GameRoot] [3/6] PageManager.create 完成
+  [log] [GameRoot] [4/6] registerPages 完成
+  [log] [SaveService] 读档成功，已通关 3 关
+  [log] [SaveService] 读档成功，已通关 3 关
+  [log] [GameRoot] [5/6] preloadData 完成
+  [log] [PageManager] → menu
+  [log] [GameRoot] [6/6] open(menu) 完成
+  [log] [Bootstrap] GameRoot 已挂载到 "Canvas"
+  [log] [Bootstrap] 引擎性能面板：已关闭
+  [log] [AudioService] 音效就绪 13/13
+  [log] [AudioService] BGM 就绪：audio/bgm（34.3s）
+  [log] [AudioService] BGM 起播（茶馆电音）
+  [log] [PageManager] → levelSelect
+  [log] [PageManager] → menu
+  [log] [AudioService] BGM 起播（茶馆电音）
+  [log] [PageManager] → levelSelect
+
+✅ 冒烟测试完成，产物目录：/tmp/smoke-bgm2

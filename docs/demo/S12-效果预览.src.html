@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>《麻麻大消除》S12.1 · 音效加长尾音 + 入槽手感 · 预览</title>
+<style>
+/* ============================================================
+   配色直接取自工程 CFG.ts 的 COLOR 段（2026-10-01 版），
+   保证 demo 和游戏本体是同一套视觉语言。
+   ============================================================ */
+:root{
+  --paper:#F2EADA; --paper-dark:#EFE6D2; --face:#FBF6EA; --face-dim:#EDE6D4;
+  --ink:#22201C; --ink-mid:#57503F; --ink-soft:#8E8571;
+  --lock:#B9B09A; --lock-bg:#EAE3D2;
+  --vermilion:#C4362B; --gold:#C9A227;
+  --blue:#2F5D8C;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+h1{font-size:23px;margin:0 0 6px;letter-spacing:.3px}
+h1 small{font-size:14px;font-weight:400;color:var(--ink-soft);letter-spacing:0}
+.lede{color:var(--ink-mid);margin:0 0 6px;max-width:74ch}
+.note{
+  background:var(--face); border:1px solid var(--lock); border-left:4px solid var(--gold);
+  border-radius:8px; padding:11px 14px; margin:14px 0 26px; color:var(--ink-mid); font-size:13px;
+}
+.note b{color:var(--ink)}
+h2{
+  font-size:16px;margin:38px 0 4px;padding-bottom:7px;
+  border-bottom:2px solid var(--ink);display:flex;align-items:baseline;gap:9px
+}
+h2 .idx{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:50%;background:var(--vermilion);color:#fff;
+  font-size:12px;font-weight:700;flex:none;transform:translateY(-1px)
+}
+h2 em{font-style:normal;font-size:12px;color:var(--ink-soft);font-weight:400}
+.sub{color:var(--ink-soft);font-size:12.5px;margin:8px 0 16px}
+
+/* ---------- 动效面板 ---------- */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:800px){.grid{grid-template-columns:1fr}}
+.panel{
+  background:var(--face);border:1px solid var(--lock);border-radius:10px;overflow:hidden;
+  display:flex;flex-direction:column
+}
+.panel > header{
+  display:flex;align-items:center;gap:8px;padding:9px 13px;
+  background:var(--paper-dark);border-bottom:1px solid var(--lock)
+}
+.panel > header .tag{
+  font-size:11px;font-weight:700;letter-spacing:.5px;padding:2px 7px;border-radius:4px;
+  background:var(--lock-bg);color:var(--ink-mid)
+}
+.panel.now > header .tag{background:#E6DED0;color:var(--ink-soft)}
+.panel.new > header .tag{background:var(--vermilion);color:#fff}
+.panel > header .t{font-weight:700;font-size:14px}
+.panel canvas{display:block;width:100%;height:auto;background:var(--paper)}
+.phase{
+  padding:8px 13px;font-size:12.5px;color:var(--ink-mid);border-top:1px solid var(--lock);
+  background:var(--paper-dark);min-height:36px
+}
+.phase b{color:var(--vermilion)}
+.ctrl{display:flex;gap:8px;padding:10px 13px;border-top:1px solid var(--lock);flex-wrap:wrap}
+button{
+  font:inherit;font-size:12.5px;padding:6px 12px;border-radius:6px;cursor:pointer;
+  background:var(--face);color:var(--ink);border:1px solid var(--lock);transition:.12s
+}
+button:hover{border-color:var(--ink-mid)}
+button:active{transform:translateY(1px)}
+button.pri{background:var(--vermilion);border-color:var(--vermilion);color:#fff;font-weight:700}
+button.on{background:var(--ink);border-color:var(--ink);color:var(--face)}
+
+/* ---------- 音效 ---------- */
+.sfxrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-bottom:1px dashed var(--lock)}
+.sfxrow:last-of-type{border-bottom:0}
+.sfxrow .k{width:74px;flex:none;font-weight:700}
+.sfxrow .k small{display:block;font-weight:400;color:var(--ink-soft);font-size:11px}
+.chip{
+  display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  padding:6px 11px;text-align:left;line-height:1.35
+}
+.chip .n{font-weight:700;font-size:12.5px}
+.chip .h{font-size:10.5px;color:var(--ink-soft)}
+.chip.on{background:#FFF3EF;border-color:var(--vermilion)}
+.chip.on .h{color:var(--vermilion)}
+
+.drop{
+  margin-top:14px;padding:20px;border:2px dashed var(--lock);border-radius:10px;background:var(--face);
+  text-align:center;color:var(--ink-soft);font-size:13px;transition:.15s
+}
+.drop.hot{border-color:var(--vermilion);background:#FFF3EF;color:var(--vermilion)}
+.drop b{display:block;color:var(--ink);font-size:14px;margin-bottom:3px}
+.rec-actions{margin-top:9px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+
+/* ---------- 手感 ---------- */
+.feel{background:var(--face);border:1px solid var(--lock);border-radius:10px;padding:14px;position:relative}
+.feelbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.stats{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-mid);margin-bottom:10px}
+.stats b{font-variant-numeric:tabular-nums}
+.stats .bad{color:var(--vermilion)}
+.stats .good{color:#2E7D4F}
+.lamp{display:inline-flex;align-items:center;gap:6px}
+.lamp i{width:9px;height:9px;border-radius:50%;background:#2E7D4F;display:inline-block}
+.lamp.busy i{background:var(--vermilion)}
+.stage{position:relative;height:150px;background:var(--paper);border:1px solid var(--lock);border-radius:8px;overflow:hidden}
+.pile{position:absolute;left:0;right:0;top:12px;display:flex;justify-content:center;gap:7px}
+.ftile{
+  width:46px;height:62px;border-radius:5px;background:var(--face);border:1.5px solid rgba(34,32,28,.55);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
+  font-family:"Kaiti SC","STKaiti","Songti SC",serif;user-select:none;transition:transform .16s;
+  position:relative;flex:none
+}
+.ftile .n{font-size:15px;color:var(--blue);line-height:1;font-weight:700}
+.ftile .w{font-size:13px;color:var(--vermilion);line-height:1.1;font-weight:700}
+.ftile.dead{opacity:.28;cursor:default}
+.tray{position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:5px;justify-content:center}
+.slot{width:44px;height:58px;border-radius:5px;border:1.5px dashed var(--lock);background:var(--paper-dark)}
+.flyer{position:absolute;left:0;top:0;width:46px;height:62px;border-radius:5px;background:var(--face);
+  border:1.5px solid rgba(34,32,28,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:"Kaiti SC","STKaiti","Songti SC",serif;pointer-events:none;z-index:5}
+.flyer .n{font-size:15px;color:var(--blue);line-height:1;font-weight:700}
+.flyer .w{font-size:13px;color:var(--vermilion);line-height:1.1;font-weight:700}
+
+/* ---------- 决策卡 ---------- */
+table{border-collapse:collapse;width:100%;font-size:12.5px;background:var(--face)}
+th,td{border:1px solid var(--lock);padding:7px 9px;text-align:left;vertical-align:top}
+th{background:var(--paper-dark);font-weight:700}
+td.no{color:var(--vermilion);font-weight:700}
+td.yes{color:#2E7D4F;font-weight:700}
+td.mid{color:#B07A16;font-weight:700}
+.pick{
+  margin-top:14px;padding:12px 15px;background:#FFF3EF;border:1px solid var(--vermilion);
+  border-radius:8px;font-size:13px
+}
+.pick b{color:var(--vermilion)}
+code{background:var(--paper-dark);padding:1px 5px;border-radius:3px;font-size:12px;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+/* S12.1：旧/新音效的区分 + 延迟大数字 */
+.chip.oldver{border-style:dashed;background:var(--paper-dark)}
+.chip.oldver .n{color:var(--ink-soft);font-weight:400}
+.stats .big{color:var(--ink);font-weight:700}
+.stats .big b{font-size:17px;color:var(--vermilion);font-variant-numeric:tabular-nums}
+.stats .big b.ok{color:#2E7D4F}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>音效加长尾音 + 点牌入槽手感 · 预览 <small>S12.1 · 2026-10-01 · 第二版</small></h1>
+<p class="lede">这是<b>方案稿</b>，不是游戏本体。小游戏代码<b>一行未改</b> —— 全部改动（含这一版的手感）都存成补丁 <code>docs/demo/S12-游戏侧改动.patch</code>，你点头后一条 <code>git apply</code> 接回去。<br><b>这一版只动了两件事</b>：① 音效<b>加长 + 加尾音</b>（第 2 节，可以旧新对听）；② 点牌入槽<b>去掉那 180ms 死延迟</b>、按下给放大手感、飞行提速（第 3 节）。<b>吃 / 碰的动效按你说的保留原样</b>，第 1 节放这里只为对照，不用再看。</p>
+<div class="note">
+  <b>怎么看：</b>直接跳到 <b>第 2 节</b>把「旧版 / 新版」各听一遍（重点听尾巴），再去 <b>第 3 节</b>用快一点的手速连点，盯着「点击 → 牌开始移动」那个数。<br>
+  <b>这一版的问题来源是你上一轮的三条反馈</b>：动效保留、音效延长带尾音、点击要跟手。
+</div>
+
+<!-- ============================================================
+     一、动效对照
+     ============================================================ -->
+<h2><span class="idx">1</span>动效对照 <em>左＝现在的碰（基准）｜右＝新的吃（重做）</em></h2>
+<p class="sub">问题的根源：旧版「吃」= 三张牌挪到一起 + 一起淡出，<b>整个消除只有 1 个节奏点</b>，读不出"吃"这个动作。新版拆成 3 个节奏点（张嘴 → 吸 → 咬 → 打嗝收尾）。</p>
+
+<div class="grid">
+  <section class="panel now">
+    <header><span class="tag">基准</span><span class="t">碰（撞击）</span></header>
+    <canvas id="cvPeng" width="720" height="350"></canvas>
+    <div class="phase" id="phPeng">—</div>
+    <div class="ctrl">
+      <button class="pri" data-play="peng">▶ 播放</button>
+      <button data-loop="peng">↻ 循环</button>
+      <button data-slow="peng">🐢 慢放 0.35×</button>
+    </div>
+  </section>
+
+  <section class="panel new">
+    <header><span class="tag">新方案</span><span class="t">吃（咀嚼）</span></header>
+    <canvas id="cvChi" width="720" height="350"></canvas>
+    <div class="phase" id="phChi">—</div>
+    <div class="ctrl">
+      <button class="pri" data-play="chi">▶ 播放</button>
+      <button data-loop="chi">↻ 循环</button>
+      <button data-slow="chi">🐢 慢放 0.35×</button>
+    </div>
+  </section>
+</div>
+
+<!-- ============================================================
+     二、音效
+     ============================================================ -->
+<h2><span class="idx">2</span>音效试听 <em>四川话念「吃」「碰」两个字</em></h2>
+<p class="sub">
+  每一行第一个是<b>旧版</b>（你现在游戏里在用的那一段），后面三个是<b>新版</b>。<br>
+  加长做了三件事：<b>①</b> 把裁剪的尾部阈值从 6% 放到 1.2%（旧版把真人收音的那段<b>渐弱</b>当静音切掉了，白丢 50ms）；
+  <b>②</b> 按<b>周期对齐</b>把元音尾巴真的拖长（不是拉伸时间轴，是重复一个基音周期 —— 相位天然连续，不会有机器味）；
+  <b>③</b> 补一条 200ms 的<b>房间尾音</b>（人对"像不像真人"的判断有一半来自"它在一个空间里"）。<br>
+  声调、段音、音色<b>一字未动</b> —— 只在后面接尾巴。
+</p>
+
+<div class="sfxrow" id="rowChi">
+  <div class="k">吃 <small>顺子消除</small></div>
+</div>
+<div class="sfxrow" id="rowPeng">
+  <div class="k">碰 <small>刻子消除</small></div>
+</div>
+
+<div class="drop" id="drop">
+  <b>把你自己的录音拖到这里</b>
+  用手机录两段（安静房间，各念一遍就行）：<br>
+  「吃～」和「碰！」 —— 然后拖进来，立刻在这套动效里试听。
+  <div class="rec-actions">
+    <button id="pickChi">选择「吃」的录音…</button>
+    <button id="pickPeng">选择「碰」的录音…</button>
+    <input type="file" id="fChi" accept="audio/*" hidden>
+    <input type="file" id="fPeng" accept="audio/*" hidden>
+  </div>
+</div>
+
+<!-- ============================================================
+     三、手感
+     ============================================================ -->
+<h2><span class="idx">3</span>点牌入槽的手感 <em>三档对比 ｜ 盯「点击 → 牌开始移动」那个数</em></h2>
+<p class="sub">
+  你说的"点击牌到牌动明显有延迟"，根子在 <code>PICK_SELECT = 180ms</code>：抬起之后牌先<b>原地</b>上浮 6px、放大到 1.12，<b>位置几乎不动</b>，
+  180ms 之后才真的起飞 —— 人眼把这 180ms 读成"卡住"。<br>
+  <b>新版把这一整段删掉</b>：按下<b>立刻放大 1.08</b>（这就是你要的"点击的手感"）→ 抬起<b>当帧起飞</b> →
+  飞行 <b>240 → 130ms</b>（曲线也换成"越飞越快"，末段不再减速慢慢贴） → 落位<b>立即解锁</b>。<br>
+  下面那个「点击 → 牌开始移动」是<b>实测值</b>：逐帧读飞行物的 transform，看它到底哪一帧才真的变了 —— 不是我抄参数给你看。
+</p>
+
+<div class="feel">
+  <div class="feelbar">
+    <button id="mLock" class="on">现状：单张锁（丢弃点击）</button>
+    <button id="mQueue">B 档：飞行队列（最多 2 张）</button>
+    <button id="mNew">B+ 新版：跟手 ★</button>
+    <button id="fReset">↺ 重置</button>
+  </div>
+  <div class="stats">
+    <span class="lamp" id="lamp"><i></i><span id="lampTxt">可点击</span></span>
+    <span class="big">点击 → 牌开始移动 <b id="sLat">—</b> ms</span>
+    <span>已落位 <b id="sPlaced">0</b></span>
+    <span>被丢弃 <b id="sDrop" class="bad">0</b></span>
+    <span>入队 <b id="sQueue">0</b></span>
+    <span>同时在飞 <b id="sFly">0</b></span>
+  </div>
+  <div class="stage" id="stage">
+    <div class="pile" id="pile"></div>
+    <div class="tray" id="tray"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     四、音源决策卡
+     ============================================================ -->
+<h2><span class="idx">4</span>四川话音源：需要你选一条 <em>我已经把每条都验证过了</em></h2>
+<table>
+  <tr><th style="width:26%">路径</th><th style="width:14%">结论</th><th>证据 / 说明</th></tr>
+  <tr><td>macOS 系统朗读 <code>say</code></td><td class="no">✕ 不可行</td>
+      <td>中文音色只有普通话 / 粤语 / 台语，<b>没有四川话</b>（已列出全部音色核对）。</td></tr>
+  <tr><td>edge-tts 免费端点</td><td class="no">✕ 不可行</td>
+      <td>Azure 音色表里<b>确实存在</b> <code>zh-CN-sichuan-YunxiNeural</code>，但免费端点不提供它 —— 实测 <code>NoAudioReceived</code>（换成辽宁话立刻成功，说明不是工具问题）。</td></tr>
+  <tr><td>Azure 官方接口</td><td class="mid">△ 可行但付费</td>
+      <td>有 <code>zh-CN-sichuan-YunxiNeural</code>（西南官话男声）与 <code>zh-CN-XiaoxiaoDialectsNeural</code>（支持 <code>zh-CN-sichuan</code> 次级方言）。需要 Azure 密钥，新账号有免费额度。</td></tr>
+  <tr><td>TTSMaker（ttsmaker.cn）</td><td class="mid">△ 可行但需你手动 2 分钟</td>
+      <td>有音色 <b>「香莲-四川女声」</b>(id=1200)，站点声明"用户拥有合成音频 100% 版权、可商用"。其公共测试 Token 配额<b>已被用尽</b>（50090/50000，22 天后重置），官网免费流程要输入验证码 —— 所以我没法替你自动跑，你手动复制两个字生成一下最快。</td></tr>
+  <tr><td>本地 CosyVoice（阿里开源）</td><td class="mid">△ 可行但较重</td>
+      <td>Apache-2.0，明确支持四川话，可商用。代价：需要 Python 3.10 + torch + 约 2GB 权重，本机是 M1 Pro（无 CUDA），装得成不成功我不敢打包票。</td></tr>
+  <tr><td><b>你自己录 3 秒</b></td><td class="yes">✓ 推荐</td>
+      <td>最地道（真人四川话）、版权 100% 干净、10 分钟搞定。安静房间用手机录「吃～」「碰！」各一遍，我用它替换上面两个音效 —— <b>音效 id 不变、代码零改动</b>。</td></tr>
+</table>
+
+<div class="pick">
+  <b>像素君的建议：</b>音效先用你录的两条，别在"合成方言"上继续耗 —— 我用真人干声改调值能做出"像"，但做不出"是"。
+  如果你手边没人能说四川话，那就花 2 分钟去 TTSMaker 点一下「香莲-四川女声」生成两个字，把文件给我。两条路我都能直接接入。
+</div>
+
+</div>
+
+<script>
+/* ============================================================
+   音效数据（base64 WAV，已内嵌，单文件可离线打开）
+   生成链路见 game-4-mahjong/tools/make-voice.py
+   ============================================================ */
+const AUDIO = __AUDIO_JSON__;
+
+
+/* ============================================================
+   一、参数表
+   —— 逐条抄自 docs/demo/S12-游戏侧改动.patch 里 CFG.ts 的定稿值。
+   ⚠️ 这个表是**副本**，不是唯一出处。拍板 apply 补丁之后，
+      唯一出处就是 CFG.ts；届时若两边不一致，以 CFG.ts 为准，
+      并把这个副本同步过来（否则 demo 会说谎）。
+   ============================================================ */
+const C = {
+  paper:'#F2EADA', paperDark:'#EFE6D2', face:'#FBF6EA', faceDim:'#EDE6D4',
+  ink:'#22201C', inkMid:'#57503F', inkSoft:'#8E8571',
+  lock:'#B9B09A', vermilion:'#C4362B', gold:'#C9A227', blue:'#2F5D8C',
+  green:'#2E7D4F'
+};
+
+const M = {
+  // ---- 通用缓动（CFG.MOTION.EASE_*）----
+  EASE_MOVE:'quadOut', EASE_POP:'backOut', EASE_DASH:'quadIn', EASE_IDLE:'sineInOut',
+
+  // ---- 十四、碰的撞击 ----
+  CLASH_PULLBACK:12, CLASH_ANTICIPATE:0.09, CLASH_DASH:0.11,
+  CLASH_OVERLAP_PENG:0.45, CLASH_SQUASH_X:0.84, CLASH_SQUASH_Y:1.16, CLASH_RECOIL:0.09,
+  CLASH_RING_R0:18, CLASH_RING_R1:96, CLASH_RING_LINE:5, CLASH_RING_LIFE:0.24,
+  CLASH_KICK:5, CLASH_KICK_UP:0.07, CLASH_KICK_DOWN:0.17,
+  PENG_HOLD:0.06, PENG_EXIT:0.22,          // 撞击后的停一拍 / 消散
+
+  // ---- 十五、吃的咀嚼（S12 新）----
+  EAT_SUCK:0.20, EAT_STAGGER:0.13, EAT_OVERLAP:0.55,
+  EAT_MOUTH_W:96, EAT_MOUTH_OPEN:30, EAT_MOUTH_BITE:0.06, EAT_MOUTH_LINE:7,
+  EAT_MOUTH_HOLD:0.05, EAT_MOUTH_FADE:0.10,
+  EAT_BITE_SQUASH_Y:0.52, EAT_BITE_SQUASH_X:1.12,
+  EAT_BITE_RECOIL:0.07, EAT_BITE_VANISH:0.09,
+  EAT_CRUMB_COUNT:4, EAT_CRUMB_R:5, EAT_CRUMB_SPREAD:36, EAT_CRUMB_LIFE:0.22,
+  EAT_PULSE_R0:10, EAT_PULSE_R1:46, EAT_PULSE_LINE:3, EAT_PULSE_LIFE:0.16,
+  EAT_FLAT:0.42, EAT_BURP_DELAY:0.06,
+  EAT_BURP_R0:16, EAT_BURP_R1:96, EAT_BURP_LINE:4, EAT_BURP_LIFE:0.26,
+  EAT_KICK:2.5, EAT_LABEL_DELAY:0.02,
+  EAT_N:3,
+
+  // ---- 牌面几何（本关 L2-L4：tileScale 1.25 → 106.25×142.5）----
+  TILE_W:106, TILE_H:142, SLOT_W:116
+};
+M.EAT_TOTAL = (M.EAT_N - 1) * M.EAT_STAGGER + M.EAT_SUCK + M.EAT_BITE_RECOIL + M.EAT_BITE_VANISH;
+M.EAT_LOOP  = M.EAT_TOTAL + M.EAT_BURP_DELAY + M.EAT_BURP_LIFE + 0.18;
+M.PENG_LOOP = M.CLASH_ANTICIPATE + M.CLASH_DASH + M.CLASH_RECOIL + M.PENG_HOLD + M.PENG_EXIT + 0.18;
+
+/* ---------- 缓动 ---------- */
+function ease(kind, t){
+  t = Math.min(1, Math.max(0, t));
+  switch(kind){
+    case 'quadOut':  return 1 - (1 - t) * (1 - t);
+    case 'quadIn':   return t * t;
+    case 'backOut':  { const c1 = 1.70158, c3 = c1 + 1;
+                       return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }
+    case 'sineInOut':return 0.5 - 0.5 * Math.cos(Math.PI * t);
+    case 'sineOut':  return Math.sin(t * Math.PI / 2);
+    default:         return t;
+  }
+}
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+/** 把 [t0, t0+dur] 映射成 0..1（未开始 0，已结束 1） */
+const seg = (t, t0, dur) => dur <= 0 ? (t >= t0 ? 1 : 0) : clamp((t - t0) / dur, 0, 1);
+
+/* ---------- 画牌 ---------- */
+function roundRect(g, x, y, w, h, r){
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y,     x + w, y + h, r);
+  g.arcTo(x + w, y + h, x,     y + h, r);
+  g.arcTo(x,     y + h, x,     y,     r);
+  g.arcTo(x,     y,     x + w, y,     r);
+  g.closePath();
+}
+function drawTile(g, cx, cy, num, sx, sy, alpha, rot){
+  const w = M.TILE_W, h = M.TILE_H;
+  g.save();
+  g.globalAlpha = alpha;
+  g.translate(cx, cy);
+  if (rot) g.rotate(rot);
+  g.scale(sx, sy);
+  g.translate(-w / 2, -h / 2);
+
+  // 厚度（立体感）
+  g.fillStyle = 'rgba(34,32,28,.20)';
+  roundRect(g, 3, 4, w, h, 11); g.fill();
+  // 牌面
+  g.fillStyle = C.face;
+  roundRect(g, 0, 0, w, h, 11); g.fill();
+  g.lineWidth = 2.4; g.strokeStyle = 'rgba(34,32,28,.62)'; g.stroke();
+  // 角花
+  g.strokeStyle = C.vermilion; g.lineWidth = 1.8;
+  const c = 13;
+  [[0,0,1,1],[1,0,-1,1],[1,1,-1,-1],[0,1,1,-1]].forEach(([ix,iy,dx,dy])=>{
+    const x = ix * w, y = iy * h;
+    g.beginPath();
+    g.moveTo(x + dx * c, y); g.lineTo(x, y); g.lineTo(x, y + dy * c);
+    g.stroke();
+  });
+  // 字
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = C.blue;
+  g.font = '700 40px "Kaiti SC","STKaiti","Songti SC",serif';
+  g.fillText('一二三四五六七八九'[num - 1], w / 2, h * 0.34);
+  g.fillStyle = C.vermilion;
+  g.font = '700 44px "Kaiti SC","STKaiti","Songti SC",serif';
+  g.fillText('萬', w / 2, h * 0.66);
+  g.restore();
+}
+
+/* ---------- 画：扁椭圆环（吃的语汇：楔弧/扁，区别于碰的圆） ---------- */
+function flatRing(g, cx, cy, r, line, flat, alpha, color){
+  g.save(); g.globalAlpha = alpha;
+  g.strokeStyle = color; g.lineWidth = line;
+  g.beginPath(); g.ellipse(cx, cy, r, r * flat, 0, 0, Math.PI * 2); g.stroke();
+  g.restore();
+}
+function circleRing(g, cx, cy, r, line, alpha, color){
+  g.save(); g.globalAlpha = alpha;
+  g.strokeStyle = color; g.lineWidth = line;
+  g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+  g.restore();
+}
+/** 上下颚：一条向上拱、一条向下拱，用二次曲线画成"楔弧" */
+function jaws(g, cx, cy, open, alpha, w){
+  g.save();
+  g.globalAlpha = alpha;
+  g.strokeStyle = C.ink; g.lineWidth = M.EAT_MOUTH_LINE;
+  g.lineCap = 'round';
+  const half = w / 2, bow = 34;
+  g.beginPath(); g.moveTo(cx - half, cy - open);
+  g.quadraticCurveTo(cx, cy - open - bow, cx + half, cy - open); g.stroke();
+  g.beginPath(); g.moveTo(cx - half, cy + open);
+  g.quadraticCurveTo(cx, cy + open + bow, cx + half, cy + open); g.stroke();
+  g.restore();
+}
+function label(g, cx, cy, text, scale, alpha){
+  g.save();
+  g.globalAlpha = alpha;
+  g.translate(cx, cy); g.scale(scale, scale);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '700 92px "Kaiti SC","STKaiti","Songti SC",serif';
+  g.lineWidth = 9; g.strokeStyle = C.face; g.strokeText(text, 0, 0);
+  g.fillStyle = C.gold; g.fillText(text, 0, 0);
+  g.lineWidth = 2.4; g.strokeStyle = C.ink; g.strokeText(text, 0, 0);
+  g.restore();
+}
+/** 残渣：吃＝方点，碰＝圆点。这是两条语汇的**差异底线**之一 */
+function crumbs(g, cx, cy, n, r, spread, life, t0, t, square, color){
+  for (let i = 0; i < n; i++){
+    const p = seg(t, t0, life);
+    if (p <= 0 || p >= 1) continue;
+    const ang = (Math.PI * 2 * i) / n + 0.7 * i;
+    const d = spread * ease('quadOut', p);
+    const x = cx + Math.cos(ang) * d, y = cy + Math.sin(ang) * d * 0.55;
+    g.save(); g.globalAlpha = 1 - p;
+    g.fillStyle = color;
+    if (square){ g.fillRect(x - r, y - r, r * 2, r * 2); }
+    else { g.beginPath(); g.arc(x, y, r * (1 - p * 0.5), 0, Math.PI * 2); g.fill(); }
+    g.restore();
+  }
+}
+
+/* ---------- 场景底 ---------- */
+/* ⚠️ 槽位条的纵向位置必须与"牌的静止 y"是同一个常量推出来的。
+   第一版把 y0 写成 H-118(=212) 而牌停在 y=152、画布只有 330 高，
+   结果槽位条被底边裁掉一半（截图自查才发现）。现在统一由 STRIP_Y 派生。 */
+const STRIP_Y = 74;                       // 槽位条顶边
+const TILE_CY = STRIP_Y + (M.TILE_H + 10) / 2;   // 牌的静止中心 y = 150
+
+function backdrop(g, W, H, player){
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = C.paper; g.fillRect(0, 0, W, H);
+  // 槽位条
+  const sw = M.SLOT_W, n = 8, total = sw * n;
+  const x0 = (W - total) / 2;
+  for (let i = 0; i < n; i++){
+    roundRect(g, x0 + i * sw + 3, STRIP_Y, sw - 6, M.TILE_H + 10, 9);
+    g.fillStyle = C.paperDark; g.fill();
+    g.lineWidth = 1.4; g.strokeStyle = 'rgba(185,176,154,.9)'; g.stroke();
+  }
+  g.fillStyle = C.inkSoft; g.font = '13px sans-serif'; g.textAlign = 'left';
+  g.fillText(player, 18, 24);
+}
+/** 底部节奏时间轴 */
+function timeline(g, W, H, dur, marks, t, hint){
+  const y = H - 30, x0 = 100, x1 = W - 100;
+  g.save();
+  g.strokeStyle = C.lock; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke();
+  marks.forEach(([tm, txt]) => {
+    const x = x0 + (x1 - x0) * clamp(tm / dur, 0, 1);
+    g.fillStyle = C.ink; g.beginPath(); g.arc(x, y, 4, 0, Math.PI * 2); g.fill();
+    g.fillStyle = C.inkSoft; g.font = '11px sans-serif'; g.textAlign = 'center';
+    g.fillText(txt, x, y - 9);
+  });
+  const px = x0 + (x1 - x0) * clamp(t / dur, 0, 1);
+  g.fillStyle = C.vermilion;
+  g.beginPath(); g.arc(px, y, 6, 0, Math.PI * 2); g.fill();
+  g.fillStyle = C.inkSoft; g.font = '11px sans-serif'; g.textAlign = 'right';
+  g.fillText(hint, x1, y + 16);
+  g.restore();
+}
+
+/* ============================================================
+   二、两段动画
+   ============================================================ */
+function drawPeng(g, t){
+  const W = 720, H = 350;
+  backdrop(g, W, H, '「碰」· 现状基准');
+  const cx = W / 2, cy = TILE_CY;
+  const slotW = M.SLOT_W;
+  const startGap = slotW * 1.02, endGap = slotW * M.CLASH_OVERLAP_PENG;
+
+  // 牌堆上弹
+  let kick = 0;
+  const tHit = M.CLASH_ANTICIPATE + M.CLASH_DASH;
+  if (t >= tHit && t < tHit + M.CLASH_KICK_UP + M.CLASH_KICK_DOWN){
+    const up = seg(t, tHit, M.CLASH_KICK_UP), dn = seg(t, tHit + M.CLASH_KICK_UP, M.CLASH_KICK_DOWN);
+    kick = -M.CLASH_KICK * (up < 1 ? ease('quadOut', up) : (1 - dn)) ;
+  }
+  const squash = (() => {
+    if (t < tHit || t >= tHit + M.CLASH_RECOIL) return [1, 1];
+    const p = ease('backOut', seg(t, tHit, M.CLASH_RECOIL));
+    return [1 + (M.CLASH_SQUASH_X - 1) * p, 1 + (M.CLASH_SQUASH_Y - 1) * p];
+  })();
+  const exitP = seg(t, tHit + M.CLASH_RECOIL + M.PENG_HOLD, M.PENG_EXIT);
+  const exitScale = 1 - ease('quadIn', exitP);
+  const alpha = 1 - exitP;
+
+  for (let i = 0; i < 3; i++){
+    const sgn = i - 1;
+    let gap;
+    if (t < M.CLASH_ANTICIPATE){
+      // 蓄力：朝**远离中心**的方向退
+      gap = startGap + M.CLASH_PULLBACK * ease('quadOut', seg(t, 0, M.CLASH_ANTICIPATE)) * (i === 1 ? 0 : 1);
+    } else if (t < tHit){
+      const p = ease('quadIn', seg(t, M.CLASH_ANTICIPATE, M.CLASH_DASH));
+      const g0 = startGap + M.CLASH_PULLBACK * (i === 1 ? 0 : 1);
+      gap = g0 + (endGap - g0) * p;
+    } else {
+      gap = endGap;
+    }
+    const sx = i === 1 ? squash[0] : squash[0], sy = squash[1];
+    drawTile(g, cx + sgn * gap, cy + kick, 5, sx * exitScale, sy * exitScale, alpha, 0);
+  }
+
+  // 冲击圆环（圆！）
+  const rp = seg(t, tHit, M.CLASH_RING_LIFE);
+  if (rp > 0 && rp < 1){
+    const r = M.CLASH_RING_R0 + (M.CLASH_RING_R1 - M.CLASH_RING_R0) * ease('quadOut', rp);
+    circleRing(g, cx, cy, r, M.CLASH_RING_LINE, 1 - rp, C.vermilion);
+  }
+  // 圆碎屑
+  crumbs(g, cx, cy, 8, 6, 60, 0.30, tHit, t, false, C.ink);
+  // 飘字
+  const lp = seg(t, tHit + 0.02, 0.26);
+  if (lp > 0 && lp < 1) label(g, cx, cy - 8 - 26 * ease('quadOut', lp), '碰',
+                             0.55 + 0.45 * ease('backOut', lp), 1 - lp * lp);
+  timeline(g, W, H, M.PENG_LOOP, [[tHit, '撞击']], t, '蓄力 90ms → 猛冲 110ms → 撞 → 炸');
+}
+
+function drawChi(g, t){
+  const W = 720, H = 350;
+  backdrop(g, W, H, '「吃」· 新方案（咀嚼）');
+  const cx = W / 2, cy = TILE_CY;
+  const slotW = M.SLOT_W;
+  const startGap = slotW * 1.02, endGap = slotW * M.EAT_OVERLAP;
+
+  // 打嗝时牌堆轻踢（软，是 CLASH_KICK 的一半）
+  let kick = 0;
+  const tBurp = M.EAT_TOTAL + M.EAT_BURP_DELAY;
+  if (t >= tBurp && t < tBurp + M.EAT_BURP_LIFE){
+    const p = seg(t, tBurp, M.EAT_BURP_LIFE);
+    kick = -M.EAT_KICK * Math.sin(Math.PI * p);
+  }
+
+  // 每一口的开合
+  let mouthOpen = 0, mouthAlpha = 0;
+  for (let k = 0; k < M.EAT_N; k++){
+    const t0 = k * M.EAT_STAGGER;
+    const tArrive = t0 + M.EAT_SUCK;
+    if (t < t0) continue;
+    // 张开：整个"吸"的过程都在张开
+    let open = M.EAT_MOUTH_OPEN * ease('sineInOut', seg(t, t0, M.EAT_SUCK));
+    // 合拢
+    const biteP = seg(t, tArrive, M.EAT_MOUTH_BITE);
+    if (biteP > 0) open = M.EAT_MOUTH_OPEN * (1 - ease('quadIn', biteP));
+    mouthOpen = Math.max(mouthOpen, open);
+    let a = 1;
+    const fadeStart = tArrive + M.EAT_MOUTH_BITE + M.EAT_MOUTH_HOLD;
+    const ap = seg(t, fadeStart, M.EAT_MOUTH_FADE);
+    if (ap > 0) a = 1 - ap;
+    mouthAlpha = Math.max(mouthAlpha, a);
+  }
+  // 全部咬完之后颚片不再出现
+  if (t > M.EAT_TOTAL + M.EAT_MOUTH_FADE) mouthAlpha = 0;
+  // ⚠️ 两条"别画"规则（都是截图自查才发现的）：
+  //   ① 嘴几乎闭着时上下颚会叠成一条"眼睛"形的细缝，看着像渲染 bug ——
+  //      所以 open < 4 就完全不画（语义上也对：嘴闭上了）。
+  //   ② 起手 50ms 淡入，避免第 0 帧突然冒出一张闭着的嘴。
+  mouthAlpha *= clamp((mouthOpen - 4) / 8, 0, 1) * ease('quadOut', seg(t, 0, 0.05));
+
+  for (let i = 0; i < M.EAT_N; i++){
+    const sgn = i - 1;
+    const t0 = i * M.EAT_STAGGER;             // ★ 一口一个：第 i 张在第 i*STAGGER 才起步
+    const tArrive = t0 + M.EAT_SUCK;
+    const suckP = ease('quadIn', seg(t, t0, M.EAT_SUCK));   // 末段加速＝"被吸进去"
+    const gap = startGap + (endGap - startGap) * suckP;
+    let sx = 1, sy = 1, a = 1;
+    if (t >= tArrive){
+      // 咬：压扁 + 外撑
+      const rec = ease('backOut', seg(t, tArrive, M.EAT_BITE_RECOIL));
+      sx = 1 + (M.EAT_BITE_SQUASH_X - 1) * rec;
+      sy = 1 + (M.EAT_BITE_SQUASH_Y - 1) * rec;
+      // 咬没了
+      const vp = ease('quadIn', seg(t, tArrive + M.EAT_BITE_RECOIL, M.EAT_BITE_VANISH));
+      sx *= (1 - vp); sy *= (1 - vp); a = 1 - vp;
+    }
+    if (a > 0.01 && sx > 0.01) drawTile(g, cx + sgn * gap, cy + kick, 3 + i, sx, sy, a, 0);
+
+    // 每口的残渣（方点）+ 小脉冲（扁环）+ 咬合点标
+    crumbs(g, cx + sgn * gap, cy + kick, M.EAT_CRUMB_COUNT, M.EAT_CRUMB_R,
+           M.EAT_CRUMB_SPREAD, M.EAT_CRUMB_LIFE, tArrive, t, true, C.vermilion);
+    const pp = seg(t, tArrive, M.EAT_PULSE_LIFE);
+    if (pp > 0 && pp < 1){
+      const r = M.EAT_PULSE_R0 + (M.EAT_PULSE_R1 - M.EAT_PULSE_R0) * ease('quadOut', pp);
+      flatRing(g, cx + sgn * gap, cy + kick, r, M.EAT_PULSE_LINE, M.EAT_FLAT, 1 - pp, C.gold);
+    }
+  }
+
+  // 上下颚
+  if (mouthAlpha > 0.01) jaws(g, cx, cy + kick, mouthOpen, mouthAlpha, M.EAT_MOUTH_W);
+
+  // 打嗝：大而软的扁环 + 飘字「吃」
+  const bp = seg(t, tBurp, M.EAT_BURP_LIFE);
+  if (bp > 0 && bp < 1){
+    const r = M.EAT_BURP_R0 + (M.EAT_BURP_R1 - M.EAT_BURP_R0) * ease('quadOut', bp);
+    flatRing(g, cx, cy + kick, r, M.EAT_BURP_LINE, M.EAT_FLAT, (1 - bp) * 0.9, C.gold);
+  }
+  const lp = seg(t, tBurp + M.EAT_LABEL_DELAY, 0.26);
+  if (lp > 0 && lp < 1) label(g, cx, cy - 8 - 26 * ease('quadOut', lp), '吃',
+                             0.55 + 0.45 * ease('backOut', lp), 1 - lp * lp);
+
+  timeline(g, W, H, M.EAT_LOOP,
+           [[0, '张嘴'], [M.EAT_STAGGER, '咬第2张'], [M.EAT_STAGGER * 2, '咬第3张'], [tBurp, '打嗝']],
+           t, '张嘴 → 吸 200ms → 咬 → 嚼 → 吞（3 个节奏点）');
+}
+
+/* ============================================================
+   三、播放控制
+   ============================================================ */
+const scenes = {
+  peng: {cv: document.getElementById('cvPeng'), ph: document.getElementById('phPeng'),
+         draw: drawPeng, dur: M.PENG_LOOP, name: '碰', voiceAt: M.CLASH_ANTICIPATE + M.CLASH_DASH},
+  chi:  {cv: document.getElementById('cvChi'),  ph: document.getElementById('phChi'),
+         draw: drawChi,  dur: M.EAT_LOOP,  name: '吃', voiceAt: 0}
+};
+const S = {};   // 每个场景的运行状态
+Object.keys(scenes).forEach(k => S[k] = {playing:false, loop:false, slow:false, t0:0, t:0, fired:false});
+
+function play(k){
+  const sc = scenes[k];
+  S[k].playing = true; S[k].t0 = performance.now(); S[k].t = 0; S[k].fired = false;
+  if (!S[k].loop) render(k);
+}
+function render(k){
+  const sc = scenes[k], st = S[k];
+  const g = sc.cv.getContext('2d');
+  sc.draw(g, st.t);
+  // 阶段说明
+  sc.ph.innerHTML = phaseText(k, st.t);
+  requestAnimationFrame(function tick(){
+    if (!S[k].playing) return;
+    const sp = st.slow ? 0.35 : 1;
+    st.t = (performance.now() - st.t0) / 1000 * sp;
+    // 音效触发点
+    if (!st.fired && st.t >= sc.voiceAt){ st.fired = true; playSfx(k, k === 'chi' ? 'chi' : 'peng'); }
+    if (st.t >= sc.dur){
+      if (st.loop){ st.t0 = performance.now(); st.t = 0; st.fired = false; }
+      else { st.t = sc.dur; sc.draw(g, st.t); sc.ph.innerHTML = phaseText(k, 0); st.playing = false; return; }
+    }
+    sc.draw(g, st.t);
+    sc.ph.innerHTML = phaseText(k, st.t);
+    requestAnimationFrame(tick);
+  });
+}
+function phaseText(k, t){
+  if (k === 'chi'){
+    const tBurp = M.EAT_TOTAL + M.EAT_BURP_DELAY;
+    if (t < M.EAT_STAGGER * 0.5) return '<b>① 张嘴</b> —— 嘴先张开，牌才被吃（整个"吸"的过程都在张，张嘴才看得见）';
+    if (t < M.EAT_STAGGER)       return '<b>② 吸</b> —— 第 1 张被吸过来（末段加速＝"突然被吞进去"）';
+    if (t < M.EAT_STAGGER * 2)   return '<b>③ 咬</b> —— 嘴合拢那一帧牌被压扁、冒出方点残渣，<b>到一张咬一张</b>';
+    if (t < tBurp)               return '<b>④ 嚼</b> —— 第 2、3 张依次被咬掉，三个节奏点：咔 · 咔 · 咔';
+    return '<b>⑤ 打嗝</b> —— 收尾：大而软的扁环 + 飘字「吃」+ 牌堆轻踢（只有碰的一半力度）';
+  } else {
+    const tHit = M.CLASH_ANTICIPATE + M.CLASH_DASH;
+    if (t < M.CLASH_ANTICIPATE) return '<b>① 蓄力</b> —— 三张牌同时朝<b>远离中心</b>的方向各退 12px，攒势';
+    if (t < tHit)               return '<b>② 猛冲</b> —— quadIn（越冲越快），这是"撞击"与"平移"的唯一区别';
+    if (t < tHit + 0.14)        return '<b>③ 撞</b> —— 挤压 0.84/1.16 + <b>圆</b>环 + <b>圆</b>碎屑 + 牌堆上踢 5px';
+    return '<b>④ 炸</b> —— 停一拍后消散。碰＝圆·硬·同时·一声；吃＝楔弧·软·依次·三声';
+  }
+}
+
+/* ============================================================
+   四、音效播放
+   ============================================================ */
+const audioCache = {};
+function audioOf(key){
+  if (!audioCache[key]){
+    const item = AUDIO[key];
+    if (!item) return null;
+    audioCache[key] = new Audio('data:audio/wav;base64,' + item.b64);
+  }
+  return audioCache[key];
+}
+function playSfx(word, key){
+  const a = audioOf(key || word);
+  if (!a) return;
+  try { a.currentTime = 0; a.play(); } catch(e){}
+}
+
+/* 试听按钮：每个字给「旧版 / 新版」两组。
+   新版 = 加长 + 尾音之后的结果；旧版 = 你现在游戏里在用的那一段，用来对听。 */
+const SFX_LIST = {
+  chi: [
+    ['chi_old', '旧版 · 0.30s',    '干声直出（裁剪的 6% 阈值把天然衰减一起切了）', 1],
+    ['chi_a',   '新版 · 可爱',     '拖长 + 房间尾音',                              0],
+    ['chi_b',   '新版 · 低沉',     '云希男声，同上加长',                            0],
+    ['chi_m',   '新版 · 魔性档',   '在加长版上做升调 + 失谐 + 软削波',              0],
+  ],
+  peng: [
+    ['peng_old', '旧版 · 0.35s',   '干声直出',                                      1],
+    ['peng_a',   '新版 · 可爱',    '拖长 + 房间尾音',                               0],
+    ['peng_b',   '新版 · 低沉',    '云希男声，同上加长',                             0],
+    ['peng_m',   '新版 · 魔性档',  '在加长版上做升调 + 失谐 + 软削波',               0],
+  ],
+};
+const picked = {chi:'chi_a', peng:'peng_a'};
+
+function buildSfxUI(){
+  Object.keys(SFX_LIST).forEach(word => {
+    const row = document.getElementById(word === 'chi' ? 'rowChi' : 'rowPeng');
+    row.querySelectorAll('.chip').forEach(e => e.remove());
+    SFX_LIST[word].forEach(([key, name, hint, isOld]) => {
+      const b = document.createElement('button');
+      b.className = 'chip' + (isOld ? ' oldver' : '') + (picked[word] === key ? ' on' : '');
+      const a = AUDIO[key];
+      b.innerHTML = '<span class="n">▶ ' + name + '</span><span class="h">'
+                  + hint + '｜' + a.dur.toFixed(2) + 's</span>';
+      b.onclick = () => {
+        picked[word] = key;
+        row.querySelectorAll('.chip').forEach(e => e.classList.remove('on'));
+        b.classList.add('on');
+        playSfx(word, key);
+      };
+      row.appendChild(b);
+    });
+  });
+}
+buildSfxUI();
+/* 拖放 / 选择自己的录音 */
+function useOwnFile(word, file){
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  AUDIO[word + '_own'] = {b64:null, dur:0, voice:'你的录音', how:file.name};
+  audioCache[word + '_own'] = new Audio(url);
+  // 在对应行插入/更新"你的录音"按钮
+  const row = document.getElementById(word === 'chi' ? 'rowChi' : 'rowPeng');
+  let b = row.querySelector('.own');
+  if (!b){
+    b = document.createElement('button');
+    b.className = 'chip own';
+    row.appendChild(b);
+  }
+  b.innerHTML = '<span class="n">▶ 你的录音</span><span class="h">' + file.name + '</span>';
+  b.onclick = () => { picked[word] = word + '_own'; playSfx(word, word + '_own');
+                      row.querySelectorAll('.chip').forEach(e => e.classList.remove('on')); b.classList.add('on'); };
+  b.onclick();
+}
+const drop = document.getElementById('drop');
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add('hot');
+}));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove('hot');
+}));
+drop.addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  // 一次拖两个文件时，按文件名猜哪个是「吃」哪个是「碰」
+  const nm = (f.name || '').toLowerCase();
+  useOwnFile(/peng|碰|pong/.test(nm) ? 'peng' : 'chi', f);
+});
+document.getElementById('pickChi').onclick  = () => document.getElementById('fChi').click();
+document.getElementById('pickPeng').onclick = () => document.getElementById('fPeng').click();
+document.getElementById('fChi').onchange  = e => useOwnFile('chi',  e.target.files[0]);
+document.getElementById('fPeng').onchange = e => useOwnFile('peng', e.target.files[0]);
+
+/* 播放按钮 */
+document.querySelectorAll('[data-play]').forEach(b => b.onclick = () => play(b.dataset.play));
+document.querySelectorAll('[data-loop]').forEach(b => b.onclick = () => {
+  const k = b.dataset.loop;
+  S[k].loop = !S[k].loop; b.classList.toggle('on', S[k].loop);
+  if (S[k].loop && !S[k].playing) play(k);
+});
+document.querySelectorAll('[data-slow]').forEach(b => b.onclick = () => {
+  const k = b.dataset.slow;
+  S[k].slow = !S[k].slow; b.classList.toggle('on', S[k].slow);
+});
+
+/* 首屏先画一帧静态图。
+   ⚠️ 「吃」不能画 t=0 —— 那一刻口还没张开，上下颚两条弧会叠成一个"眼睛"，
+   静态首屏看着像 bug。取 0.24s：第 1 张刚被咬扁、第 2 张正被吸、第 3 张还没起步，
+   一帧就把"一口一个"说清楚了。 */
+scenes.peng.draw(scenes.peng.cv.getContext('2d'), 0.22);
+scenes.chi.draw(scenes.chi.cv.getContext('2d'), 0.24);
+
+/* ============================================================
+   /* ============================================================
+   五、点牌入槽的手感（三档对照）
+   ============================================================
+   【三档的数字都对应 CFG.ts 里的真实参数，不是随手编的】
+     现状 / B 档 ：按下缩 0.96 → PICK_SELECT 180ms「原地站立」 → 飞行 240ms → 落位后再等 90ms 才解锁
+     新版        ：按下放大 1.08 → 抬起**当帧起飞** → 飞行 130ms → 落位**立即**解锁
+
+   【为什么要实测"点击 → 牌开始移动"】
+     用户原话是"点击牌到牌动明显有延迟，肉眼可见"。这个延迟就是 PICK_SELECT 那 180ms：
+     牌在这段时间里只上浮 6px、**位置几乎不动**，人眼把它读成"卡住"。
+     下面那个数是**逐帧读飞行物的 transform** 得到的，不是把参数抄出来显示 ——
+     参数可以写错，实测不会。
+   ============================================================ */
+const MODES = {
+  lock:  {n:'现状',        sel:180, fly:240, unl:90, press:0.96, dy:+2, maxFly:1, ease:''},
+  queue: {n:'B 档',        sel:180, fly:240, unl:90, press:0.96, dy:+2, maxFly:2, ease:''},
+  v2:    {n:'B+ 新版',     sel:0,   fly:130, unl:0,  press:1.08, dy:-3, maxFly:2,
+          ease:'cubic-bezier(.55,.06,.68,.19)'},   // ≈ quadIn：越飞越快，末段不减速
+};
+
+const FEEL = {
+  mode:'lock', locked:false, inFlight:0, queue:[],
+  placed:0, dropped:0, queued:0,
+  lat:null, clickAt:0,
+};
+
+const pile = document.getElementById('pile'), tray = document.getElementById('tray'), stage = document.getElementById('stage');
+const NUMS = [1,2,3,4,5,6,7,8];
+
+function buildFeel(){
+  pile.innerHTML = ''; tray.innerHTML = '';
+  const host = document.createElement('div');
+  host.className = 'pile';
+  NUMS.forEach(n => {
+    const t = document.createElement('div');
+    t.className = 'ftile'; t.dataset.n = n;
+    t.innerHTML = '<span class="n">' + '一二三四五六七八九'[n-1] + '</span><span class="w">萬</span>';
+    t.onclick = () => clickTile(t, n);
+    pile.appendChild(t);
+  });
+  for (let i = 0; i < 8; i++){
+    const s = document.createElement('div');
+    s.className = 'slot'; s.dataset.i = i;
+    tray.appendChild(s);
+  }
+}
+
+function resetFeel(){
+  FEEL.locked = false; FEEL.inFlight = 0; FEEL.queue = [];
+  FEEL.placed = 0; FEEL.dropped = 0; FEEL.queued = 0; FEEL.lat = null;
+  buildFeel(); updateFeelStats(); setLamp(true);
+  stage.querySelectorAll('.flyer').forEach(e => e.remove());
+}
+
+function setLamp(ok){
+  const l = document.getElementById('lamp');
+  l.classList.toggle('busy', !ok);
+  document.getElementById('lampTxt').textContent = ok ? '可点击' : '输入锁中（会丢弃点击）';
+}
+
+function updateFeelStats(){
+  document.getElementById('sPlaced').textContent = FEEL.placed;
+  document.getElementById('sDrop').textContent = FEEL.dropped;
+  document.getElementById('sQueue').textContent = FEEL.queued;
+  document.getElementById('sFly').textContent = FEEL.inFlight;
+  const el = document.getElementById('sLat');
+  const M = MODES[FEEL.mode];
+  if (FEEL.lat === null){
+    el.textContent = '—'; el.classList.remove('ok');
+  } else {
+    el.textContent = FEEL.lat;
+    el.classList.toggle('ok', FEEL.lat <= 40);
+  }
+}
+
+function clickTile(el, n){
+  if (el.classList.contains('dead')) return;
+  const M = MODES[FEEL.mode];
+
+  // 现状档：锁着的时候这一下**被直接丢弃**（这正是"点了没反应"的来源）
+  if (FEEL.mode === 'lock' && FEEL.locked){
+    FEEL.dropped++; updateFeelStats();
+    el.animate([{transform:'translateX(0)'},{transform:'translateX(-4px)'},
+                {transform:'translateX(4px)'},{transform:'translateX(0)'}], {duration:150});
+    el.style.borderColor = C.vermilion;
+    setTimeout(() => el.style.borderColor = '', 200);
+    return;
+  }
+
+  // ① 按下反馈：立刻给。现状是缩到 0.96 并下压；新版是放大到 1.08 并上抬。
+  el.style.transition = 'transform 60ms cubic-bezier(.34,1.56,.64,1)';
+  el.style.transform = `scale(${M.press}) translateY(${M.dy}px)`;
+
+  FEEL.clickAt = performance.now();
+
+  // ② 排队判定（只有队列档 / 新版有；现状是单张锁）
+  if (FEEL.mode === 'lock'){
+    FEEL.locked = true; setLamp(false);
+    setTimeout(() => { FEEL.locked = false; setLamp(true); },
+               M.sel + M.fly + M.unl + 40);
+  } else if (FEEL.inFlight >= M.maxFly){
+    FEEL.queue.push([el, n]); FEEL.queued++; updateFeelStats(); return;
+  }
+
+  // ③ 起飞：现状要**原地站 sel 毫秒**才动；新版 sel = 0，当帧就走
+  if (M.sel > 0) setTimeout(() => launch(el, n), M.sel);
+  else launch(el, n);
+}
+
+function launch(el, n){
+  const M = MODES[FEEL.mode];
+  FEEL.inFlight++; updateFeelStats();
+
+  const slot = tray.querySelector('.slot[data-i="' + FEEL.placed + '"]') || tray.querySelector('.slot[data-i="7"]');
+  const a = el.getBoundingClientRect(), b = slot.getBoundingClientRect();
+  const s = stage.getBoundingClientRect();
+
+  const fx = document.createElement('div');
+  fx.className = 'flyer';
+  fx.innerHTML = el.innerHTML;
+  // 起飞点 = 按下时那张牌的样子（带放大），所以"放大"不会在起飞时被吞掉
+  fx.style.transform = `translate(${a.left - s.left}px, ${a.top - s.top}px) scale(${M.press})`;
+  stage.appendChild(fx);
+  el.classList.add('dead');
+
+  requestAnimationFrame(() => {
+    // ⚠️ 顺序不能变，这里踩过一次：
+    //   ① 必须先把目标值**写下去之前**读一次计算样式，那才是真正的"起点矩阵"。
+    //      若在写完 fx.style.transform 之后再读，拿到的就是**目标值**，
+    //      后面逐帧比较时永远相等 → 延迟恒为 null（第一版就是这样，测试里显示"—"）。
+    //   ② 读之前要先强制一次样式刷新（读 offsetWidth），否则浏览器还没把
+    //      "起飞前的样子"记下来，过渡可能根本不触发。
+    void fx.offsetWidth;
+    const startMat = getComputedStyle(fx).transform;
+    fx.style.transition = `transform ${M.fly}ms ${M.ease}`;
+    fx.style.transform = `translate(${b.left - s.left + (b.width - a.width) / 2}px, `
+                       + `${b.top - s.top}px) scale(${b.width / a.width})`;
+    measureMove(fx, FEEL.clickAt, startMat);
+  });
+
+  setTimeout(() => {
+    fx.remove();
+    slot.style.background = C.face;
+    slot.style.borderStyle = 'solid';
+    slot.innerHTML = '<div class="ftile" style="border:0;width:100%;height:100%;cursor:default">'
+                   + el.innerHTML + '</div>';
+    FEEL.placed++; FEEL.inFlight--; updateFeelStats();
+    const next = () => {
+      if (FEEL.queue.length){ const [e2, n2] = FEEL.queue.shift(); launch(e2, n2); }
+    };
+    // 新版：unl = 0 → 落位**立即**解锁；现状还要白等 90ms
+    if (M.unl > 0) setTimeout(next, M.unl); else next();
+  }, M.fly + 10);
+}
+
+/**
+ * 实测「点击 → 牌开始移动」的毫秒数。
+ *
+ * 做法：调用方在**改目标值之前**读好起点矩阵传进来，这里逐帧读计算样式，
+ * 第一次与起点不同，就是"牌真的开始动了"的那一帧。
+ *
+ * ⚠️ 两个坑（都踩过）：
+ *   ① 不能在这里自己读起点 —— 那时代码里已经把目标 transform 写下去了，
+ *      读到的就是目标值，之后逐帧比较永远相等，延迟恒为 null。
+ *   ② 不能用 `fx.style.transform` 判断"动没动" —— 那是我们自己写的目标值，
+ *      写下去的那一刻它就已经变了，量出来永远 0，等于没测。
+ *      只有 `getComputedStyle` 给的是**这一帧真正在渲染的值**。
+ */
+function measureMove(fx, t0, startMat){
+  let frames = 0;
+  const tick = () => {
+    if (!fx.isConnected){ FEEL.lat = null; updateFeelStats(); return; }
+    if (getComputedStyle(fx).transform !== startMat){
+      FEEL.lat = Math.round(performance.now() - t0);
+      updateFeelStats();
+      return;
+    }
+    if (++frames > 120) return;      // 兜底：2 秒还没动就别再空转了
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+function setMode(m){
+  FEEL.mode = m;
+  [['mLock','lock'], ['mQueue','queue'], ['mNew','v2']].forEach(([id, k]) => {
+    document.getElementById(id).classList.toggle('on', k === m);
+  });
+  resetFeel();
+}
+document.getElementById('mLock').onclick  = () => setMode('lock');
+document.getElementById('mQueue').onclick = () => setMode('queue');
+document.getElementById('mNew').onclick   = () => setMode('v2');
+document.getElementById('fReset').onclick = resetFeel;
+resetFeel();
+
+</script>
+</body>
+</html>
