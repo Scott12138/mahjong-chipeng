@@ -34,3 +34,19 @@ Thumbs.db
 # ---------- 打包 / 压缩产物 ----------
 *.zip
 *.dmg
+
+# ---------- Python 缓存 ----------
+**/__pycache__/
+
+# ---------- 「内联音频的单文件试听/预览页」（大且可一键重建） ----------
+#  这两类是 base64 内联了音频的**生成物**，源文件都在同一目录，按项目原则不入库。
+#  · docs/demo/S12-效果预览.html
+#      源 = S12-效果预览.src.html（模板，含 __AUDIO_JSON__ 占位符）
+#      重建：python3 game-4-mahjong/tools/build-s12-demo.py
+#  · docs/verify/*/bgm/BGM候选-试听.html
+#      源 = 同目录 candidates.json + *.m4a
+#      重建：python3 game-4-mahjong/tools/make-bgm.py --audition
+#  ⚠️ 源文件（*.src.html / candidates.json / *.m4a）必须入库，否则无法重建。
+docs/demo/*.html
+!docs/demo/*.src.html
+docs/verify/*/bgm/BGM候选-试听.html
