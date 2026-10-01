@@ -14,7 +14,8 @@
  合成链：Python 直出 16bit/44.1kHz 单声道 WAV
          → 系统 afconvert 转 AAC（m4a）
          → 落进 assets/resources/audio/
- 输出体积：10 段合计约 25KB（AAC 64kbps 单声道）。
+ 输出体积：13 段合计约 80KB（AAC 64kbps 单声道，每段 4~7KB）。
+   「碰 / 吃」的音效分工：peng+clear = 「咚—唰」（撞击），flow = 「水流」（汇合）。
 
  用法：
      python3 tools/make-sfx.py            # 生成全部音效
@@ -23,6 +24,11 @@
  ⚠️ 随机数用固定种子：噪声是"合成素材"的一部分，
     换一台机器重跑必须得到逐字节相同的结果（否则每次重打包
     assets 的 md5 都在变，没法判断"这次提交到底改了什么"）。
+
+ ⚠️ 光有固定种子**不够** —— 实测发现 afconvert 会在 m4a 容器里写入
+    "编码那一刻"的时间戳，导致同一个脚本重跑两次、13 个文件全变。
+    因此写完 m4a 后必须调 zero_container_times() 把容器时间清零。
+    这条以前缺失，等于文件头的承诺是假的（见该函数的注释）。
 ============================================================
 """
 
@@ -276,20 +282,34 @@ def sfx_clear() -> list:
     return normalize(s)
 
 
-def sfx_combo(rate: float = 1.0) -> list:
+def sfx_flow() -> list:
     """
-    C 连章：上行三音琶音，音高由 rate 缩放。
-    ⚠️ 这里预生成 **4 个音高**（根音 / 大三度 / 五度 / 八度）而不是运行时变速，
-       原因是 **Cocos Creator 3.8 的 AudioSource 没有 playbackRate**
-       （2.x 有，3.x 重写音频系统时移除了；d.ts 里逐成员查过，确实不存在）。
-       运行时变速这条路不存在，就只能在合成阶段把音高做出来：
-       多 3 个文件一共 +18KB，换来的是"连章层数越高、音越亮"的明确听感。
-       每层 5KB 是可接受的代价（首包余量 1MB）。
+    C 「吃」（顺子 234条 / 456万）：**流水汇合**的音。
+
+    【术语】「吃」= **原有玩法** = 顺子 = MatchRule 里的 `chi`（同花色连号 3 张）。
+       「连章」是**另一个概念 = 连击**（限时窗口内连续消除的计数），
+       本作不需要，那套机制已整体删除 —— 两者别再混称。
+
+    【这段音效的设计原则：处处与「碰」相反】
+    碰的听感靠两件东西撑起来：① `noise(attack_ms=1.0)` 的**冲击瞬态**；
+    ② `tone(attack_ms=1.0)` 的极短起音。两者都靠"起的那一下听不见"来制造撞击。
+    这里整个反过来：**所有成分的 attack 都拉到 9~14ms**（碰是 1~3ms），
+    于是"起"被抹平了，只剩下"流过去"—— 声画一致：
+    动画走的是 sineInOut（首尾速度为零），声音走的是长渐入渐出。
+
+    上行（而不是下行）：它仍是"达成"，语义上与 reward / revive 同族；
+    只是比它们**更含蓄**——不靠琶音的节奏点，靠一段连续滑音。
     """
-    s = buf(300)
-    for k, f in enumerate((783.99, 987.77, 1174.66)):
-        mix(s, bell(int(SR * 0.22), f * rate, 0.070, 0.38, attack_ms=2.0), 55 * k)
-    return normalize(s)
+    s = buf(470)
+    # 主体：上行滑音（水在流）。12ms 渐入 —— 碰的扫频是 3ms，这里慢 4 倍
+    mix(s, sweep(int(SR * 0.36), 523.25, 1046.50, 0.170, 0.42,
+                 attack_ms=12.0, log=True), 20)
+    # 水的质感：低通噪声。lp=0.40 让它是"沙沙"而不是"唰"（碰的 lp 是 0.80）
+    mix(s, noise(int(SR * 0.34), 0.165, 0.22, lp=0.40, hp=0.14,
+                 attack_ms=14.0), 50)
+    # 收尾：一个柔和泛音。整段唯一带音高感的部分，所以给了最长的 attack(9ms)
+    mix(s, bell(int(SR * 0.30), 880.0, 0.110, 0.28, attack_ms=9.0), 150)
+    return normalize(s, 0.68)
 
 
 def sfx_shuffle() -> list:
@@ -302,7 +322,7 @@ def sfx_shuffle() -> list:
 
 
 def sfx_reward() -> list:
-    """D1 奖励到账：C-E-G-C 四音上行琶音（比连章更长更亮 = "这是好东西"）"""
+    """D1 奖励到账：C-E-G-C 四音上行琶音（比「吃」的流水更长更亮 = "这是好东西"）"""
     s = buf(430)
     for k, f in enumerate((523.25, 659.25, 783.99, 1046.50)):
         mix(s, bell(int(SR * 0.32), f, 0.105, 0.36, attack_ms=2.0), 62 * k)
@@ -345,10 +365,6 @@ def sfx_win() -> list:
     return normalize(s)
 
 
-# 连章音高阶梯：根音 → 大三度 → 五度 → 八度（等比，比值 = 2^(n/3) 的近似整数化）
-# 第 2 层用 combo（基准），第 3 层 combo2，依此类推；超过 4 层沿用最高音。
-COMBO_RATES = [1.0, 1.122, 1.260, 1.414]
-
 # 文件名 → 生成函数。字典顺序 = 生成顺序，也方便核对
 SFX = {
     'tap': sfx_tap,
@@ -357,10 +373,7 @@ SFX = {
     'reject': sfx_reject,
     'peng': sfx_peng,
     'clear': sfx_clear,
-    'combo': lambda: sfx_combo(COMBO_RATES[0]),
-    'combo2': lambda: sfx_combo(COMBO_RATES[1]),
-    'combo3': lambda: sfx_combo(COMBO_RATES[2]),
-    'combo4': lambda: sfx_combo(COMBO_RATES[3]),
+    'flow': sfx_flow,
     'shuffle': sfx_shuffle,
     'reward': sfx_reward,
     'fail': sfx_fail,
@@ -373,6 +386,100 @@ SFX = {
 # ============================================================
 #  四、入口
 # ============================================================
+
+def _iter_boxes(data: bytes, start: int, end: int):
+    """
+    按 MP4 box 结构逐个产出 (type, payload_start, box_end)。
+    遇到畸形长度直接停止（宁可少清一个字段，也不要越界写坏文件）。
+
+    MP4 的 box 布局：[size(4)][type(4)][payload...]
+      size == 1 → 后面还有 8 字节的 64 位长度（payload 从 +16 开始）
+      size == 0 → 这个 box 一直延伸到文件末尾
+    """
+    p = start
+    while p + 8 <= end:
+        size = int.from_bytes(data[p:p + 4], 'big')
+        btype = bytes(data[p + 4:p + 8])
+        payload = p + 8
+        if size == 1:
+            if p + 16 > end:
+                return
+            size = int.from_bytes(data[p + 8:p + 16], 'big')
+            payload = p + 16
+        elif size == 0:
+            size = end - p
+        if size < payload - p or p + size > end:
+            return
+        yield btype, payload, p + size
+        p += size
+
+
+def _zero_times(data: bytearray, payload: int) -> None:
+    """清零某个 header box 的 creation_time / modification_time"""
+    span = 16 if data[payload] == 1 else 8      # version 1 → 各 8 字节
+    for j in range(payload + 4, payload + 4 + span):
+        data[j] = 0
+
+
+def zero_container_times(path: str) -> int:
+    """
+    把 m4a 容器里的**创建/修改时间戳**清零，让输出逐字节可复现。
+
+    【为什么必须做这一步 —— 不写的话文件头的承诺就是假的】
+    `afconvert` 会在 mvhd（movie header）与 mdhd（media header）两个 box 里
+    写入"编码发生的那一刻"。于是**同一个脚本、同一个种子、不改一行**，
+    两次运行的 m4a 的 md5 都不一样（实测确认：WAV 两次完全一致，
+    差异全部来自容器时间戳）。
+
+    后果不是"音质变了"，而是**版本控制被污染**：
+    每重新生成一次，13 个二进制文件全部显示为"已修改"，
+    于是"这次到底改了哪段音效"永远看不出来 —— 对一个要求"每次修改都能回溯"
+    的项目来说，这比多几个字节严重得多。
+
+    时间戳在 mvhd / mdhd 里的位置：
+        'mvhd' 之后依次是 version(1) + flags(3)，然后就是
+        creation_time 与 modification_time。
+          version 0 → 各 4 字节（QuickTime 时间，起点 1904-01-01）
+          version 1 → 各 8 字节
+    时间戳不影响解码与播放，清零是安全的（main() 之后用 afinfo 复验可解码性）。
+
+    ⚠️ 【必须按 box 结构解析，不能用 data.find(b'mvhd') 盲搜】
+    'mvhd' 这 4 个字节**完全可能恰好出现在压缩后的音频数据里** ——
+    盲搜到那里去清零就会**直接破坏音频**，而且是那种"大多数机器上没事、
+    偶尔某段音效变噪音"的隐蔽故障。本文件踩过的坑已经够多了。
+    """
+    with open(path, 'rb') as f:
+        data = bytearray(f.read())
+
+    n = 0
+    for t, pl, end in _iter_boxes(data, 0, len(data)):
+        if t != b'moov':
+            continue
+        for t2, pl2, end2 in _iter_boxes(data, pl, end):
+            if t2 == b'mvhd':
+                _zero_times(data, pl2)
+                n += 1
+            elif t2 == b'trak':
+                # trak 里**有两个**带时间戳的 box，一个都不能漏：
+                #   tkhd（track header）—— 直接挂在 trak 下
+                #   mdhd（media header）—— 藏在 trak → mdia 里
+                # 实测教训：只清了 mvhd + mdhd 时，重跑两次仍然有 2 个字节在变
+                # （tkhd 的 creation/modification 的末字节），diff 定位到偏移
+                # 167/171 才发现的。所以下面逐个判别。
+                for t3, pl3, end3 in _iter_boxes(data, pl2, end2):
+                    if t3 == b'tkhd':
+                        _zero_times(data, pl3)
+                        n += 1
+                    elif t3 == b'mdia':
+                        for t4, pl4, _ in _iter_boxes(data, pl3, end3):
+                            if t4 == b'mdhd':
+                                _zero_times(data, pl4)
+                                n += 1
+
+    with open(path, 'wb') as f:
+        f.write(bytes(data))
+    return n
+
 
 def main() -> int:
     wav_only = '--wav-only' in sys.argv
@@ -402,6 +509,8 @@ def main() -> int:
         if r.returncode != 0:
             print(f'{name} 转码失败：{r.stderr.decode()[:120]}')
             return 1
+        # 清零容器时间戳，否则每次生成 13 个文件全部 md5 变化（见函数注释）
+        zero_container_times(m4a_path)
         m4a_kb = os.path.getsize(m4a_path) / 1024.0
         total += m4a_kb
         print(f'{name:<10} {len(sig)/SR*1000:6.0f}ms  {wav_kb:7.1f}K  {m4a_kb:7.1f}K')

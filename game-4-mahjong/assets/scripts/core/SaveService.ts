@@ -9,7 +9,7 @@
  *  的 Storage 面板直接查看。
  *
  *  【首版存什么】（DESIGN §7）
- *  已通关关卡 / 每关最佳用时 / 最高连击。
+ *  已通关关卡 / 每关最佳用时。
  *  明确不做：排行榜、每日任务、道具商店 —— 留给后续版本。
  * ============================================================
  */
@@ -25,13 +25,11 @@ export interface SaveData {
     cleared: number[];
     /** 每关最佳用时（秒），键 = 关卡 id */
     bestTime: Record<string, number>;
-    /** 历史最高连击（S3 起统计） */
-    bestCombo: number;
 }
 
 /** 全新存档 */
 function makeDefault(): SaveData {
-    return { version: 1, cleared: [], bestTime: {}, bestCombo: 0 };
+    return { version: 1, cleared: [], bestTime: {} };
 }
 
 /**
@@ -90,7 +88,6 @@ export class SaveService {
                     version: parsed.version ?? 1,
                     cleared: Array.isArray(parsed.cleared) ? parsed.cleared.filter((n) => typeof n === 'number') : [],
                     bestTime: (parsed.bestTime && typeof parsed.bestTime === 'object') ? parsed.bestTime : {},
-                    bestCombo: typeof parsed.bestCombo === 'number' ? parsed.bestCombo : 0,
                 };
             }
             if (CFG.DEBUG.LOG_STATE) log(`[SaveService] 读档成功，已通关 ${this._data.cleared.length} 关`);
@@ -209,14 +206,6 @@ export class SaveService {
             this._data.bestTime[key] = Math.round(timeSec);
         }
         this.flush();
-    }
-
-    /** 更新最高连击 */
-    public setBestCombo(combo: number): void {
-        if (combo > this._data.bestCombo) {
-            this._data.bestCombo = combo;
-            this.flush();
-        }
     }
 
     /** 清空存档（调试用） */

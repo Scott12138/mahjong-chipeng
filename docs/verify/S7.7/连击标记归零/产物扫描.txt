@@ -1,0 +1,47 @@
+S7.7 连击（连章）标记归零扫描
+扫描时间: 2026-10-01 09:41:41
+
+==============================================================
+源码 assets/scripts   game-4-mahjong/assets/scripts
+   playCombo      1
+   bumpCombo      1
+   COMBO_         0
+   COMBO_RATES    0
+   setBestCombo   0
+   bestCombo      0
+   combo          1
+   连章             16
+
+==============================================================
+微信产物 wechatgame（release）   game-4-mahjong/build/wechatgame
+   playCombo      0
+   bumpCombo      0
+   COMBO_         0
+   COMBO_RATES    0
+   setBestCombo   0
+   bestCombo      0
+   combo          0
+   连章             0
+
+==============================================================
+网页产物 web-desktop（debug）   game-4-mahjong/build/web-desktop
+   playCombo      1
+   bumpCombo      1
+   COMBO_         0
+   COMBO_RATES    0
+   setBestCombo   0
+   bestCombo      0
+   combo          1
+   连章             14
+
+注：web-desktop 是 debug 构建、会保留注释，所以 playCombo / bumpCombo / 连章
+    各命中 1~若干次 —— 全部位于注释里（"…已整体删除"那句）；
+    微信 release 会剥离注释，故微信产物全为 0。
+
+==============================================================
+音频资源（微信 release 包内）
+   数量: 13  合计: 79.4 KB
+   删掉的 4 段 combo 是否还在包内: False
+   新增的 flow.m4a（uuid 8e6bcd66-…）在包内: True
+
+包体（微信 release，preview 实际报告）: 3,156,851 字节 ≈ 3.0 MB / 红线 4MB

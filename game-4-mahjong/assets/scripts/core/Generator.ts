@@ -507,6 +507,8 @@ export function generateLevel(level: LevelConfig, seed?: number): Layout {
 
     let best: { tiles: TileInst[]; rate: number } | null = null;
     let attempts = 0;
+    /** 止步于 ①「开局可点牌不足」的采样次数。只用于把兜底日志说得准确 */
+    let pickFail = 0;
 
     for (let attempt = 0; attempt < CFG.STACK.MAX_RETRY; attempt++) {
         attempts = attempt + 1;
@@ -520,7 +522,21 @@ export function generateLevel(level: LevelConfig, seed?: number): Layout {
 
         // ① 开局可点牌太少 → 玩家一上来就没得选，直接重采样
         const taken: boolean[] = new Array(tiles.length).fill(false);
-        if (pickableIds(tiles, graph, taken).length < CFG.STACK.MIN_PICKABLE) continue;
+        if (pickableIds(tiles, graph, taken).length < CFG.STACK.MIN_PICKABLE) {
+            // ⚠️ 这条 continue **必须先留兜底**，否则下面 `best!.tiles` 会直接抛
+            //    TypeError（Cannot read properties of null）→ 关卡**根本打不开**，
+            //    玩家看到的是"点了第 3 关没反应、还停在选关页"。
+            //
+            // 实测（每关 150 次随机开局，见 docs/verify 归档）：
+            //   · 有 ~90% 的采样是止步于这一条的（多层堆叠下"最上面那层"本来就少）；
+            //   · 40 次全卡在这儿时，L2 约 0.7%、L3 约 10.7%、L4 约 42% 的开局会崩。
+            //   → 原来这句 `continue` 把"兜底"变成了永不执行的死代码。
+            //
+            // 通过率记 0：这一局连 ① 都没过，作为难度参考取最保守的值。
+            if (!best) best = { tiles, rate: 0 };
+            pickFail++;
+            continue;
+        }
 
         // ② 可解性：跑若干局随机模拟
         let ok = 0;
@@ -540,7 +556,11 @@ export function generateLevel(level: LevelConfig, seed?: number): Layout {
         if (!best) best = { tiles, rate };
     }
 
-    console.warn(`[Generator] 第 ${level.id} 关 ${attempts} 次采样均未通过可解性校验，已采用兜底布局`);
+    // ⚠️ 这条日志原文只写"均未通过可解性校验"，但绝大多数情况其实是 ① 判的 ——
+    //    两者是完全不同的问题（① = 开局能点的牌太少；② = 存在死局），
+    //    混在一句话里会把排查方向带偏（本工程已真实被它误导过一次）。
+    console.warn(`[Generator] 第 ${level.id} 关 ${attempts} 次采样均未通过可解性校验，已采用兜底布局`
+        + `（其中 ${pickFail} 次止步于「开局可点牌 < ${CFG.STACK.MIN_PICKABLE}」）`);
     return {
         tiles: best!.tiles,
         seed: baseSeed,

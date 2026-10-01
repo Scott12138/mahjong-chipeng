@@ -4,15 +4,21 @@
 > 用户指令原文：「先把目前的提交一遍，然后再开始优化：**1、加音效；2、消除时要有更动感的效果，
 > 碰的效果是三张牌碰在一起，然后消除，连章是使用一个丝滑的动效来表示；3、入场时逐张飞入；
 > 4、加入震动反馈**」
+>
+> 🔴 **2026-10-01 订正：用户后来明确「连章」= 连击、「吃」= 原有玩法。**
+> 本文件里「2b / 第 2 节 / 音频表的连章音高 / 文件清单」所记的那套**连章（连击）机制
+> 已在 S7.6 整体删除**，相关段落**只作历史存档，不代表现行设计**。
+> 用户当时说的「连章」（丝滑动效）实际指的是**「吃（顺子）」**，
+> 现行设计见 `docs/game-4-DESIGN.md` **v1.9** §8.2。
 
 ## 交付一览
 
 | # | 用户要求 | 状态 | 实证 |
 |---|---|---|---|
 | 0 | 先把当前改动提交一次 | ✅ | 提交 `c1dfcef`（S2–S7 全部改动落成可回溯存档点，基线从 `107432e` 推进） |
-| 1 | 加音效 | ✅ | 16 段程序化合成音效共 94.9KB；日志 `[AudioService] 音效就绪 16/16`；微信包内 `assets/resources/**/*.m4a` = 16 个 / 128K |
+| 1 | 加音效 | ✅ | 16 段程序化合成音效共 94.9KB；日志 `[AudioService] 音效就绪 16/16`；微信包内 `assets/resources/**/*.m4a` = 16 个 / 128K。（**S7.6 起为 13 段 / 79.4KB**：删 `combo`×4、加 `flow`） |
 | 2a | 「碰」= 三张牌先碰在一起，然后才消除 | ✅ | `01-碰-撞击全过程.png`（8 帧） |
-| 2b | 连章 = 丝滑动效 | ✅ | `02-连章-流光带与文字.png`；日志 `连章 ×2`（间隔 3533ms ≤ 窗口 3600ms） |
+| 2b | ~~连章 = 丝滑动效~~ | ❌ **已删除** | 当轮确实做出来了（`02-连章-流光带与文字.png`；日志 `连章 ×2`）。⚠️ 但「连章」= **连击**，**本作不需要**，**该机制已在 S7.6 整体删除** —— 此图仅作历史存档 |
 | 3 | 入场逐张飞入 | ✅ | `03-入场-逐张飞入.png`（6 帧） |
 | 4 | 震动反馈 | ✅（仅代码层） | `ui/Haptics.ts`；**浏览器无法验证触感**，需真机确认（见"未验证项"） |
 
@@ -34,7 +40,12 @@
 520ms 时三张确实叠成一摞（`CLASH_OVERLAP_PENG=0.45 × 槽格宽`），
 消除发生在 650ms（撞击之后，不是同时）。
 
-## 2. 连章 —— 流光带 + 「连章 ×2」（`02-连章-流光带与文字.png`）
+## 2. ~~连章（连击）—— 流光带 + 「连章 ×2」~~ ❌ 已整体删除
+
+> 「连章」= **连击**（限时窗口内连续消除的计数）。用户明确**不需要**这个机制，
+> 整套实现（流光带 / 「连章 ×N」/ 4 档音高 / `bumpCombo` / `playCombo` / `combo*.m4a`）
+> **已在 S7.6 删除**。本节与 `02-连章-流光带与文字.png` **只作历史存档**，
+> **不要当作现行设计**。（「吃（顺子）」是**另一个概念**，保留不动。）
 
 裁切区域 `-360,-580 → 360,-150`（槽位条 + 其上方文字区），放大 1.5×。
 
@@ -52,10 +63,12 @@
 [GamePage] 连章 ×2
 [GamePage] 第 1 关 通关，已清 12/12，用时 0s，道具 消除0/移出0/洗牌0/加槽0，复活0
 ```
-→ 同一局里既有连章、又完整通关。
+→ 同一局里既有连章（连击）、又完整通关。**（该机制现已删除。）**
 
-**"丝滑"的落点**：流光带 `0.46s`、文字 `0.92s`，全程 `sineInOut`（首尾速度为零），
-无抖动无闪烁；与「碰」的 `0.2s` 硬冲击形成**爆发 vs 流动**的对比，靠时间尺度分层共存。
+~~**"丝滑"的落点**：流光带 `0.46s`、文字 `0.92s`，全程 `sineInOut`（首尾速度为零），
+无抖动无闪烁；与「碰」的 `0.2s` 硬冲击形成**爆发 vs 流动**的对比，靠时间尺度分层共存。~~
+❌ 随连章（连击）一并删除。但「丝滑」这条**设计原则**后来**转用到「吃」的流水汇合**上
+（见 DESIGN v1.9 §8.2）—— 那才是用户真正要的东西。
 
 ## 3. 入场逐张飞入（`03-入场-逐张飞入.png`）
 
@@ -83,7 +96,7 @@
 |---|---|
 | 合成脚本可复现 | `tools/make-sfx.py` 固定 `SEED=20260930`，换机器重跑逐字节相同 |
 | 转码器 | macOS `afconvert -f m4af -d aac -b 64000`（**系统不支持 MP3 编码**，`-f mp4f -d .mp3` 会报 `ExtAudioFileSetProperty ('cfmt') failed`） |
-| 连章音高 | 预生成 4 档（`COMBO_RATES=[1.0,1.122,1.260,1.414]`），因为 **Cocos 3.8 的 `AudioSource` 没有 `playbackRate`** |
+| ~~连章音高~~ | ❌ 已删除（连章 = 连击，本作不需要）。~~预生成 4 档 `COMBO_RATES=[1.0,1.122,1.260,1.414]`~~ —— 但**这条 API 事实仍然成立**：**Cocos 3.8 的 `AudioSource` 没有 `playbackRate`** |
 | 落牌声节流 | `FLY_IN_LAND_GAP_MS=130`（24 张牌 1 秒落地，不节流会糊成白噪声） |
 | 加载未完成 | 静默跳过，**不补播**（补播的是 300ms 前该响的声音） |
 
@@ -144,8 +157,8 @@
 | `game-4-mahjong/assets/resources/audio/*.m4a` | **新增** 16 个音频 + `.meta` |
 | `game-4-mahjong/assets/scripts/ui/AudioService.ts` | **新增** 音效服务（8 声道池 / 节流 / 静音） |
 | `game-4-mahjong/assets/scripts/ui/Haptics.ts` | **新增** 震动（三档 + `navigator.vibrate` 兜底 + `fail` 回调） |
-| `game-4-mahjong/assets/scripts/ui/GamePage.ts` | 消除动效重做（`playClear`/`onClash`/`releaseClear`）、新增连章（`bumpCombo`/`playCombo`）、入场重写（`playEnterMotion`/`onFlyInLand`）、音效/震动接入点、判负原因修复、两条时间轴面包屑 |
-| `game-4-mahjong/assets/scripts/CFG.ts` | 新增 `EASE_DASH` / 十四·碰 / 十五·连章 / 十六·逐张飞入 / `AUDIO` / `HAPTIC` / `DEBUG.STATS`；删除已被取代的旧参数 |
+| `game-4-mahjong/assets/scripts/ui/GamePage.ts` | 消除动效重做（`playClear`/`onClash`/`releaseClear`）、~~新增连章（`bumpCombo`/`playCombo`）~~（**已于 S7.6 删除**）、入场重写（`playEnterMotion`/`onFlyInLand`）、音效/震动接入点、判负原因修复、两条时间轴面包屑 |
+| `game-4-mahjong/assets/scripts/CFG.ts` | 新增 `EASE_DASH` / 十四·碰 / ~~十五·连章~~（**已删除**；S7.6 起该节 = 「十五·吃（顺子）」）/ 十六·逐张飞入 / `AUDIO` / `HAPTIC` / `DEBUG.STATS`；删除已被取代的旧参数 |
 | `game-4-mahjong/assets/scripts/GameRoot.ts` | 启动 5 步 → 6 步（插入 `AudioService.init`） |
 | `game-4-mahjong/assets/scripts/Bootstrap.ts` | 新增 `applyStats()`（`profiler.hideStats` + try/catch + 延时重试） |
 | `game-4-mahjong/assets/scripts/ui/MotionFx.ts` | 新增 `EASE.DASH`、`TAG.KICK`；`spawnPulse` 开放尺寸与寿命参数 |

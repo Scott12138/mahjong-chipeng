@@ -58,7 +58,7 @@
  */
 
 import {
-    Graphics, Layers, Node, Tween, TweenEasing, UIOpacity, UITransform, Vec3, easing, tween, v3,
+    Graphics, Layers, Node, Tween, TweenEasing, UIOpacity, UITransform, Vec3, easing, error, tween, v3,
 } from 'cc';
 
 import { CFG } from '../CFG';
@@ -296,11 +296,44 @@ export class MotionFx {
         });
     }
 
-    /** 节点属性 tween（position / scale / angle 可任意组合） */
+    /**
+     * 节点属性 tween（position / scale / angle 可任意组合）。
+     *
+     * ⚠️⚠️ **第二参是「属性表」，不是「步骤表」** —— 本文件最容易传错的一处。
+     *   ✅ 对：`MotionFx.to(node, { position: v3(x, y, 0) }, { duration: 0.3, easing: EASE.IDLE })`
+     *   ❌ 错：`MotionFx.to(node, { props: { position: … }, duration: 0.3 }, { … })`
+     *      —— 这是把 `chain` / `to2` 的「step」形状照搬过来了。chain 的每个 step
+     *      确实是 `{ props, duration, easing }`，但 `to` **不是**（`to` 只有一层）。
+     *
+     * 【传错之后会发生什么（S7.5 真踩过，花了很久才定位）】
+     *   引擎会把 `props` / `duration` / `easing` 当成三个**节点属性名**去动画：
+     *   ① `Node` 上根本没有这三个属性 → `TweenAction._initProps` 给 `prop.start`
+     *      留下的初值是 `null`；
+     *   ② 而 **`typeof null === 'object'`（JS 经典陷阱）骗过**了引擎的类型分支
+     *      （`TweenAction.update`：`typeof start === 'object'`），于是走进
+     *      「按 keys 逐字段插值」的分支，去读同样为 `null` 的 `prop.keys.length`
+     *      → **每一帧都抛 `TypeError: Cannot read properties of null (reading 'length')`**；
+     *   ③ 且 `duration` 落在了 props 里，`opts.duration` 是 `undefined` → 时长 0，
+     *      目标节点**根本不动**。
+     *   这三个后果都很坏：不白屏（只是控制台刷屏 + 动效静默失效），
+     *   报错还指向引擎内部的插值代码，看不出是调用方的锅。
+     *
+     *   → 所以下面加了运行时防呆。哪怕将来又有人传错，代价也只是"一行显眼的报错"，
+     *     而不再是"一小时定位引擎内部异常"。
+     */
     public static to(
         node: Node | null | undefined, props: NodeProps, opts: ToOpts,
     ): void {
         if (!node || !node.isValid) return;
+        // 防呆：只接受 position / scale / angle（NodeProps 的全部合法键）。
+        // 只做一次 O(3) 的循环，却很划算 —— 见上面 JSDoc 里"传错之后会发生什么"。
+        for (const k in props) {
+            if (k !== 'position' && k !== 'scale' && k !== 'angle') {
+                error(`[MotionFx.to] 非法的属性名 "${k}"：只接受 position / scale / angle。`
+                    + '（是否把 chain / to2 的 {props, duration, easing} 形状误传给了 to？）');
+                return;
+            }
+        }
         const tag = opts.tag ?? TAG.SELECT;
         const dur = opts.duration ?? 0;
         MotionFx.launch(node, tag, () => {

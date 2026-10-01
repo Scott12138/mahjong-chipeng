@@ -117,6 +117,28 @@ def meta_for_image(u: str) -> dict:
     }
 
 
+def meta_for_audio(u: str) -> dict:
+    """
+    音频（.m4a）。
+
+    ⚠️ 必须有这个模板 —— 否则 .m4a 会落到下面的 meta_for_generic，
+    生成 `"importer": "unknown"`，构建时它就不是 AudioClip，
+    表现为"resources.load 拿不到、游戏里彻底没声音"，
+    而报错信息只会说加载失败，完全看不出是 meta 写错了。
+    字段是照 assets/resources/audio/ 下已有的 12 个音频 meta 抄的，
+    目的是让新音频与它们**完全同构**（downloadMode 0 = 走包内、不额外下载）。
+
+    注意：已有的音频 meta 是 Cocos 编辑器生成的（uuid 是随机的 uuid4），
+    与本脚本的 uuid5 约定不同。这没关系 —— 音频在代码里是按**路径**加载的
+    （resources.load('audio/xxx')），uuid 只要唯一即可，不被任何地方引用。
+    """
+    return {
+        "ver": "1.0.0", "importer": "audio-clip", "imported": True,
+        "uuid": u, "files": [".json", ".m4a"], "subMetas": {},
+        "userData": {"downloadMode": 0},
+    }
+
+
 def meta_for_generic(u: str, ext: str) -> dict:
     return {
         "ver": "1.0.0", "importer": "unknown", "imported": False,
@@ -137,6 +159,8 @@ def build_meta(rel_path: str, is_dir: bool) -> dict:
         '.json': lambda: meta_for_json(u),
         '.png': lambda: meta_for_image(u),
         '.jpg': lambda: meta_for_image(u),
+        '.m4a': lambda: meta_for_audio(u),
+        '.mp3': lambda: meta_for_audio(u),
     }.get(ext, lambda: meta_for_generic(u, ext))()
 
 

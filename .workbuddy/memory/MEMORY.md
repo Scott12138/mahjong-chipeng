@@ -3,13 +3,14 @@
 ## 指针
 - **课程主工程在旧工作区**：`/Users/consli/WorkBuddy/2026-09-07-15-28-47/wechat-mini-game-course/`（game-1 接水果、game-2 合成大西瓜、game-3 牛仔套索 9 关已全通，权威上下文读那里的 `KNOWLEDGE_PACK.md`）。
 - game-3 正式 AppID `wxfaa19afc583badd9`；game-3 Step5（商店/换装/无尽牧场）挂起未做；包体积 3.96MB/4MB 告急。
+- 📍 **game-4 工程在「本工作区」**：`/Users/consli/WorkBuddy/2026-09-30-14-03-17/`（`game-4-mahjong/` + 工作区根的 `tools/` + `docs/` + `_toolchain-verify/`）。**git 仓库也在本工作区根**。旧工作区 `2026-09-07-15-28-47` **已无 game-4**，只剩 `wechat-mini-game-course` 与 `generated-images`。
 
-## game-4（2026-09-30 启动；**S0 → S1 → S1.5 美工定稿 → S2 → S6 → S6.5 → S7 动效 全部完成**，下一步 S7.5 音效/结算页 + S4/S5 难度标定）
-- **定稿名称：《麻麻大消除》**（工作代号 mahjong-chipeng，工程目录 `game-4-mahjong/`）。定稿文件 = **`docs/game-4-DESIGN.md`（v1.6，唯一设计依据）**。
+## game-4（2026-09-30 启动；**S0 → S1 → S1.5 美工定稿 → S2 → S6 → S6.5 → S7 动效 → S7.5 音效/震动/消除动效 → S7.6 术语勘误+「吃」动效+两个缺陷 全部完成**，下一步 S8 真实广告/分享通道 + S4/S5 难度标定 + 生成器兜底局拍板）
+- **定稿名称：《麻麻大消除》**（工作代号 mahjong-chipeng，工程目录 `game-4-mahjong/`）。定稿文件 = **`docs/game-4-DESIGN.md`（v1.8，唯一设计依据）**。
 - 选题：麻将吃碰三消（叠塔三消骨架 + 万/条/筒牌面），参考用户兄弟做的「吃碰来一局」。
 - 已拍板：消除类 → 叠塔三消 → **多层立体随机堆叠**（2026-09-30 用户改口，原为固定金字塔）→ 麻将牌面 → **4 关三堵墙（无无尽）** → 道具四件套（消除/移出/洗牌/**加槽**）全看广告+分享 → **技术栈 Cocos Creator 3.8.8（代码驱动 UI）**。
 - 🔄 **AppID：暂用测试号 `wxfaa19afc583badd9` 开发**（2026-09-30 用户改口：先不管合规/版权，用测试 AppID 把玩法和代码做出来再说）。⚠️ **上线前必须换号**——此号是 game-3 线上版在用的，拿它上传会覆盖 game-3。
-- **Git 基线**：`a4054d3`（S0）→ `107432e`（美术定稿 + S1 代码入库）。**S2 / S6 / S6.5 代码均尚未提交**（等用户确认；铁律：不主动 commit/push）。
+- **Git 基线**：`a4054d3`（S0）→ `107432e`（美术定稿 + S1）→ `c1dfcef`（S2–S7 全部）→ **`31e40e1`（S7.5 音效/震动/消除动效，已提交未 push）**。铁律：不主动 commit/push。
 - 🚫 **命名雷区词表**（已两次踩坑）：① **「消消乐」是注册商标**（乐元素/天津乐浣，第 9+41 类，判赔 220 万，法院不认通用名称抗辩）；② **「X了个X」**（羊了个羊系命名饱和 + 「麻了个麻」有侵权判例）；③ 碰了个碰/吃碰杠/三缺一/碰碰胡 均已被占用。→ 安全的是「消除」二字（法院认定是通用名称）。中文名 2–15 字；**个人主体每年仅 2 次改名**，未发布的小程序共 3 次；最终以 mp 后台「名称检测」为准。
 - 🔴 **最大非技术风险：个人主体的类目约束**。用户主体＝**个人主体（身份证）**；微信运营规范 1.5「棋牌类、角色类不对个人开发者开放」，官方口径「牌类**均需版号**」。→ 必须申报「**休闲益智**」类目 + 游戏内零棋牌语义（不出现胡牌/番数/筹码/对战）。乐观依据：微信上大量麻将题材消除游戏类目都是"休闲益智/消除"，「2048大消除」获版号申报类别＝移动-休闲益智。个人主体还**不能开内购**（本作无经济系统，天然符合 ✅）+ 必须办**软著**（约 1 个月，S1–S2 就该提交）。
 - 换题材兜底：若被判牌类驳回，把万/条/筒换成自研图案，**机制与代码零改动**。
@@ -49,6 +50,109 @@
 - ⚠️ **冒烟测试证明不了"动效真的播了"**：本轮 3 个真实缺陷（① 入场缩放补间与淡入补间共用 tag → 被 `stop` 掉、动画实际没播；② 飞行窗口内取消选中 → 落位定时器不校验归属，同张牌同时在场/在槽；③ 洗牌收尾抢锁）**在冒烟里全是绿灯**，靠第二遍**独立代码审查**才抓到。→ **以后表现层改造必须加一轮"只读 + 不看构建结果"的独立代码审查**。
 - ⚠️ **本机不能用 `timeout` 命令包装子进程**（macOS 不带 GNU coreutils）：`timeout 150 node ...` 会因 "command not found" 直接空跑，而 `grep` 会把该错误过滤掉 → **看起来像通过了**。改用工具自身的超时参数。
 
+## game-4 S7.5 音效 / 震动 / 消除动效升级（2026-09-30 完成，提交 `31e40e1`；★ 以后做音频先读这段）
+
+用户四项需求：**① 加音效 ②「碰」= 三张先碰在一起再消除 + 连章丝滑动效 ③ 入场逐张飞入 ④ 震动反馈**。全部实装，证据归档 `docs/verify/S7.5/`。
+
+- **音效零素材、程序化合成**：`game-4-mahjong/tools/make-sfx.py` 直出 16bit/44.1kHz WAV → 16 段 m4a（94.9KB 源 / 128K 入包）。*（v1.8 调整为 **13 段 / 79.4KB**：删 `combo/combo2/combo3/combo4`、加 `flow`。）* 基元 `bell`（泛音用**非整数倍** 2.01/3.02/4.95 产生金属拍频）/`tone`(tanh 软削波)/`sweep`(对数扫频)/`noise`。
+- 🔴 **`afconvert` 会写容器时间戳 → 光固定 `SEED` 不够**：它会在 m4a 里写入「编码那一刻」的时间，落在 **3 个 box**：`mvhd`（`moov` 下）、`tkhd`（`trak` 下）、`mdhd`（`trak → mdia` 下）。只清前两个时**仍有 2 字节在变**（偏移 167/171）→ 13 个文件 md5 全变。`make-sfx.py` 已加 `zero_container_times()` 按 MP4 box 结构**递归**清零（**绝不能用 `data.find(b'mvhd')` 盲搜** —— 那 4 字节可能恰好出现在压缩音频数据里，会直接破坏音频，且是"大多数机器正常、偶尔某段变噪音"的隐蔽故障）。清完 13 段**逐字节一致**，`afinfo` 复验可解码。
+- ⚠️ **`.m4a` 必须有 `audio-clip` importer 的 `.meta`**，否则落到 `unknown` importer → `resources.load` 拿不到 → **彻底没声音**。`tools/cocos-asset-meta.py` 已补 `meta_for_audio`。
+- 🔴 **macOS 不支持 MP3 编码**：`afconvert` 用 `-f mp3` 报 `ExtAudioFileSetProperty ('cfmt') failed ('fmt?')` → 必须 `afconvert -f m4af -d aac -b 64000`。
+- 🔴 **Cocos 3.8 的 `AudioSource` 没有 `playbackRate`**（2.x 有，3.x 移除）→ ~~连章音高**必须在合成阶段预生成 4 档**（`COMBO_RATES=[1.0,1.122,1.260,1.414]`），不能运行时变速。~~ **v1.8：连章已删除，此约束对本作不再生效，但这条 API 事实依然成立**（以后要做变速播放必须预生成变体文件）。
+- **AudioService**（`ui/AudioService.ts`）：**8 条声道池**而非 `playOneShot`（因为 `playOneShot` 也改不了 rate，为不让连章走特殊链路就统一走上池）；`MIN_GAP_MS=45`；入场落牌 `FLY_IN_LAND_GAP_MS=130`（24 张牌 1 秒落地，不节流会糊成白噪声）；**加载未完成静默跳过、绝不补播**（补播的是 300ms 前该响的声音）。全部就绪打 `[AudioService] 音效就绪 13/13`（v1.8；原 16/16） —— **无头验证时这是"音频加载成功没有"的唯一线索**。
+- **「碰」的三段式**：蓄力（各退 12px）→ **冲刺 `EASE_DASH='quadIn'`**（**"越冲越快"是撞击与平移的唯一区别；`quadOut` 会像"小心翼翼靠拢"**）→ 撞击帧（squash `0.84/1.16` + 冲击环 + 碎屑 + 踢牌堆 + 音 + 震）→ `POP_HOLD=0.06s` 停一拍 → 释放（胀 1.20 → 缩 0）。八帧实证：**520ms 三张叠成一摞、650ms 槽位才空** —— "先碰再消除"在时间轴上真实成立。
+- **`CLASH_OVERLAP_PENG=0.45`**：碰的三张牌面**完全相同**，叠狠不丢信息。~~`CLASH_OVERLAP_CHI=0.74`~~ **v1.8 已删除** —— 「吃」不再走撞击，改走**流水汇合**（`FLOW_OVERLAP=0.55`）。
+- ❌ **【已整套删除】连章（连击）** —— ⚠️ **2026-10-01 订正：「连章」= 连击，不是「吃」**（v1.8 曾把两者写反）。本作不需要这个机制，整套已移除。以下为历史记录：**时间戳窗口**而非"定时器重置"（时间戳无状态，不存在"页面切走忘清理"的残留）。`COMBO_WINDOW=3.6s`（按实际节奏倒推；初版 2.4s 跑完整关一次都没触发）。**"丝滑"的三个定义**：够长（0.46/0.92s）+ 首尾速度为零（全程 `sineInOut`）+ 无抖动无闪烁；与「碰」的 0.2s 硬冲击形成**爆发 vs 流动**，靠时间尺度分层共存。飘字与连章**二选一**（连章信息量已覆盖牌型，再叠 96px「碰」字互相削弱）。
+- **逐张飞入**：起点在目标**正上方 680px** + 横向 ±96 + 角度 ±24°，`backOut` 过冲；**按深度升序**（底层先落，否则穿模）。起始态必须在 `buildStack()` 里摆好、`playEnterMotion()` **复用不重随机**；**兜底复位必须复位 `position`**，否则那张牌永久停在屏幕外 = "牌凭空消失"。
+- **震动是稀缺资源**：只用三档（light 按下 / medium 碰**与吃**的消除+复活 / heavy 失败），洗牌·加槽一律不震（v1.8：「连消」概念已随连章删除）；**误操作有声音但不震**（震动是"你做对了"的正向信号）；`MIN_GAP_MS=60`。**抖"牌堆层"而不是"整屏镜头"**（全屏抖动会改变 `view.getVisibleSize()` 与触摸坐标换算）。
+- 🔴 **真机高概率故障（实测确认）**：Cocos 3.8 微信端音频走 `wx.createInnerAudioContext()`，而**产物里完全没有任何 `obeyMuteSwitch` 设置**；该属性默认 `true` = **遵循系统静音开关（仅 iOS）** → **iPhone 物理静音键拨到静音时游戏一声不响且控制台无报错**。规避：测试前确认静音键在「铃音」位。**待用户拍板是否改**（`wx.setInnerAudioOption({obeyMuteSwitch:false})`；注意 `InnerAudioContext.obeyMuteSwitch` 已被微信标记弃用）。
+- ⚠️ **无头 Chrome 会把后台窗口的 `setTimeout` 节流到 1 秒** —— 本工程"状态流转只走 setTimeout"的铁律因此被破坏，表现为"拿牌→撤回→拿牌→撤回"的死循环，**看起来完全像游戏 bug**。`tools/web-smoke.mjs` 已加 `--disable-background-timer-throttling` / `--disable-backgrounding-occluded-windows` / `--disable-renderer-backgrounding` 修复（`落位放弃: 0 / 取消选中: 0` 验证通过）。**这是测试环境伪影，不是游戏 bug。**
+- **真机预览出二维码**：`/Applications/wechatwebdevtools.app/Contents/MacOS/cli preview --project <产物绝对路径> --qr-format image --qr-output <png>`。CLI **冷启动 60s+**，先用 `cli islogin` 轮询探活；`--project` **必须绝对路径**。
+- 顺带修掉两个缺陷：① **不限时关卡判负原因恒显示「时间到」**（结算页原用 `_timeLeft <= 0` 反推，而不限时关卡 `_timeLeft` 恒为 0）→ 改由判负入口写入 `_failReason`；② **引擎性能面板盖住槽位条**（面板画在左下角 = `SLOT_BAR_Y=-424`）→ 新增 `CFG.DEBUG.STATS` 运行期收掉，且**必须 try/catch**（`profiler.hideStats()` 在 `director.root` 就绪前抛异常会**中断整个模块 → 游戏白屏**，报错指向 profiler 与"游戏起不来"毫无因果关系）。
+- 体积：**wechatgame release 3.2MB / 4MB**（余量 0.8MB）。**`CFG.DEBUG.LOG_STATE` release 包里仍为 true，提审前必须关。**
+- 新增工具：`tools/anim-sheet.py`（动效连拍**接触印相图**：按设计坐标裁切 + 标注时间偏移。含必需的 `_normalize_argv` 分组逻辑，否则 `-360,-570,...` 会被 argparse 当选项报错）、`tools/smoke-run.sh`（**一条命令跑完「起服务器→冒烟→收服务器」**；Bash 工具的后台进程在调用结束就被回收，分两步做会得到误导性的 `HTTP 502` / `canvas: null`）。`tools/web-smoke.mjs` 新增三个动效验收原语：`d:<x>,<y>@<ms>`（自定义截图延迟）/ `wait:<ms>` / `auto:<n>@<gap>!<ms,…>`（撞击帧连拍）。
+
+## game-4 S7.6 「吃」的流水汇合 + 两个真实缺陷（2026-09-30 深夜；**代码未提交**）
+
+> 用户原话：「**连章是指 234 条，456 万这样的消除方式，不是指连击，你误会了，要修正回来。
+> 后面遇到有可能引起歧义的地方，都要先问我，确认完之后再做**」
+
+### ❌ 本节的术语结论**已被 2026-10-01（S7.7）推翻** —— 最终定义见下方 S7.7 章节
+- 本节当时写的是「**「连章」= 顺子（吃）**」—— **错的**。用户 10-01 明确：
+  **「连章」= 连击（本作不需要）；「吃」= 原有玩法 = 顺子（保留）**。
+- 仍然成立的部分：S7.5 那套连击机制（`COMBO_*` 10 个参数 / `bumpCombo` / `playCombo` /
+  4 段音频 / `make-sfx.py` 的 `sfx_combo` / `SaveService.bestCombo`）**确实全部删除**了；
+  只是**删它的理由说错了** —— 正确理由是「连章（连击）本作不需要」，而不是「连章其实是吃」。
+- 🎯 **顺带解开一个长期疑点：为什么自动化从没见过「吃」** —— `Generator.pickPatterns()` 给 L1 的「万」只发 2 个连号、L2 每族 2 个 → **凑不出 3 连号**；**L3 才第一次出现 3 连号**（万/条各一组），L4 三族全有。→ **「吃」的验证必须走到 L3**（`unlock:3` 直写存档 + `dirty` 逼出顺子；`auto` 只会凑碰）。
+- ⚠️ **新增流程铁律（已写入用户级记忆）**：**遇到有可能引起歧义的地方，一律先问、确认之后再动手。**
+
+### 「吃」= 流水汇合（与撞击处处互为反面）
+- `playClear(m)` 变成**分流器**：`m.type === 'chi' ? playFlowClear : playClashClear`。**碰/杠 → 撞击**，**吃 → 流水汇合**。
+- **两条路径的收尾共用 `finalizeClear`**（删节点 / 从槽 splice / 清 `_busy` / 左补齐 / 刷 HUD / 连锁判定 / 胜负判定）。**收尾写两份，迟早出现「碰完能连锁、吃完不能」这类只有特定牌型才复现、看起来像运气不好的 bug。**
+- 参数（`CFG.MOTION` §十五）：`FLOW_STAGGER 0.07 / FLOW_SLIDE 0.30 / FLOW_OVERLAP 0.55 / FLOW_HOLD 0.05 / FLOW_LIFT 22 / FLOW_FADE 0.28`；全程 `EASE_IDLE='sineInOut'`、**无蓄力、零冲击元素（无挤压 / 无冲击环 / 无碎屑 / 不踢牌堆）、结束不缩放**（只上浮 + 淡出）。
+- **音效 `flow`**（470ms，所有成分 attack 拉到 9~14ms 抹平起音、`lp=0.40` 低通噪声、上行对数扫频 523.25→1046.50Hz）必须在**第一张牌起步时**播 —— 等三张汇齐再播，听感立刻变回「撞上了」。
+- ★ **「丝滑」是减出来的，不是加出来的。**
+
+### 🐞 缺陷一：`MotionFx.to` 传参形状错 → 每帧抛引擎内部异常
+- **症状**：`TypeError: Cannot read properties of null (reading 'length')` **每帧刷屏**（栈顶是引擎 `TweenAction.update`），但**不白屏**；同时「吃」的动效**静默失效**（牌根本不动）。
+- **根因**：把 `chain`/`to2` 的 step 形状 `{props, duration, easing}` 误传给了 `to`（`to` 的形参是 `(node, {position}, {duration, …})`）。引擎把 `props`/`duration`/`easing` 当**属性名**去找，`Node` 上都没有 → `TweenAction._initProps` 给 `prop.start` 留的初值是 `null` → 🔑 **`typeof null === 'object'` 骗过了引擎的类型分支**（`update` 判的是 `typeof start === 'object'`）→ 去读同样为 `null` 的 `prop.keys.length`。且 `opts.duration` 为 `undefined` → 时长 0。
+- **修**：改两个调用点 + 在 `MotionFx.to` 加**运行时防呆**（非法属性名直接 `error()` 并 return）—— 把「引擎深处的天书异常」换成「调用方一眼就懂的一行报错」。
+- **定位线索**：只有「吃」那条路抛异常、碰 **0 异常** → 对比两条路径的调用形状即抓到。
+
+### 🐞 缺陷二：`Generator` 兜底是死代码 → 关卡根本打不开
+- **症状**：点第 3 关**没反应**、停在选关页；日志 `第 3 关 40 次采样均未通过可解性校验，已采用兜底布局` + `Cannot read properties of null (reading 'tiles')`。
+- **根因**：①「开局可点牌 < `MIN_PICKABLE=6`」分支写的是 `continue`，**兜底赋值排在它后面** → 40 次全卡在 ① 时 `best` 恒为 `null` → `best!.tiles` 炸。**代码与它自己上一行的注释（宁可给一局偏难的、也不白屏）直接矛盾。**
+- **实测**（每关 150 个随机种子）：硬崩率 **L2 0.7% / L3 10.7% / L4 42%** → 修后**全 0%**。
+- ⏳ **待用户拍板的难度问题**：约 **90%** 的采样止步于 ①；修后落「兜底局」的比例 **L2 ~2% / L3 ~11% / L4 ~47%**。L4 近一半开局未经验证，与 §6「三堵墙」意图可能相悖。三选项：**(a)** 降 `MIN_PICKABLE`；**(b)** 改比例口径；**(c)** 接受现状。**涉及难度设计，本轮不动。**
+
+### 🔧 新增能力：无头跑生成器（★ 以后要复用）
+`Generator.ts` 只依赖 `CFG / TileData / MatchRule`（**不含 `cc`**）→ 把 4 个文件复制到临时目录、import 改成带 `.ts` 后缀 + 类型名加 `type` 内联修饰符，即可用 **`node --experimental-strip-types --no-warnings probe.ts 150`** 在纯 Node 里跑生成器，按随机种子批量统计成功率 / 硬崩率 —— **秒级拿到「千次生成」量级的结论，不用起浏览器**。探针归档：`docs/verify/S7.6/生成器兜底量化/probe.ts`。
+
+### 🕳 验证陷阱：产物里的中文串会被 `\u` 转义
+Cocos 打包后的 `assets/main/index.js` 里，**字符串字面量中的非 ASCII 会被 `\uXXXX` 转义，而注释里的中文保持原样**。→「grep 中文 UI 文案证明新代码入包」会得到**假阴性**（实测 `"[Generator] \u7B2C "` vs 注释里能搜到的 `兜底布局`）。**结论：验证产物请 grep ASCII 标识符（函数名 / 英文串）或注释文字。** 本轮先后被骗两次（`牌型=`、`非法的属性名` 都被误判成"没入包"）。
+
+### 验收结果（证据归档 `docs/verify/S7.6/`）
+- 吃（L3）：`牌型=chi(吃) → 动效=流水汇合 ｜ sou-4 sou-5 sou-6` 与 `wan-1 wan-2 wan-3`，**0 异常**。
+- 碰（L1 回归）：`牌型=peng(碰) → 动效=撞击` ×4，通关 **12/12**，**0 异常**，防呆未误触发。
+- 产物校验：`playFlowClear 6 / playClashClear 4 / finalizeClear 5 / playCombo 0 / bumpCombo 0`。
+- `docs/game-4-DESIGN.md` → **v1.8**。**代码未提交**（铁律：不主动 commit，等用户确认）。
+
+## game-4 S7.7 术语订正 + 连章（连击）残留清零（2026-10-01；**代码未提交**）
+
+> 用户原话：「**1、首先，我们把连章和吃的概念彻底分开，连章指的是连击，吃是原来的玩法；
+> 2、根据我的试玩，代码里还是有连章（连击）的逻辑，请你仔细检查一下**」
+
+### ✅ 定义（**最终版，前两次都错了，别再改回去**）
+| 词 | 含义 | 处置 |
+|---|---|---|
+| **连章** | **连击** —— 限时窗口内连续消除的计数 | ❌ 本作**不需要** → 已删干净 |
+| **吃** | **原有玩法** = 顺子（`MatchRule` 的 `chi`，同花色连号 3 张，如 `234条`/`456万`） | ✅ **保留**（含流水汇合动效 + `flow` 音效） |
+
+### 🔴 最大教训：「试玩结果与代码不一致」时，**第一步先比产物与源码的时间戳**
+- 用户试玩截图里有「连章 ×2」，但**源码里早已没有这套逻辑**。
+- 真因：试玩用的是 **`build/wechatgame` 产物，且它还是删除前（09-30 22:15）构建的旧包**；
+  而 **`build/` 被 `.gitignore` 排除 → 默认的文件搜索会直接跳过它**（这才是"看着像代码没改"的成因）。
+- **排查动作**：① 先 `stat` 产物与源码的 mtime；② 用 `os.walk` / 显式路径**强制扫 `build/`**，不要依赖默认 grep。
+- 时间线：`09-30 22:15 建旧包（含连章）→ 22:20 提交 31e40e1（删除改动未提交）→ 23:39 建 web 包（已删）→ 10-01 09:41 重建微信包`。
+
+### 本轮改动
+- `core/SaveService.ts`：删 `SaveData.bestCombo` 字段 / `makeDefault()` 里的默认值 / `load()` 里的解析 /
+  **`setBestCombo()`（S1 遗留，从未被调用）**；文件头「最高连击」一并去掉。
+  旧存档里多出的 `bestCombo` 被解析器直接忽略 → **无需迁移**。
+- `tools/web-smoke.mjs`：伪造存档同步去掉 `bestCombo`。
+- 把概念讲反的注释（`CFG.ts` §十五、`GamePage.ts` 三处 JSDoc、`AudioService.ts` 文件头、
+  `make-sfx.py`、`web-smoke.mjs`）统一改为正确定义；**用户原话保留原文 + 方括号注明所指**（不改写用户原话）。
+- ✅ **没动的东西**：四关规则、难度、槽位/道具/胜负判定、`CFG.MOTION` 一个数值、`flow` 音效、飘字「吃」。
+
+### 验收（证据归档 `docs/verify/S7.7/`）
+- **标记归零**：微信 release 产物里 `playCombo`/`bumpCombo`/`COMBO_`/`COMBO_RATES`/`setBestCombo`/`bestCombo`/`combo`/`连章` **全部为 0**；
+  web debug 包仅**注释**里命中（release 会剥离注释，故微信包为 0）。
+- 音频：包内 **13 段 / 79.4KB**，`combo*.m4a` 已不在包内，`flow.m4a`（uuid `8e6bcd66-…`）在包内。
+- 玩法回归：`吃`（L3）`牌型=chi(吃) → 动效=流水汇合 ｜ sou-4 sou-5 sou-6`、`wan-5 wan-6 wan-7`；
+  `碰`（L1）→ 撞击 ×3；**均 0 异常**；`音效就绪 13/13`。
+- 包体 **3.0MB / 4MB**。新真机码 `docs/verify/S7.7/device/真机预览二维码.png`（**09-30 的旧码作废**）。
+- `docs/game-4-DESIGN.md` → **v1.9**。
+
 ## game-4 S1 架构（2026-09-30 完成，后续里程碑都在此骨架上叠加）
 
 ### 目录与文件
@@ -65,9 +169,10 @@ game-4-mahjong/
 │  ├─ core/Diag.ts                 ← 【已休眠】清屏色信号灯排障法
 │  └─ ui/{UIFactory,PageBase,MenuPage,LevelSelectPage}.ts
 ├─ build-config/wechatgame.json    ← AppID 走这里（configPath 通道）
-├─ settings/v2/packages/{project,engine}.json   ← 设计分辨率 720×1280 fitWidth / 引擎裁剪
-└─ tools/{cocos-build.sh,wechat-open.sh,cocos-asset-meta.py,web-smoke.mjs}
+└─ settings/v2/packages/{project,engine}.json   ← 设计分辨率 720×1280 fitWidth / 引擎裁剪
 ```
+
+⚠️ **工具脚本在「工作区根」`tools/`，不在工程内**：`tools/{cocos-build.sh, wechat-open.sh, web-smoke.mjs, anim-sheet.py, smoke-run.sh, cocos-asset-meta.py, page-shot.mjs, probe-console.mjs}`；`game-4-mahjong/tools/` 里**只有** `make-sfx.py`。
 
 ### 设计约定（改代码必须遵守）
 

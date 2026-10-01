@@ -218,23 +218,6 @@ export class GamePage extends PageBase {
 
     private _failPanel: Node | null = null;
 
-    // ---- 连章（S7.5）----
-    /**
-     * 连章层数：连续消除的计数。1 = 没连上（本次消除与上一次隔得太久）。
-     * 由 bumpCombo() 维护，只在 playClear 里读写。
-     */
-    private _combo = 0;
-    /**
-     * 上一次消除的时间戳（毫秒）。
-     *
-     * 【为什么用"时间戳 + 窗口"而不是 scheduleOnce 重置】
-     * 用定时器重置的话，每次消除都要先取消上一个定时器再注册新的；
-     * 页面切走 / 结算 / 复活这些路径里任何一个忘了取消，
-     * 就会出现"玩家在菜单页待了 10 秒，回游戏还显示连章 ×3"的残留。
-     * 时间戳是**无状态**的：谁读谁算，不存在需要清理的东西。
-     */
-    private _comboAt = 0;
-
     // ========================================================
     //  构建
     // ========================================================
@@ -1538,25 +1521,57 @@ export class GamePage extends PageBase {
     }
 
     /**
-     * 播放消除：**蓄力 → 撞击 → 停一拍 → 一起炸开**（S7.5 重写）。
+     * 播放消除。**按牌型分两套动效**（S7.5，2026-09-30 修正）。
      *
-     * 【用户原话】"消除时要有更动感的效果，碰的效果是三张牌碰在一起，然后消除"
+     *   碰 / 杠 → 撞击（playClashClear）：三张/四张**碰在一起**，然后消除
+     *   吃      → 流水汇合（playFlowClear）：三张**依次柔顺滑拢**，然后淡出
      *
-     * ------------------------------------------------------------
+     * 【为什么要分两套 —— 用户原话就是这个意思】
+     *   "碰的效果是三张牌碰在一起，然后消除，
+     *    连章是使用一个丝滑的动效来表示"
+     *   〔术语订正〕用户当时说的「连章」指的是「吃」= **顺子**
+     *   （234条 / 456万）= MatchRule 里的 `chi`。这与本节实现一致。
+     *
+     * ⚠️ 【术语，务必读】「连章」现在的定义是**连击**（限时窗口内连续消除的
+     *    计数），和「吃」是两回事，本作**不需要**。初版把它误当成"用户想要
+     *    的新玩法"，做了一整套流光带 + 「连章 ×N」层数 + 4 档递增音高；
+     *    而真正的「吃」当时和「碰」**共用同一套撞击动效**。结果是用户要的
+     *    两样东西，一样做错了、另一样根本没做。那套连击机制已整体删除
+     *    （动机与痕迹见 CFG.MOTION §十五）。**别再让「连章」进入玩法/动效/音效。**
+     */
+    private playClear(m: MatchResult): void {
+        // 这一行是**验证两套动效的唯一线索**：它同时说明"消的是哪种牌型"和
+        // "走了哪套动效"。没有它，无头跑完一关只能看到"已清 N/M"，
+        // 根本不知道中间有没有出现过「吃」—— 而「吃」在 L1/L2 里**根本不可能
+        // 出现**（pickPatterns 给那两关的同族连号少于 3 个，凑不出顺子），
+        // 所以"没看到吃"到底是"没触发"还是"没实现"，只能靠这行区分。
+        if (CFG.DEBUG.LOG_STATE) {
+            const keys = m.indices.map((i) => this._slots[i].key).join(' ');
+            log(`[GamePage] 消除 牌型=${m.type}(${MATCH_LABEL[m.type]}) 张数=${m.indices.length}`
+                + ` → 动效=${m.type === 'chi' ? '流水汇合' : '撞击'} ｜ ${keys}`);
+        }
+
+        if (m.type === 'chi') this.playFlowClear(m);
+        else this.playClashClear(m);
+    }
+
+    /**
+     * 碰 / 杠的**撞击**：蓄力 → 冲刺 → 撞上 → 停一拍 → 一起炸开。
+     *
      * 【旧版为什么不够"碰"】
      * 旧版的三张牌**从头到尾都待在自己的槽格里**：上浮、放大、再缩到 0。
      * 也就是说，它们之间从来没有发生过任何**空间关系** ——
      * 玩家看到的是"三张牌各自胀了一下"，而不是"三张牌撞到了一起"。
      * 差距全在下面这条时间轴上，而不在"幅度够不够大"。
      *
-     * 【新版时间轴】（碰 / 杠；「吃」是同样的结构，只是三张依次错峰）
+     * 【时间轴】（碰 / 杠。「吃」走的是另一套，见 playFlowClear）
      *   t=0           蓄力：三张牌朝**远离中心**的方向各退 12px（攒势）
      *   t=90ms        冲刺：quadIn 加速，朝中心猛冲，最终中心间距压到槽格宽的 45%
      *   t=200ms       ★ 撞击帧：挤压(squash & stretch) + 冲击圆环 + 碎屑
      *                            + 牌堆上踢 + "碰"音 + 中档震动
      *   t=290ms       停一拍（POP_HOLD）：给大脑一次眨眼，把"这三张是一组"读进去
      *   t=290ms 起    释放：先胀到 1.20，再收缩到 0 并淡出
-     *   t=+240ms      数据收尾 → 连锁判定 → 连章判定
+     *   t=+240ms      数据收尾 → 连锁判定 → 胜负判定
      *
      * 【为什么"撞击"必须是 quadIn 而不是 quadOut】
      * quadOut 冲到终点时会减速，看起来像"小心翼翼地靠拢"；
@@ -1567,7 +1582,7 @@ export class GamePage extends PageBase {
      * 停 70ms 让"撞"和"散"成为两件可以被分别记住的事 ——
      * 这是消除类游戏通用的一条节奏经验：先顿一下，再消失。
      */
-    private playClear(m: MatchResult): void {
+    private playClashClear(m: MatchResult): void {
         const M = CFG.MOTION;
         this._busy = true;
 
@@ -1577,23 +1592,17 @@ export class GamePage extends PageBase {
         const doomed = m.indices.map((i) => this._slots[i].view);
         const scale = this.slotScale();
 
-        // ② 连章判定（S7.5）。放在最前面 —— 它决定这一拍要不要"加戏"。
-        const layer = this.bumpCombo();
-
-        // ③ 撞击几何
+        // ② 撞击几何
         const slotW = this.slotWidth();
         const n = doomed.length;
         const centerX = this.clashCenterX(m.indices);
         const centerY = CFG.GAME_LAYOUT.SLOT_BAR_Y;
-        // 「碰 / 杠」的三/四张牌**牌面完全相同** → 允许叠得很狠（叠了也不丢信息，
-        // 看到的就是"一张变厚了的牌"）；「吃」是三张不同的牌 → 叠太狠会看不清。
-        const overlap = m.type === 'chi' ? M.CLASH_OVERLAP_CHI : M.CLASH_OVERLAP_PENG;
-        const span = slotW * overlap;
-        // 「吃」的三张是**不同的牌**，同时撞上去会像"碰"；
-        // 依次接力才符合"三张牌被一张张凑过来"的观感。
-        const stagger = m.type === 'chi' ? M.CLASH_CHI_STAGGER : 0;
+        // 碰 / 杠的三、四张牌**牌面完全相同** → 允许叠得很狠（叠了也不丢信息，
+        // 看到的就是"一张变厚了的牌"，那正是"三合一"的观感）。
+        // ⚠️ 「吃」不走这条路 —— 它的三张牌面各不相同，另有 playFlowClear。
+        const span = slotW * M.CLASH_OVERLAP_PENG;
 
-        // ④ 蓄力 → 冲刺：**一条链**走完，绝不拆成两条 tween。
+        // ③ 蓄力 → 冲刺：**一条链**走完，绝不拆成两条 tween。
         //    拆开的话，蓄力与冲刺会同时持有 position（两条 tween 抢同一属性），
         //    在交界处必然出现重叠帧 —— 真机上是肉眼可见的一顿。
         for (let k = 0; k < n; k++) {
@@ -1610,14 +1619,14 @@ export class GamePage extends PageBase {
                   duration: M.CLASH_ANTICIPATE, easing: EASE.ENTER },
                 { props: { position: v3(tx, centerY, 0) },
                   duration: M.CLASH_DASH, easing: EASE.DASH },
-            ], { tag: TAG.SLOT, delay: k * stagger });
+            ], { tag: TAG.SLOT });
         }
 
-        // ⑤ ★ 撞击帧：所有牌都撞到的时刻（吃是最后一张撞到的那一刻）
-        const hitAt = M.CLASH_ANTICIPATE + M.CLASH_DASH + Math.max(0, n - 1) * stagger;
+        // ④ ★ 撞击帧：所有牌都撞到的时刻
+        const hitAt = M.CLASH_ANTICIPATE + M.CLASH_DASH;
         setTimeout(() => {
             if (!this.node.isValid) return;
-            this.onClash(doomed, m, layer, scale, centerX, centerY);
+            this.onClash(doomed, m, scale, centerX, centerY);
         }, MotionFx.unlockMs(hitAt));
     }
 
@@ -1626,7 +1635,7 @@ export class GamePage extends PageBase {
      * 全塞进 playClear 的 setTimeout 闭包里会让那段代码彻底不可读。
      */
     private onClash(
-        doomed: TileView[], m: MatchResult, layer: number,
+        doomed: TileView[], m: MatchResult,
         scale: number, centerX: number, centerY: number,
     ): void {
         const M = CFG.MOTION;
@@ -1668,11 +1677,10 @@ export class GamePage extends PageBase {
         //    理由见 CFG.MOTION.CLASH_KICK 的注释）
         this.kickStack();
 
-        // ⑥ 飘字与连章：**二选一**。
-        //    连章的信息量（"连章 ×3"）已经覆盖了牌型，再叠一个 96px 的「碰」字，
-        //    两行大字会互相削弱 —— 玩家的视线在两点之间来回跳，两个都没看清。
-        if (layer >= 2) this.playCombo(layer);
-        else this.popMatchLabel(m.type);
+        // ⑥ 飘字：把牌型名说出来（碰 / 吃 / 杠）。
+        //    ⚠️ 这里曾经写成"连章 ×N 与飘字二选一"。「连章」= **连击**，是初版
+        //    误做的机制（已整体删除）；飘字与它无关，永远只有一种。
+        this.popMatchLabel(m.type);
 
         // ⑦ 停一拍之后再释放
         setTimeout(() => {
@@ -1709,65 +1717,144 @@ export class GamePage extends PageBase {
 
         setTimeout(() => {
             if (!this.node.isValid) return;
-            for (const v of doomed) v.destroy();
-
-            // 从槽数据里删掉（下标大的先删，避免删前面的之后后面全部错位）
-            const idx = m.indices.slice().sort((a, b) => b - a);
-            for (const i of idx) this._slots.splice(i, 1);
-
-            this._cleared += m.indices.length;
-            this._busy = false;
-
-            // C5 回补：剩余牌向左补齐空位
-            this.relayoutSlots();
-            this.refreshSlotWarn();
-            this.logPickable();
-            this.refreshHud();
-            this.refreshPropBar();
-
-            // ⑥ 消完之后槽里可能还有能消的（连锁）——
-            //    连锁会**继续累加连章层数**，这正是"连章"最有存在感的场景。
-            const keys = this._slots.map((s) => s.key);
-            const again = findMatch(keys, this._level.gang, -1);
-            if (again) {
-                this.playClear(again);
-                return;
-            }
-
-            // ⑦ 胜负判定
-            if (this.isBoardEmpty()) {
-                this.finish(true);
-            } else if (this._slots.length >= this._slotCapacity) {
-                this.finish(false, 'slotfull');
-            }
+            this.finalizeClear(doomed, m);
         }, MotionFx.unlockMs(M.POP_OUT));
     }
 
     /**
-     * 连章计数：返回本次是第几层（1 = 没连上，2 起才算"连章"）。
+     * 消除之后的**数据收尾** —— 撞击（碰/杠）与流水汇合（吃）两条动效路径共用。
      *
-     * 【判定方式：时间戳窗口，不是定时器】
-     * 用定时器重置的话，每次消除都要"先取消上一个、再注册新的"；
-     * 页面切走 / 结算 / 复活这些路径里任何一处忘了取消，
-     * 就会出现"在菜单页待了 10 秒、回游戏还显示连章 ×3"这种残留。
-     * 时间戳是**无状态**的：谁读谁算，没有任何需要清理的东西。
+     * 【为什么必须抽出来共用】
+     * 两条路径的"好看"各不相同，但"收尾"必须一模一样：
+     * 删节点、从槽数据里 splice、清 `_busy`、向左补齐、刷新 HUD、连锁判定、胜负判定。
+     * 任何一处变成两份实现，迟早会出现"碰完能连锁、吃完不能"这类
+     * 只有特定牌型才复现的 bug —— 而它看起来不像 bug，像"运气不好"。
      */
-    private bumpCombo(): number {
-        const now = Date.now();
-        const winMs = CFG.MOTION.COMBO_WINDOW * 1000;
-        const gap = now - this._comboAt;
-        this._combo = (gap <= winMs) ? this._combo + 1 : 1;
-        this._comboAt = now;
+    private finalizeClear(doomed: TileView[], m: MatchResult): void {
+        for (const v of doomed) v.destroy();
 
-        // 这条日志是**窗口值的数据来源**：连章窗口该设多少秒，
-        // 不能拍脑袋，得看真实节奏下两次消除到底隔多久。
-        // 命令行无头验证时看不到调试器，只能靠这行把它量出来。
-        // （首轮就是靠它发现 2.4s 的窗口对真实节奏而言太窄。）
-        if (CFG.DEBUG.LOG_STATE) {
-            const g = this._combo > 1 ? Math.round(gap) : -1;
-            log(`[GamePage] 消除节奏 距上次 ${g}ms → 层数 ${this._combo}（窗口 ${winMs}ms）`);
+        // 从槽数据里删掉（下标大的先删，避免删前面的之后后面全部错位）
+        const idx = m.indices.slice().sort((a, b) => b - a);
+        for (const i of idx) this._slots.splice(i, 1);
+
+        this._cleared += m.indices.length;
+        this._busy = false;
+
+        // C5 回补：剩余牌向左补齐空位
+        this.relayoutSlots();
+        this.refreshSlotWarn();
+        this.logPickable();
+        this.refreshHud();
+        this.refreshPropBar();
+
+        // 消完之后槽里可能还有能消的（连锁）—— 重新进 playClear，
+        // 于是连锁里出现的「吃」也会正确地走流水汇合动效。
+        const keys = this._slots.map((s) => s.key);
+        const again = findMatch(keys, this._level.gang, -1);
+        if (again) {
+            this.playClear(again);
+            return;
         }
-        return this._combo;
+
+        // 胜负判定
+        if (this.isBoardEmpty()) {
+            this.finish(true);
+        } else if (this._slots.length >= this._slotCapacity) {
+            this.finish(false, 'slotfull');
+        }
+    }
+
+    /**
+     * 「吃」的**流水汇合**（S7.5，2026-09-30 修正）。
+     *
+     * 【术语】「吃」= **顺子**（234条 / 456万）= MatchRule 里的 `chi`。
+     *        用户原话："连章是使用一个丝滑的动效来表示"
+     *        —— 此处用户说的「连章」就是指「吃」，本节照此实现。
+     *        ⚠️ 但「连章」另有定义 = **连击**（限时窗口内连续消除的计数），
+     *        本作不需要，那套机制已整体删除，与本节无关。
+     *
+     * 【时间轴】
+     *   t = 0              三张牌**依次**起步（错峰 FLOW_STAGGER = 70ms）
+     *   每张：sineInOut 柔顺滑向中心，耗时 FLOW_SLIDE = 300ms
+     *   全部到齐（≈ 440ms）后停 FLOW_HOLD = 50ms，把"汇成一处"看清
+     *   然后               一起轻微上浮 + 淡出（FLOW_LIFT / FLOW_FADE）
+     *
+     * 【与撞击互为反面 —— 这是"丝滑"的全部内容】
+     *   ① **没有蓄力** —— 蓄力是"攒势准备撞"，与"水流"的语义正好相反；
+     *   ② 全程 sineInOut：首尾速度为零，起步和停下都看不见棱角
+     *      （撞击用 quadIn，越冲越快，故意有棱角）；
+     *   ③ **没有挤压 / 冲击环 / 碎屑 / 牌堆上踢** ——
+     *      这些元素本身就携带"冲击"的语义，加上去就不丝滑了；
+     *   ④ 结束**不缩放**，只上浮 + 淡出（缩放是"炸开"的语言）。
+     *   音效同理：不用 peng（撞击）而用 flow（水流）。
+     *
+     * ★ 一句话：**丝滑是减出来的，不是加出来的。**
+     */
+    private playFlowClear(m: MatchResult): void {
+        const M = CFG.MOTION;
+        this._busy = true;
+
+        for (const i of m.indices) this._slots[i].view.setState('clear');
+
+        const doomed = m.indices.map((i) => this._slots[i].view);
+        const n = doomed.length;
+        const centerX = this.clashCenterX(m.indices);
+        const centerY = CFG.GAME_LAYOUT.SLOT_BAR_Y;
+        const span = this.slotWidth() * M.FLOW_OVERLAP;
+
+        // 依次汇入，**只有一段**（没有"蓄力 → 冲刺"的分解）——
+        // 那段分解里的急停，正是"撞击感"的来源。
+        for (let k = 0; k < n; k++) {
+            const v = doomed[k];
+            if (!v.node.isValid) continue;
+            const tx = centerX + (k - (n - 1) / 2) * span;
+            // ⚠️ `MotionFx.to` 的第二参是**属性表**（{position}），不是 chain 的 step
+            //    形状（{props, duration, easing}）。传错不会报"未知属性"，
+            //    而是每帧在引擎里抛 TypeError —— 详见 MotionFx.to 的 JSDoc。
+            MotionFx.to(v.node,
+                { position: v3(tx, centerY, 0) },
+                { duration: M.FLOW_SLIDE, easing: EASE.IDLE,
+                  tag: TAG.SLOT, delay: k * M.FLOW_STAGGER });
+        }
+
+        // 音效在**第一张起步时**就响，让它覆盖整段滑行。
+        // 若等汇齐才响，听起来就是"撞上了"—— 又变回碰的听感。
+        AudioService.play('flow');
+
+        // 震动仍是中档：它表达的是"你消成了"，与视觉的软硬无关。
+        // （想让"吃"更轻，把这里换成 Haptics.light() 即可，一行的事。）
+        Haptics.medium();
+
+        const allIn = M.FLOW_SLIDE + Math.max(0, n - 1) * M.FLOW_STAGGER;
+        setTimeout(() => {
+            if (!this.node.isValid) return;
+            this.releaseFlow(doomed, m, centerY);
+        }, MotionFx.unlockMs(allIn + M.FLOW_HOLD));
+    }
+
+    /**
+     * 流水汇合的收束：三张一起**轻微上浮 + 淡出**（全程不缩放），
+     * 然后交给 finalizeClear 做数据收尾。
+     *
+     * 【为什么上浮而不是原地淡出】
+     * 纯原地淡出看起来像"被删掉了"（程序感）；上浮 22px 给出方向，
+     * 才像"水流走了"。方向感是"流水"这个意象的必要组成部分。
+     */
+    private releaseFlow(doomed: TileView[], m: MatchResult, centerY: number): void {
+        const M = CFG.MOTION;
+
+        for (const v of doomed) {
+            if (!v.node.isValid) continue;
+            MotionFx.to(v.node,
+                { position: v3(v.node.position.x, centerY + M.FLOW_LIFT, 0) },
+                { duration: M.FLOW_FADE, easing: EASE.IDLE, tag: TAG.SLOT });
+            MotionFx.fade(v.node, 0, M.FLOW_FADE, { easing: EASE.IDLE, tag: TAG.FADE });
+        }
+
+        setTimeout(() => {
+            if (!this.node.isValid) return;
+            this.finalizeClear(doomed, m);
+        }, MotionFx.unlockMs(M.FLOW_FADE));
     }
 
     /** 本次要撞的那几张牌的中心 x（槽位层局部坐标） */
@@ -1799,94 +1886,6 @@ export class GamePage extends PageBase {
             { props: { position: v3(0, 0, 0) },
               duration: M.CLASH_KICK_DOWN, easing: EASE.POP },
             { tag: TAG.KICK });
-    }
-
-    /**
-     * 连章（连续消除）的「丝滑动效」（S7.5）。
-     *
-     * 【用户原话】"连章是使用一个丝滑的动效来表示"
-     *
-     * 【"丝滑"在动效语言里到底是三件什么事】
-     *   ① **够长** —— 0.46 / 0.92 秒，短了就是"闪"，长了才是"流"；
-     *   ② **首尾速度为零的曲线** —— 全程 EASE.IDLE（sineInOut），
-     *      起步不突兀、收尾不急刹；
-     *   ③ **无抖动、无闪烁** —— 不做任何"强调式"的顿挫。
-     * 这三点合起来与"碰"的 0.2 秒硬冲击形成鲜明对比：
-     * 一个是爆发，一个是流动。两者能并存而不打架，正是因为**时间尺度分了层**。
-     *
-     * 【三个元素的分工】
-     *   ① 流光带：一条金色光带横扫槽位条 —— "能量在槽位之间流动"的具象；
-     *   ② 连章文字：「连章 ×N」在槽位上方浮升 —— 把层数这件事说清楚；
-     *   ③ 音调递增：层数越高音越高（playbackRate 变速，一套素材覆盖任意层数）。
-     */
-    private playCombo(layer: number): void {
-        const M = CFG.MOTION;
-        const L = CFG.GAME_LAYOUT;
-        if (!this._fxLayer || !this._fxLayer.isValid) return;
-
-        // ③ 音效（层数越高音越高；层数无上限，靠变速而不是靠多份素材）
-        AudioService.playCombo(layer);
-
-        // ---------- ① 流光带 ----------
-        const bandY = L.SLOT_BAR_Y + M.COMBO_SWEEP_H * 0.2;
-        const band = createNode('ComboSweep', this._fxLayer, {
-            w: M.COMBO_SWEEP_W, h: M.COMBO_SWEEP_H, x: M.COMBO_SWEEP_FROM, y: bandY,
-        });
-        const bg = band.addComponent(Graphics);
-        // 两层同心光带：外层大而淡、内层窄而亮。
-        // 只画一层的话，边缘是硬切的矩形，看着像"一块色板滑过去"；
-        // 叠一层窄的之后才有"光心"，那才像流光。
-        fillBox(bg, 0, 0, M.COMBO_SWEEP_W, M.COMBO_SWEEP_H,
-            CFG.SHAPE.RADIUS_SLOT + 6, CFG.COLOR.GOLD);
-        fillBox(bg, 0, 0, M.COMBO_SWEEP_W * 0.32, M.COMBO_SWEEP_H * 1.06,
-            CFG.SHAPE.RADIUS_SLOT + 8, CFG.COLOR.PAPER);
-
-        MotionFx.setFade(band, 0);
-        // 横移用 sineInOut：起步与收尾速度为零 —— 这就是"丝滑"的来源。
-        MotionFx.to(band, { position: v3(M.COMBO_SWEEP_TO, bandY, 0) },
-            { duration: M.COMBO_SWEEP, easing: EASE.IDLE, tag: TAG.FX });
-        MotionFx.fadeChain(band, [
-            { to: M.COMBO_SWEEP_ALPHA, duration: M.COMBO_SWEEP * 0.34, easing: EASE.IDLE },
-            { to: 0, duration: M.COMBO_SWEEP * 0.66, easing: EASE.IDLE },
-        ], { tag: TAG.FADE });
-        // 一次性装饰节点，到期销毁。清理走 setTimeout 而不是 tween 回调 ——
-        // 回调丢了这里只是漏一个空节点，但一旦两种清理风格并存，后来的人一定会抄错。
-        setTimeout(() => { if (band.isValid) band.destroy(); },
-            MotionFx.unlockMs(M.COMBO_SWEEP + 0.05));
-
-        // ---------- ② 连章文字 ----------
-        const label = createLabel(this._fxLayer, `连章 ×${layer}`, {
-            y: L.SLOT_BAR_Y + 210,
-            fontSize: CFG.FONT.SIZE_H2 + 12,
-            color: CFG.COLOR.GOLD,
-            bold: true,
-            serif: true,
-            outline: CFG.COLOR.INK,
-            outlineWidth: 5,
-        });
-        const node = label.node;
-        const y0 = node.position.y;
-        MotionFx.setFade(node, 0);
-        node.setScale(v3(0.86, 0.86, 1));
-
-        // 上浮 + 缩放：全部 sineInOut，两段之间速度都为零，接起来没有顿点。
-        // （这也是它和 C6 飘字用 backOut 的区别：飘字是"被弹出去"，连章是"浮起来"。）
-        MotionFx.chain(node, [
-            { props: { position: v3(0, y0 + M.COMBO_RISE * 0.55, 0), scale: v3(1.06, 1.06, 1) },
-              duration: M.COMBO_DURATION * 0.45, easing: EASE.IDLE },
-            { props: { position: v3(0, y0 + M.COMBO_RISE, 0), scale: v3(1, 1, 1) },
-              duration: M.COMBO_DURATION * 0.55, easing: EASE.IDLE },
-        ], { delay: M.COMBO_DELAY, tag: TAG.FX });
-        MotionFx.fadeChain(node, [
-            { to: 255, duration: M.COMBO_DURATION * 0.24, easing: EASE.ENTER },
-            { to: 255, duration: M.COMBO_DURATION * 0.36 },
-            { to: 0, duration: M.COMBO_DURATION * 0.40, easing: EASE.EXIT },
-        ], { delay: M.COMBO_DELAY, tag: TAG.FADE });
-
-        setTimeout(() => { if (node.isValid) node.destroy(); },
-            MotionFx.unlockMs(M.COMBO_DELAY + M.COMBO_DURATION));
-
-        log(`[GamePage] 连章 ×${layer}`);
     }
 
     /** C3 在某个槽内牌处喷一小圈碎屑（位置取牌的**当前视觉位置**，换算到特效层） */

@@ -9,10 +9,18 @@
  *  ------------------------------------------------------------
  *  【设计要点：为什么是"声道池"而不是 playOneShot】
  *  Cocos 的 AudioSource 有个很省事的 `playOneShot(clip, volume)`，
- *  一个组件就能并发播多个音效。但它**改不了 playbackRate**，
- *  而连章需要"层数越高音调越高"的变速播放（CFG.AUDIO.COMBO_RATE_STEP）。
- *  为了不让连章单独走一套特殊链路，这里统一用声道池 ——
- *  每条声道是一个独立的 AudioSource，谁空闲谁播。
+ *  一个组件就能并发播多个音效，但它给不了**抢占**：
+ *  声道池可以明确地"先 stop 掉最老的那条、再播新的"，
+ *  保证玩家当下这一下**永远有声音**（宁可掐掉一条音效尾巴，
+ *  也不许点击没有反馈）。
+ *
+ *  ⚠️ 这个设计的**原始理由已经失效**（留在这里避免后人误解）：
+ *  初版是为了「连章」需要"层数越高音调越高"的变速播放，当时以为必须
+ *  绕开 playOneShot 的 playbackRate 限制才这么写。
+ *
+ *  **【术语】「连章」= 连击**（限时窗口内连续消除的计数）——它和「吃（顺子）」
+ *  是两回事，本作**不需要连击**，那套机制已整体删除。
+ *  声道池本身的价值（抢占 + 统一的静音/加载管理）与它无关，故保留。
  *
  *  ------------------------------------------------------------
  *  【设计要点：加载未完成时"静默跳过"，绝不补播】
@@ -36,13 +44,13 @@ import { CFG } from '../CFG';
 /** 全部音效 id。与 tools/make-sfx.py 的 SFX 字典一一对应 */
 export type SfxId =
     | 'tap' | 'pick' | 'land' | 'reject'
-    | 'peng' | 'clear' | 'combo' | 'combo2' | 'combo3' | 'combo4'
+    | 'peng' | 'clear' | 'flow'
     | 'shuffle' | 'reward' | 'fail' | 'revive' | 'addslot' | 'win';
 
 /** 与资源目录一致的清单（顺序无关，只用于遍历加载） */
 const ALL_SFX: SfxId[] = [
     'tap', 'pick', 'land', 'reject',
-    'peng', 'clear', 'combo', 'combo2', 'combo3', 'combo4',
+    'peng', 'clear', 'flow',
     'shuffle', 'reward', 'fail', 'revive', 'addslot', 'win',
 ];
 
@@ -156,28 +164,6 @@ export class AudioService {
         src.clip = clip;
         src.volume = Math.max(0, Math.min(1, CFG.AUDIO.MASTER * perGain * (opts.gain ?? 1)));
         src.play();
-    }
-
-    /**
-     * 连章音效：层数越高音调越高。
-     *
-     * 【为什么是"选文件"而不是"运行时变速"】
-     * Cocos Creator 3.8 的 AudioSource **没有** playbackRate
-     * （2.x 有，3.x 重写音频系统时移除了；cc.d.ts 里逐成员确认过）。
-     * 所以音高必须在**合成阶段**就做出来 —— make-sfx.py 预生成 4 档音高
-     * （根音 / 大三度 / 五度 / 八度），这里按层数选一档。
-     *
-     * 层数从 1 开始计（第 1 次消除 = 1 层），第 2 层才算"连章"：
-     *   第 2 层 → combo（基准音）
-     *   第 3 层 → combo2
-     *   第 4 层 → combo3
-     *   第 5 层及以后 → combo4（沿用最高音 —— 继续升高只会尖到刺耳）
-     */
-    public static playCombo(layer: number): void {
-        const steps = Math.max(1, CFG.AUDIO.COMBO_PITCH_STEPS);
-        const idx = Math.max(0, Math.min(steps - 1, layer - 2));
-        const id = (idx === 0 ? 'combo' : `combo${idx + 1}`) as SfxId;
-        this.play(id);
     }
 
     /**
