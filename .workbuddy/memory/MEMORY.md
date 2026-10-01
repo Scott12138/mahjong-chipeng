@@ -602,6 +602,8 @@ L2 显示「36 张 · **4 层** · 300 秒」，而 v3.1 多层堆叠算出来�
 ### ★ S12.2 落进游戏源码（2026-10-01 夜；用户三条指令：「1、音效选香妹·可爱；2、手感档位选择新版；3、开始写入代码」）
 
 **⚠️ 与 S12/S12.1 的分水岭：本轮是「真改游戏源码」，不再是零改动出 demo。** 改动留在工作区，**未 commit / 未 push**（HEAD 仍 `fb0bfec`）。
+> 📌 **后续更新（2026-10-01 晚）**：S12.2 起的这批改动已随 S14 一并提交并推送（`fb0bfec → 8bb81bf`），
+> 见下文「S14 › 状态」。本行"未 push"只是当时的状态快照。
 
 #### 1) 音效入库（可复现通道，别再手工复制文件）
 - 在 `tools/make-voice.py` 新增 **§六「入库」** + CLI `--install`（**消费 `out/v2` 已通过声学自检的产物，不重新生成**）。
@@ -895,7 +897,24 @@ wechatgame release 实测：**cocos-js 2.26 → 1.79MB；包体 3.30 → 2.84MB�
 ### 状态
 探针已从游戏代码**撤回**（`assets/scripts/probe/` 已删，`Bootstrap.ts` 改动已还原），`tscheck` ✅。
 `engine.json` **保留裁剪**，`3d`/`physics` 均关。`build/wechatgame` 是探针实验产物，**出码前必须重构建**。
-源码仍未 commit / 未 push（HEAD `fb0bfec`）。
+
+**✅ 已提交并推送（2026-10-01 晚，用户明确要求"保存并推送"）**
+`fb0bfec → 8bb81bf`，`origin/main` 已同步（仓库 `git@github.com:Scott12138/mahjong-chipeng.git`）。
+三个提交（一并把积压的 S12/S12.1/S13 工作区改动全清了）：
+| 哈希 | 内容 |
+|---|---|
+| `092d7f7` | chore(tools)：`tools/wechat-preview.sh` + `game-4-mahjong/tools/{make-bgm,make-voice,install-voice-lib,build-s12-demo}.py` + .gitignore 补充 |
+| `b600d3f` | feat(game-4)：S12–S14 音效/动效 + 立体厚牌 + 真分层（16 个文件，含 audio/*.m4a 与 settings/*.json） |
+| `8bb81bf` | docs(game-4)：S12–S14 验证归档 + S12 方案 + 记忆（38 个文件） |
+
+`.gitignore` 新增（**以后再提交不会再冒出来**）：
+- `**/__pycache__/`
+- `docs/demo/*.html`（成品）+ `!docs/demo/*.src.html`（源）—— S12 单文件预览页是 base64 内联音频的**生成物**，重建：`python3 game-4-mahjong/tools/build-s12-demo.py`
+- `docs/verify/*/bgm/BGM候选-试听.html` —— 同理由 `tools/make-bgm.py --audition` 重建
+
+⚠️ **`docs/verify/**/*.log` 按仓库既有约定（`.gitignore` 的 `*.log`）不入库** ——
+S1/S7/S10/S11/S13/S14 的探针日志全部从未跟踪，需重跑探针重建，别以为是丢了。
+⚠️ `docs/demo/S12-游戏侧改动.patch` 是 10-01 13:18 快照，**已过期**，只作追溯。
 
 ---
 
