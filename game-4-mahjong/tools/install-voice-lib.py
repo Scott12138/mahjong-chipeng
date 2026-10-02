@@ -1,6 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+⛔⛔⛔ 【本脚本已于 2026-10-01（S18 决议 5）**停用**，默认拒绝执行】⛔⛔⛔
+
+  为什么停用：它入库的 2 段是**人声念白**（念「碰」「吃」），
+  这两个词是**棋牌术语**，与"微信个人主体 + 休闲益智类目、游戏内零棋牌语义"
+  这条硬约束直接冲突（见 `assets/scripts/core/MatchRule.ts` 头注释、DESIGN §10）。
+  替代方案已就位：`assets/resources/audio/clash.m4a` / `swish.m4a`，
+  由 `tools/make-sfx.py` 生成，**全部是非语义的合成音**。
+  ⇒ 现在全工程**不存在任何"人声"类音源**，音频链路只有 make-sfx.py 一条。
+
+  ⚠️ 为什么保留脚本而不是删掉：
+  ① 它是"当初那两段人声是怎么来的"的唯一记录（含外部素材的位置与出处），
+     而上架前需要说清"哪些素材是外部的"——留着这段历史比删掉更有用；
+  ② 万一将来拿到**已授权的**语音素材，这份电平归一 / 容器时间清零 / 不重写 .meta
+     的流程可以原样复用。
+
+  ⚠️ 真要用它（例如替某段音效做 A/B），必须**显式**加 `--i-know-this-reinstates-human-voice`：
+     这是刻意设的一道闸 —— 因为"重新引入人声"是**合规决策**，不该由一条命令顺手完成。
+     顺便：它入库的两个文件名 `peng.m4a` / `eat.m4a` 对应的 id **已从
+     `AudioService.SfxId` 里移除**，所以入库后游戏**不会加载**它们 ——
+     这是"文件悄悄躺在资产目录里、以为它在生效"的典型陷阱。
+
+  ============================================================================
+  以下为原始说明（保留原文，它讲的电平 / 容器时间 / .meta 三条经验仍然有效）
+  ============================================================================
 把「外部棋牌语音库」的 mp3 落进游戏音效目录（macOS 专用，无 ffmpeg 依赖）。
 
 ================================================================================
@@ -39,7 +63,34 @@ import subprocess
 import sys
 import wave
 
-import numpy as np
+# ============================================================================
+#  ★ S18 决议 5 的一道闸（放在**任何第三方 import 之前**）
+# ============================================================================
+#  为什么位置这么靠前：本脚本依赖 numpy，而 numpy 只装在工程专用 venv 里。
+#  如果用系统 python3 跑，会在 import 那一行就抛 ModuleNotFoundError ——
+#  **闸门根本来不及说话**，运行的人只会看到一条"缺包"的报错，
+#  然后去装 numpy，然后真的把人声灌回来。
+#  所以先拦、再 import。
+UNLOCK_FLAG = '--i-know-this-reinstates-human-voice'
+if UNLOCK_FLAG not in sys.argv:
+    print('=' * 76)
+    print('  ⛔ 本脚本已停用（S18 决议 5，2026-10-01）')
+    print('=' * 76)
+    print('  它入库的是**人声念白**（「碰」「吃」）—— 那是棋牌术语，')
+    print('  与"微信个人主体 + 休闲益智类目、游戏内零棋牌语义"的硬约束冲突。')
+    print()
+    print('  替代方案（已就位，无需任何操作）：')
+    print('    · assets/resources/audio/clash.m4a   撞击（非语义合成音）')
+    print('    · assets/resources/audio/swish.m4a   连号消除的纸木「唰」')
+    print('    · 生成命令：python3 tools/make-sfx.py')
+    print()
+    print('  另外：peng / eat 两个 id 已从 AudioService.SfxId 移除，')
+    print('        所以即使强行入库，游戏也**不会加载**这两个文件。')
+    print()
+    print(f'  确实要用（例如替某段音效做 A/B），加参数：{UNLOCK_FLAG}')
+    sys.exit(2)
+
+import numpy as np      # noqa: E402  （必须晚于上面的闸门，见注释）
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GAME_AUDIO = os.path.abspath(os.path.join(HERE, '..', 'assets', 'resources', 'audio'))
@@ -141,6 +192,10 @@ def write_wav16(path: str, x: np.ndarray, sr: int) -> None:
 
 def main() -> int:
     dry = '--dry' in sys.argv
+
+    # ★ 停用闸在模块顶部（import 之前）—— 那里已经拦过一道，
+    #   走到这里说明调用方显式带了 UNLOCK_FLAG。这里**不再重复检查**，
+    #   否则会出现"两处闸、改一处忘一处"的经典问题。
     if not os.path.isdir(GAME_AUDIO):
         print(f'✗ 找不到游戏音频目录：{GAME_AUDIO}')
         return 1

@@ -55,16 +55,32 @@
  *               而 L2 是刻意设计的"第一堵墙"（可解通过率仅 12%），
  *               auto 大概率会输 —— 没有 unlock，每次验证都得赌一次通关。
  *               有了它就能稳定跳到任意一关（仅对 web-desktop 有效）。
- *  例：
- *    node tools/web-smoke.mjs http://127.0.0.1:8123/index.html /tmp/smoke d:0,-118 d:0,275 auto:18
- *    node tools/web-smoke.mjs http://127.0.0.1:8123/index.html /tmp/fail d:0,-118 d:0,275 auto:40 d:0,85 dirty:24
- *    （抓入场动画的连续五帧）
- *    node tools/web-smoke.mjs … d:0,-118 d:0,275@150 wait:200 wait:200 wait:250 wait:400 auto:60
- *    （跳到 L3 专门抓「吃」的流水汇合中间帧）
- *    node tools/web-smoke.mjs … unlock:3 d:0,-118 d:0,-105 'dirty:24@700!150,300,450,700'
- *    （塞满槽位 → 看广告复活：填槽后点「复活」→「看广告」→「跳过」）
- *    node tools/web-smoke.mjs … unlock:0 d:0,-118 d:0,275 wait:1400 fill:8 wait:1500 \
- *      d:0,60 wait:1600 d:0,112 wait:2600 d:0,-96 wait:2600
+ *  ⚠️ **auto / dirty / fill 的节奏默认值**（S19 补记）：
+ *     不写 `@<ms>` 时用的是各自的默认节奏（auto/dirty 800ms、fill 620ms）。
+ *     早期版本这里有个静默 bug —— 没写 `@` 时间隔会被算成 **0ms**，脚本会在
+ *     "状态还没落库"时就读同一份日志，于是**连着两步点同一个坐标**，
+ *     表现为"填到一半就卡住、不报错"（见 auto/dirty/fill 解析处的注释）。
+ *     现在已修；但**动效验收仍然建议显式写 `@600~800`**，把节奏钉死。
+ *
+ *  例（坐标全部为 **S19 重排版后的设计坐标**）：
+ *    # 首页 → 进游戏 → 自动试玩（首页主按钮在 (−66,−292)）
+ *    node tools/web-smoke.mjs http://127.0.0.1:8123/index.html /tmp/smoke d:-66,-292 wait:2600 'auto:30@620'
+ *
+ *    # 通关：让 auto 打穿 L1；burst 会在**每次消除**后连拍，
+ *    # 通关那一下的「朱砂印砸落 + 440×168 两行结算面板」就在最后一组 clash 帧里
+ *    node tools/web-smoke.mjs … unlock:0 d:-66,-292 wait:2800 'auto:40@620!0,120,300,700,1400,2200'
+ *
+ *    # 失败：安全填满槽位 → 揉纸 + 溅墨 + 504×420 面板
+ *    #   ⚠️ gap 必须显式给（@700），否则旧版会 0ms 重复点
+ *    node tools/web-smoke.mjs … unlock:0 d:-66,-292 wait:2800 'fill:8@700!0,150,400,800,1200'
+ *
+ *    # 复活链路：填满 → 「看广告复活」(0,12) → 渠道「看广告」(0,112) → 「跳过」(0,−96)
+ *    node tools/web-smoke.mjs … unlock:0 d:-66,-292 wait:2800 fill:8@700 wait:1200 \
+ *      d:0,12 wait:1800 d:0,112 wait:1800 d:0,-96
+ *
+ *    # 规则浮层：局内顶条的「规则」钮是**弹性三段**算出来的，
+ *    #   第 1 关实测中心 ≈ (95, 499)；换关卡名后会左右移动，先截图量一下再点
+ *    node tools/web-smoke.mjs … d:-66,-292 wait:2600 d:95,499
  *
  *  【产出】
  *    00-before.png / 01-click-*.png / console.log / metrics.json
@@ -106,7 +122,12 @@ const ACTIONS = process.argv.slice(4).map((s) => {
         const [nPart, rest] = s.slice(4).replace(/^:/, '').split('@');
         const [gapPart, burstPart] = (rest ?? '').split('!');
         const n = Number(nPart);
-        const gap = Number(gapPart);
+        // ⚠️ 这里**不能**直接 `Number(gapPart)`：没写 `@gap` 时 gapPart 是空串，
+        //    而 `Number('') === 0` —— 于是"默认 620/800ms 的节奏"会被静默改成 0ms。
+        //    实测后果（2026-10-02 S19）：`fill:8` 每一步都在**状态还没落库**时
+        //    就读日志，于是连续两步点到同一个坐标上，点不动的那一张被重复点、
+        //    槽永远停在 5/8，而且不报错。所以空串必须当作"没给"来处理。
+        const gap = (gapPart ?? '').trim() === '' ? NaN : Number(gapPart);
         const burst = (burstPart ?? '')
             .split(',')
             .filter((t) => t.trim() !== '')        // ⚠️ 必须先滤空串：Number('') === 0，
@@ -128,7 +149,12 @@ const ACTIONS = process.argv.slice(4).map((s) => {
         const [nPart, rest] = s.slice(5).replace(/^:/, '').split('@');
         const [gapPart, burstPart] = (rest ?? '').split('!');
         const n = Number(nPart);
-        const gap = Number(gapPart);
+        // ⚠️ 这里**不能**直接 `Number(gapPart)`：没写 `@gap` 时 gapPart 是空串，
+        //    而 `Number('') === 0` —— 于是"默认 620/800ms 的节奏"会被静默改成 0ms。
+        //    实测后果（2026-10-02 S19）：`fill:8` 每一步都在**状态还没落库**时
+        //    就读日志，于是连续两步点到同一个坐标上，点不动的那一张被重复点、
+        //    槽永远停在 5/8，而且不报错。所以空串必须当作"没给"来处理。
+        const gap = (gapPart ?? '').trim() === '' ? NaN : Number(gapPart);
         const burst = (burstPart ?? '')
             .split(',')
             .filter((t) => t.trim() !== '')
@@ -142,7 +168,8 @@ const ACTIONS = process.argv.slice(4).map((s) => {
             label: s.replace(/[:.@!,\-]/g, '_'),
         };
     }
-    // fill:<n> / fill:<n>@<gapMs> —— **安全地把槽塞满**（专为逼出「槽满判负」）
+    // fill:<n> / fill:<n>@<gapMs> / fill:<n>@<gapMs>!<ms,ms,...>
+    //  **安全地把槽塞满**（专为逼出「槽满判负」）
     //
     //  【为什么不能拿 dirty 代替 —— 一个很隐蔽的区别】
     //  dirty 只避开"同一牌面槽内已有 2 张"，它**允许撞上「吃」**（这正是它能抓
@@ -150,15 +177,34 @@ const ACTIONS = process.argv.slice(4).map((s) => {
     //  **槽位永远到不了 8 张**，也就永远逼不出「槽满判负 + 复活」这条路径。
     //  fill 把"这一步会不会消"完整预判一遍（碰 / 杠 / 吃都算），只点不会引发
     //  消除的牌，才能真的把 8 格填满。
+    //
+    //  ⚠️ 即便有预判，只要**节奏**变成 0ms 它照样填不满：脚本会读到没刷新的日志、
+    //     把同一张牌点两次（剩下的那张永远点不到）。所以 `@<gapMs>` 别省。
+    //
+    //  `!` 连拍（S18 追加）：只在**把槽填满的那一下**（＝判负的那一下）之后
+    //  按偏移连拍。加它的理由与 auto 的撞击连拍完全一样 ——
+    //  失败揉皱只有 1140ms，不连拍就只能看到"已经皱完了"的末态，
+    //  中间那段"纸抖起来 → 溅墨 → 面板推入"一张都留不下。
     if (s.startsWith('fill')) {
         const [nPart, rest] = s.slice(4).replace(/^:/, '').split('@');
+        const [gapPart, burstPart] = (rest ?? '').split('!');
         const n = Number(nPart);
-        const gap = Number(rest);
+        // ⚠️ 这里**不能**直接 `Number(gapPart)`：没写 `@gap` 时 gapPart 是空串，
+        //    而 `Number('') === 0` —— 于是"默认 620/800ms 的节奏"会被静默改成 0ms。
+        //    实测后果（2026-10-02 S19）：`fill:8` 每一步都在**状态还没落库**时
+        //    就读日志，于是连续两步点到同一个坐标上，点不动的那一张被重复点、
+        //    槽永远停在 5/8，而且不报错。所以空串必须当作"没给"来处理。
+        const gap = (gapPart ?? '').trim() === '' ? NaN : Number(gapPart);
+        const burst = (burstPart ?? '')
+            .split(',')
+            .filter((t) => t.trim() !== '')
+            .map(Number)
+            .filter(Number.isFinite);
         return {
             kind: 'fill',
             steps: Number.isFinite(n) ? n : 8,
             gap: Number.isFinite(gap) ? gap : 620,
-            burst: [],
+            burst,
             label: s.replace(/[:.@!,\-]/g, '_'),
         };
     }
@@ -189,7 +235,7 @@ const ACTIONS = process.argv.slice(4).map((s) => {
     // 可选后缀 `@<毫秒>`：覆盖"点击后等多久才截图"。
     // 默认 1600ms，那是"等页面/动画彻底稳定"的保守值；
     // 但**动效验收需要看动效中间的那一帧** —— 等 1.6 秒什么都播完了。
-    //   例：d:0,275@180  → 进关后 180ms 截图（逐张飞入的早期）
+    //   例：d:0,275@180  → 进关后 180ms 截图（牌堆涌现的早期）
     //       d:0,275@700  → 同一次操作，700ms 时再看一帧
     let body = s;
     let delay = 1600;
@@ -566,9 +612,17 @@ function wouldMatch(slotKeys, key) {
  * 优先挑"槽内该牌面张数最少"的（保证分布均匀、能填得更满）。
  * 一张都挑不出时立即结束 —— 那说明这局的牌面组合已经不允许再塞了
  * （比如只剩两种牌面、各自再点一张就会凑成 3 张）。
+ *
+ * `burst`：只在**填满的那一下**（判负触发点）之后按偏移连拍，
+ * 用来抓 S18 的「纸被揉皱 + 溅墨」（总长 1140ms）。
  */
-async function fillPlay(cdp, cx, cy, steps, outDir, shotIndex, gapMs = 620) {
+async function fillPlay(cdp, cx, cy, steps, outDir, shotIndex, gapMs = 620, burst = []) {
+    // 搅牌配额：最多主动消几组来把牌堆搅开（见循环里"兜底：搅牌"那段）
+    const SAC_MAX = 4;
     let clicked = 0;
+    let sacs = 0;
+    console.log(`    节奏：每步间隔 ${gapMs}ms`);
+    if (burst.length) console.log(`    判负帧连拍：填满那一下之后 +[${burst.join(', ')}]ms 各截一张`);
     for (let s = 0; s < steps; s++) {
         const line = latestPickableLine(cdp);
         const list = parsePickable(line);
@@ -580,23 +634,70 @@ async function fillPlay(cdp, cx, cy, steps, outDir, shotIndex, gapMs = 620) {
         const slotCnt = new Map();
         for (const k of slotKeys) slotCnt.set(k, (slotCnt.get(k) || 0) + 1);
 
-        // 先按"槽内已有张数"升序，再取第一张安全的
+        // 这一下会不会把槽填满（＝判负触发点）
+        const capM = line && line.match(/槽=\d+\/(\d+)/);
+        const cap = capM ? Number(capM[1]) : 8;
+
+        // 先按"槽内已有张数"升序，再取第一张安全的（点下去**不会**凑成组）
         const sorted = list.slice().sort(
             (a, b) => (slotCnt.get(a.key) || 0) - (slotCnt.get(b.key) || 0),
         );
-        const safe = sorted.find((t) => !wouldMatch(slotKeys, t.key));
-        if (!safe) {
-            console.log('    （剩下的牌一点就会消，槽无法再填，结束）');
+        let pick = sorted.find((t) => !wouldMatch(slotKeys, t.key));
+        let sacrifice = false;
+
+        if (!pick) {
+            // ---- 兜底：主动点一张"会凑成组"的牌，把牌堆搅开 ----
+            //
+            // 【为什么必须有这一步 —— L2/L3/L4 实测都卡在这里】
+            // 叠塔结构会把**同一种牌面挤在一起**先露出来（实测 L4 开局
+            // 可点 5 张里 4 张都是 `sou-6`），此时"凑 8 张互不成型的牌"
+            // **根本无解** —— 填到 7 张就只剩会消的牌，`fill` 只能停。
+            // 而游戏判定顺序是「入槽 → 先判消 → 没消成才判槽满」
+            //（`GamePage.finish` 的调用点），所以"点一张会消的"**不会**判负，
+            // 只会消掉 3 张、把牌堆搅开，露出新的可点牌 —— 池子才可能变多样。
+            //
+            // 约束：允许这一下把槽"顶到" cap（`<= cap`），因为游戏是
+            // **先判消、再判槽满**，会消的牌入槽后槽立刻降回去，不会判负。
+            // 万一 `wouldMatch` 预判与游戏不一致、这一下真的把槽填满了 ——
+            // 那正好就是我们要的判负，同样不算亏。
+            if (sacs < SAC_MAX && slotKeys.length + 1 <= cap) {
+                pick = list.find((t) => wouldMatch(slotKeys, t.key));
+                sacrifice = !!pick;
+            }
+        }
+
+        if (!pick) {
+            console.log('    （剩下的牌一点就会消，且已用完搅牌配额，结束）');
             break;
         }
 
-        const sx = Math.round(cx + safe.x);
-        const sy = Math.round(cy - safe.y);
-        console.log(`    [${s + 1}] 填槽 ${safe.key}（槽内已有 ${slotCnt.get(safe.key) || 0} 张，`
-            + `当前槽 ${slotKeys.length} 张）@设计(${safe.x}, ${safe.y})`);
+        // sacrifice 时点是"会消的"，入槽后先走消除分支 → 不会判负
+        const willLose = !sacrifice && slotKeys.length + 1 >= cap;
+
+        const sx = Math.round(cx + pick.x);
+        const sy = Math.round(cy - pick.y);
+        console.log(`    [${s + 1}] ${sacrifice ? '搅牌' : '填槽'} ${pick.key}`
+            + `（槽内已有 ${slotCnt.get(pick.key) || 0} 张，当前槽 ${slotKeys.length} 张）`
+            + `@设计(${pick.x}, ${pick.y})`
+            + (willLose ? '  ← 预计填满判负' : ''));
+        if (sacrifice) sacs++;
         const seq0 = pickableSeq(cdp);
         await cdp.clickAt(sx, sy);
         clicked++;
+
+        if (willLose && burst.length) {
+            // 这一步点下去槽必满 → 游戏立即进结算，后面的 waitNewPickable / 再点
+            // 都拿的是过期日志，会重复点同一张牌（还可能误触结算面板的按钮）。
+            // 所以连拍完成后**直接收尾**，跳到函数末尾统一等面板。
+            let t = 0;
+            for (const off of burst) {
+                await sleep(Math.max(0, off - t));
+                t = off;
+                const p = await cdp.shot(`${String(shotIndex).padStart(2, '0')}-loss-${off}ms`);
+                console.log(`       判负 ${off}ms → ${p}`);
+            }
+            break;
+        }
         await waitNewPickable(cdp, seq0, 1400);
         await sleep(gapMs);
     }
@@ -722,6 +823,17 @@ try {
     await cdp.send('Page.enable');
     await cdp.send('Runtime.enable');
     await cdp.send('Log.enable');
+    // ---- 关掉 HTTP 缓存（2026-10-02 S19 踩）----
+    //  【为什么必须关】Chrome 的 profile 是 `--user-data-dir=/tmp/cocos-cdp-profile`，
+    //  **跨构建持久存在**。Cocos 每次构建会重排资源的 uuid → import 目录文件名变了；
+    //  而浏览器手里还攥着上一版的 `assets/*/config.json`（服务端回 304），
+    //  于是引擎按旧 config 去要一个**新构建里已不存在**的 `import/xx/xxxx.json`。
+    //  现象：服务端日志刷一片 `404 File not found`、游戏停在启动页、
+    //  `console.log` 里**一行业务日志都没有** —— 看起来像"构建坏了"，
+    //  其实只是缓存串了版本。清 profile 能修，但每次改完代码都要记得清一次，
+    //  迟早会忘；从根上禁掉缓存更省事。
+    await cdp.send('Network.enable');
+    await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
 
     // ---- 锁定竖屏视口 ----
     await cdp.send('Emulation.setDeviceMetricsOverride', {
@@ -750,7 +862,7 @@ try {
             }
         })();`,
     });
-    await cdp.send('Page.reload', { ignoreCache: false });
+    await cdp.send('Page.reload', { ignoreCache: true });
 
     /**
      * 重载 → 等引擎起来 → 读回"视口/画布/引擎可见尺寸"并校验。
@@ -823,7 +935,7 @@ try {
             await cdp.evaluate(
                 `localStorage.setItem(${JSON.stringify(SAVE_KEY)}, ${JSON.stringify(JSON.stringify(save))}); true`);
             console.log(`==> 直写存档：标记第 1..${a.upTo} 关已通关，然后重载页面`);
-            await cdp.send('Page.reload', { ignoreCache: false });
+            await cdp.send('Page.reload', { ignoreCache: true });
             const mm = await bootAndCheck('unlock 后重载');
             cx = mm.canvas.left + mm.canvas.cssW / 2;
             cy = mm.canvas.top + mm.canvas.cssH / 2;
@@ -847,7 +959,7 @@ try {
         if (a.kind === 'fill') {
             console.log(`==> 安全填槽 ${a.steps} 步（负向测试：**必定**逼出槽位满的败局，`
                 + `专门用于验证「看广告复活」）`);
-            await fillPlay(cdp, cx, cy, a.steps, OUT_DIR, i, a.gap);
+            await fillPlay(cdp, cx, cy, a.steps, OUT_DIR, i, a.gap, a.burst);
             i++;
             continue;
         }
