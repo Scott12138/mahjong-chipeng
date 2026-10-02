@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>《麻麻大消除》界面改版 · 方案 C · 夜光牌局</title>
+<style>
+  :root {
+    --paper: #F5F3EF;
+    --ink: #1F1D1A;
+    --ink-2: #5C574F;
+    --ink-3: #8C857A;
+    --line: #DED8CD;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 28px 64px; }
+
+  header.top { border-bottom: 1px solid var(--line); padding-bottom: 24px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .18em; color: var(--ink-3); text-transform: uppercase; margin: 0 0 10px; }
+  h1 { font-size: 27px; font-weight: 600; letter-spacing: -.01em; margin: 0 0 12px; }
+  .lede { font-size: 14px; line-height: 1.75; color: var(--ink-2); max-width: 760px; margin: 0; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  .facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .fact { font-size: 12px; line-height: 1.5; color: var(--ink-2); background: var(--card);
+          border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; }
+  .fact b { color: var(--ink); font-weight: 600; }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+
+  .col { flex: 1 1 340px; min-width: 320px; background: var(--card); border: 1px solid var(--line);
+         border-radius: 14px; padding: 20px 20px 24px; }
+  .col.pick { border-color: #1F1D1A; box-shadow: 0 0 0 1px #1F1D1A inset; }
+
+  .col-head { display: flex; align-items: baseline; gap: 9px; margin-bottom: 3px; }
+  .tag { font-size: 11px; font-weight: 600; letter-spacing: .06em; color: #FFFFFF; background: var(--ink);
+         border-radius: 5px; padding: 3px 7px; }
+  .col-head h2 { font-size: 17px; font-weight: 600; margin: 0; }
+  .sub { font-size: 12.5px; color: var(--ink-3); margin: 0 0 16px; line-height: 1.6; }
+
+  .phone { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
+  .strip { display: block; width: 100%; height: auto; margin-top: 10px; border-radius: 10px; border: 1px solid var(--line); }
+  .cap { font-size: 11.5px; color: var(--ink-3); margin: 7px 0 0; }
+
+  h3 { font-size: 12px; font-weight: 600; letter-spacing: .08em; color: var(--ink-3);
+       text-transform: uppercase; margin: 22px 0 10px; }
+
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 44px; }
+  .sw i { display: block; height: 34px; border-radius: 7px; border: 1px solid rgba(0,0,0,.10); }
+  .sw span { display: block; font-size: 9.5px; color: var(--ink-3); margin-top: 4px;
+             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  ul.pro, ul.con { margin: 0; padding-left: 0; list-style: none; }
+  ul.pro li, ul.con li { font-size: 13px; line-height: 1.65; padding-left: 16px; position: relative; margin-bottom: 5px; }
+  ul.pro li::before { content: "＋"; position: absolute; left: 0; color: #1D9E75; font-weight: 600; }
+  ul.con li::before { content: "−"; position: absolute; left: 0; color: #C4362B; font-weight: 600; }
+
+  .verdict { margin-top: 40px; background: var(--card); border: 1px solid var(--line);
+             border-radius: 14px; padding: 26px 26px 28px; }
+  .verdict h2 { font-size: 18px; font-weight: 600; margin: 0 0 14px; }
+  .verdict p { font-size: 14px; line-height: 1.8; color: var(--ink-2); margin: 0 0 12px; max-width: 860px; }
+  .verdict p b { color: var(--ink); font-weight: 600; }
+  .verdict ol { font-size: 13.5px; line-height: 1.9; color: var(--ink-2); padding-left: 20px; margin: 0; max-width: 860px; }
+  .warn { border-left: 3px solid #C4362B; padding-left: 14px; margin: 18px 0 4px; }
+  .warn p { margin: 0; }
+
+  /* ==========================================================================
+     以下为本方案附加（脚手架之外的少量补充：表格 / 分镜 / 大图槽 / 代码块）
+     三份提案共用同一套脚手架，这里的类只覆盖「脚手架没提供的东西」。
+     ========================================================================== */
+  section.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+                 padding: 24px 24px 26px; margin-top: 26px; }
+  .sec-head { display: flex; align-items: baseline; gap: 10px; border-bottom: 1px solid var(--line);
+              padding-bottom: 12px; margin-bottom: 18px; }
+  .sec-head .idx { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: #fff;
+                   background: var(--ink); border-radius: 5px; padding: 3px 7px; }
+  .sec-head h2 { font-size: 19px; font-weight: 600; margin: 0; }
+  .sec-head .hint { font-size: 11.5px; color: var(--ink-3); margin-left: auto; text-align: right; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 6px 0 0; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; line-height: 1.55; }
+  th { background: #FAF9F6; font-weight: 600; color: var(--ink-2); font-size: 11.5px; }
+  td.n { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+  td.r { text-align: right; }
+  tr.hl td { background: #FFFDF4; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px;
+         background: #F1EFEA; padding: 1px 4px; border-radius: 4px; }
+
+  .hero { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .hero .shot { flex: 0 0 340px; min-width: 280px; }
+  .hero .side { flex: 1 1 420px; min-width: 290px; }
+  .hero .shot svg { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); }
+
+  .story { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
+  .story figure { margin: 0; flex: 1 1 132px; min-width: 120px; }
+  .story svg { display: block; width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); background: #12173A; }
+  .story figcaption { font-size: 10.5px; color: var(--ink-3); margin-top: 5px; line-height: 1.5; }
+  .story figcaption b { color: var(--ink-2); display: block; font-size: 11px; }
+
+  .callout { border-left: 3px solid #1F1D1A; background: #FAF9F6; padding: 10px 14px; margin: 14px 0;
+             font-size: 12.5px; line-height: 1.75; color: var(--ink-2); }
+  .callout b { color: var(--ink); }
+  .callout.warn2 { border-left-color: #C4362B; background: #FDF6F5; }
+  .callout.ok { border-left-color: #1D9E75; background: #F4FBF8; }
+  .callout.night { border-left-color: #35E1D0; background: #F5FCFB; }
+
+  ul.tight { margin: 8px 0 0; padding-left: 20px; font-size: 13px; line-height: 1.8; color: var(--ink-2); }
+  ul.tight li { margin-bottom: 6px; }
+  ul.tight b { color: var(--ink); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+  .ratio { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; }
+  .badge-aa { display: inline-block; font-size: 10px; font-weight: 700; border-radius: 4px;
+              padding: 1px 5px; background: #E8F5EF; color: #17694D; }
+  .badge-aaa { display: inline-block; font-size: 10px; font-weight: 700; border-radius: 4px;
+               padding: 1px 5px; background: #DCF2E6; color: #10543C; }
+  .badge-fail { display: inline-block; font-size: 10px; font-weight: 700; border-radius: 4px;
+                padding: 1px 5px; background: #FBE3E0; color: #96251A; }
+  .grade { display: inline-block; font-size: 13px; font-weight: 700; border-radius: 6px;
+           padding: 4px 12px; background: #C4362B; color: #fff; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+
+<!-- 共用 defs：三组分镜与首页共用同一批符号 -->
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+  <defs>
+    <!-- ============ 已定稿牌面（取自 docs/design/guochao-tiles.html §4/§5/§6，本稿未改一处） ============ -->
+    <g id="cWan">
+      <rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="#FBF6EA" stroke="#22201C" stroke-width="3.2"/>
+      <rect x="8.5" y="8.5" width="115" height="159" rx="3.5" fill="none" stroke="#22201C" stroke-width="1.1" opacity="0.62"/>
+      <g stroke="#C4362B" stroke-width="2.2" fill="none" stroke-linecap="square">
+        <path d="M8.5 20.5 L8.5 8.5 L20.5 8.5"/><path d="M111.5 8.5 L123.5 8.5 L123.5 20.5"/>
+        <path d="M123.5 155.5 L123.5 167.5 L111.5 167.5"/><path d="M20.5 167.5 L8.5 167.5 L8.5 155.5"/>
+      </g>
+      <text x="66" y="72" text-anchor="middle" font-size="64" font-weight="800" fill="#2338A0"
+            font-family="'Songti SC','STSong','SimSun',serif">一</text>
+      <text x="66" y="144" text-anchor="middle" font-size="58" font-weight="800" fill="#B02A1E"
+            font-family="'Songti SC','STSong','SimSun',serif">萬</text>
+    </g>
+
+    <g id="cSou">
+      <rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="#FBF6EA" stroke="#22201C" stroke-width="3.2"/>
+      <rect x="8.5" y="8.5" width="115" height="159" rx="3.5" fill="none" stroke="#22201C" stroke-width="1.1" opacity="0.62"/>
+      <g stroke="#C4362B" stroke-width="2.2" fill="none" stroke-linecap="square">
+        <path d="M8.5 20.5 L8.5 8.5 L20.5 8.5"/><path d="M111.5 8.5 L123.5 8.5 L123.5 20.5"/>
+        <path d="M123.5 155.5 L123.5 167.5 L111.5 167.5"/><path d="M20.5 167.5 L8.5 167.5 L8.5 155.5"/>
+      </g>
+      <!-- 1 条 = 幺鸡。配色照工程：红棕冠 / 白脸 / 深蓝眼喙翅 / 绿身 / 红棕长尾。
+           ⚠️ 这里是**示意**，真实形状以 guochao-tiles.html §5 为准 —— 本稿不重新设计牌面。 -->
+      <path d="M82 110 L116 150 L88 158 Z" fill="#8A4A32"/>
+      <path d="M64 128 L76 168 L50 168 Z" fill="#8A4A32"/>
+      <ellipse cx="68" cy="102" rx="24" ry="29" fill="#2E6B45"/>
+      <ellipse cx="80" cy="100" rx="13" ry="18" fill="#2338A0" opacity="0.95"/>
+      <circle cx="55" cy="62" r="17" fill="#FBF6EA"/>
+      <path d="M41 51 L69 51 L55 31 Z" fill="#8A4A32"/>
+      <path d="M39 62 L17 55 L17 70 Z" fill="#2338A0"/>
+      <circle cx="52" cy="60" r="5" fill="#2338A0"/>
+    </g>
+
+    <g id="cTon">
+      <rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="#FBF6EA" stroke="#22201C" stroke-width="3.2"/>
+      <rect x="8.5" y="8.5" width="115" height="159" rx="3.5" fill="none" stroke="#22201C" stroke-width="1.1" opacity="0.62"/>
+      <g stroke="#C4362B" stroke-width="2.2" fill="none" stroke-linecap="square">
+        <path d="M8.5 20.5 L8.5 8.5 L20.5 8.5"/><path d="M111.5 8.5 L123.5 8.5 L123.5 20.5"/>
+        <path d="M123.5 155.5 L123.5 167.5 L111.5 167.5"/><path d="M20.5 167.5 L8.5 167.5 L8.5 155.5"/>
+      </g>
+      <!-- 1 筒 = 深蓝 → 绿 → 红 → 白心（四层同心） -->
+      <circle cx="66" cy="88" r="58" fill="#182770"/>
+      <circle cx="66" cy="88" r="50" fill="#2338A0"/>
+      <circle cx="66" cy="88" r="38" fill="#204B30"/>
+      <circle cx="66" cy="88" r="30" fill="#2E6B45"/>
+      <circle cx="66" cy="88" r="21" fill="#7B1D15"/>
+      <circle cx="66" cy="88" r="14" fill="#B02A1E"/>
+      <circle cx="66" cy="88" r="9" fill="#FBF6EA"/>
+    </g>
+
+    <!-- ============ 游戏页示意底（开场/通关/失败三组共用） ============ -->
+    <g id="cScene">
+      <rect width="720" height="1280" fill="#12173A"/>
+      <rect x="66" y="96" width="300" height="30" rx="5" fill="#A9B4D8" opacity="0.55"/>
+      <rect x="496" y="96" width="158" height="30" rx="5" fill="#A9B4D8" opacity="0.40"/>
+      <rect x="66" y="146" width="200" height="12" rx="3" fill="#7E8AB8" opacity="0.40"/>
+      <rect x="66" y="174" width="588" height="10" rx="5" fill="#35E1D0" opacity="0.32"/>
+      <g fill="#35E1D0" opacity="0.10">
+        <rect x="77" y="330" width="76" height="104" rx="6"/><rect x="175" y="330" width="76" height="104" rx="6"/>
+        <rect x="273" y="330" width="76" height="104" rx="6"/><rect x="371" y="330" width="76" height="104" rx="6"/>
+        <rect x="469" y="330" width="76" height="104" rx="6"/><rect x="567" y="330" width="76" height="104" rx="6"/>
+        <rect x="77" y="462" width="76" height="104" rx="6"/><rect x="175" y="462" width="76" height="104" rx="6"/>
+        <rect x="273" y="462" width="76" height="104" rx="6"/><rect x="371" y="462" width="76" height="104" rx="6"/>
+        <rect x="469" y="462" width="76" height="104" rx="6"/><rect x="567" y="462" width="76" height="104" rx="6"/>
+        <rect x="77" y="594" width="76" height="104" rx="6"/><rect x="175" y="594" width="76" height="104" rx="6"/>
+        <rect x="273" y="594" width="76" height="104" rx="6"/><rect x="371" y="594" width="76" height="104" rx="6"/>
+        <rect x="469" y="594" width="76" height="104" rx="6"/><rect x="567" y="594" width="76" height="104" rx="6"/>
+        <rect x="77" y="726" width="76" height="104" rx="6"/><rect x="175" y="726" width="76" height="104" rx="6"/>
+        <rect x="273" y="726" width="76" height="104" rx="6"/><rect x="371" y="726" width="76" height="104" rx="6"/>
+        <rect x="469" y="726" width="76" height="104" rx="6"/><rect x="567" y="726" width="76" height="104" rx="6"/>
+      </g>
+      <rect x="70" y="1040" width="580" height="88" rx="10" fill="none" stroke="#35E1D0" stroke-width="3" opacity="0.30"/>
+      <rect x="84" y="1052" width="120" height="64" rx="6" fill="#35E1D0" opacity="0.16"/>
+    </g>
+
+    <!-- 牌阵骨架的单列（用于「逐段点亮」） -->
+    <g id="cColA"><rect x="77" y="330" width="76" height="104" rx="6"/><rect x="77" y="462" width="76" height="104" rx="6"/><rect x="77" y="594" width="76" height="104" rx="6"/><rect x="77" y="726" width="76" height="104" rx="6"/></g>
+    <g id="cColB"><rect x="175" y="330" width="76" height="104" rx="6"/><rect x="175" y="462" width="76" height="104" rx="6"/><rect x="175" y="594" width="76" height="104" rx="6"/><rect x="175" y="726" width="76" height="104" rx="6"/></g>
+    <g id="cColC"><rect x="273" y="330" width="76" height="104" rx="6"/><rect x="273" y="462" width="76" height="104" rx="6"/><rect x="273" y="594" width="76" height="104" rx="6"/><rect x="273" y="726" width="76" height="104" rx="6"/></g>
+    <g id="cColD"><rect x="371" y="330" width="76" height="104" rx="6"/><rect x="371" y="462" width="76" height="104" rx="6"/><rect x="371" y="594" width="76" height="104" rx="6"/><rect x="371" y="726" width="76" height="104" rx="6"/></g>
+    <g id="cColE"><rect x="469" y="330" width="76" height="104" rx="6"/><rect x="469" y="462" width="76" height="104" rx="6"/><rect x="469" y="594" width="76" height="104" rx="6"/><rect x="469" y="726" width="76" height="104" rx="6"/></g>
+    <g id="cColF"><rect x="567" y="330" width="76" height="104" rx="6"/><rect x="567" y="462" width="76" height="104" rx="6"/><rect x="567" y="594" width="76" height="104" rx="6"/><rect x="567" y="726" width="76" height="104" rx="6"/></g>
+
+    <!-- 已落位的牌（实心） -->
+    <g id="cFilled">
+      <rect x="77" y="330" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="175" y="330" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="273" y="330" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="371" y="330" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="469" y="330" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="567" y="330" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="77" y="462" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="175" y="462" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="273" y="462" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="371" y="462" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="469" y="462" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="567" y="462" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="77" y="594" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="175" y="594" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="273" y="594" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="371" y="594" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="469" y="594" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="567" y="594" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="77" y="726" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="175" y="726" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="273" y="726" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="371" y="726" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="469" y="726" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+      <rect x="567" y="726" width="76" height="104" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+    </g>
+
+    <!-- 扫描线纹理（首页背景） -->
+    <pattern id="cScan" width="4" height="12" patternUnits="userSpaceOnUse">
+      <rect width="4" height="1" fill="#35E1D0" opacity="0.075"/>
+    </pattern>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">麻麻大消除 · 界面改版提案 · 方案 C / 共三案</p>
+  <h1>夜光牌局 —— 霓虹描边 / 扫描线 / 像素爆散 / 高对比</h1>
+  <p class="lede">
+    这是三个方案里<b>最跳、最适合短视频截屏传播</b>的一个：深底、霓虹描边、扫描线、像素方块爆散，
+    缩略图在微信游戏列表里几乎不可能被忽略。它也是<b>离现有国潮体系最远</b>的一个 ——
+    下面第四节会把这条 trade-off 逐条摊开，不做美化。<br>
+    <b>全部效果只用「纯色块叠加 + 描边」实现</b>：零贴图、零渐变、零模糊、零阴影，
+    只用 <code>roundRect / circle / 折线 / 多边形填充 / Label</code>，与工程现有绘制路线一致。
+  </p>
+  <div class="facts">
+    <span class="fact">当前首页实况：<b>29 draw call</b>（<code>docs/verify/S10</code>）</span>
+    <span class="fact">重负载参照：<b>L4 峰值 162 DC</b>（<code>S11</code>）</span>
+    <span class="fact">包体：<b>2.15 MB / 4 MB</b>，本方案新增贴图 <b>0 KB</b></span>
+    <span class="fact">成本等级：<b>高</b></span>
+    <span class="fact">改动面：<b>改 5 个文件 + 新增 2 个 + 摘掉 1 条路由</b></span>
+  </div>
+</header>
+
+<div class="callout warn2" style="max-width:960px;">
+  <b>先把最大的一条 trade-off 摆在最前面（不美化）：</b>
+  夜蓝底 + 霓虹青，和已定稿的 27 张真牌牌面（宣纸底 <code>#FBF6EA</code> + 墨线 + 深蓝/朱红/竹绿）
+  是<b>两套互相冲突的色彩语义</b>：牌面是「印刷在纸上的图案」（暖、低饱和、哑），
+  夜景是「屏幕自己发的光」（冷、高饱和、亮）。放在一起<b>必须做三处针对性改造才能共存</b>
+  （第 ①、④ 节各说一半），不改就是明显不搭。
+  我<b>不建议直接拿它当整局的主视觉</b>，替代落地方式写在 ④-5。
+  如果你要的是三个都能稳妥使用的方案，这一份不是 —— 它是一张<b>高赔率高风险的彩票</b>。
+</div>
+
+<!-- ============================================================
+     ① 首页精绘稿
+     ============================================================ -->
+<section class="card" id="s1">
+  <div class="sec-head">
+    <span class="idx">①</span>
+    <h2>首页精绘稿</h2>
+    <span class="hint">720 × 1280 等比矢量 ·<br>内部坐标与设计分辨率严格 1:1</span>
+  </div>
+
+  <div class="hero">
+    <div class="shot">
+      <svg viewBox="0 0 720 1280" role="img" aria-label="方案 C 夜光牌局 · 首页精绘稿">
+        <rect width="720" height="1280" fill="#12173A"/>
+        <rect width="720" height="1280" fill="url(#cScan)"/>
+
+        <!-- 页面四角的「霓虹括号」（替代国潮的墨线双框 + 朱红角花）
+             臂长 22：刻意留出 4px 让顶部状态行（左边界 x=92）与版本号不被压住 -->
+        <g stroke="#35E1D0" stroke-width="2.5" fill="none" stroke-linecap="square" opacity="0.55">
+          <path d="M66 122 L66 100 L88 100"/>
+          <path d="M632 100 L654 100 L654 122"/>
+          <path d="M654 1158 L654 1180 L632 1180"/>
+          <path d="M88 1180 L66 1180 L66 1158"/>
+        </g>
+
+        <!-- 竖光缝（借参考图2 的"一道竖直光缝"；主段收在副标题之下、进度条之上，不切过任何文字行） -->
+        <rect x="357" y="0" width="6" height="160" fill="#35E1D0" opacity="0.22"/>
+        <rect x="356" y="290" width="8" height="450" fill="#35E1D0" opacity="0.42"/>
+        <rect x="359" y="290" width="2" height="450" fill="#F2F6FF" opacity="0.70"/>
+
+        <!-- 顶部状态行（左右各内缩到 x=92 / x=628，避开四角括号） -->
+        <text x="92" y="116" font-size="26" fill="#A9B4D8" dominant-baseline="central"
+              font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">已通 2 / 4 关</text>
+        <text x="628" y="116" font-size="26" fill="#A9B4D8" text-anchor="end" dominant-baseline="central"
+              font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">最快 01:12</text>
+        <rect x="66" y="140" width="588" height="1" fill="#35E1D0" opacity="0.30"/>
+
+        <!-- 主标题（3 层：外晕 12 / 中晕 7 / 本体 3。全页唯一做文字发光的元素） -->
+        <g font-family="'Songti SC','STSong','SimSun',serif" font-weight="800" font-size="76"
+           text-anchor="middle" paint-order="stroke fill" letter-spacing="6">
+          <text x="360" y="204" fill="#F2F6FF" stroke="#35E1D0" stroke-width="12" opacity="0.10" dominant-baseline="central">麻麻大消除</text>
+          <text x="360" y="204" fill="#F2F6FF" stroke="#35E1D0" stroke-width="7" opacity="0.25" dominant-baseline="central">麻麻大消除</text>
+          <text x="360" y="204" fill="#F2F6FF" stroke="#35E1D0" stroke-width="3" dominant-baseline="central">麻麻大消除</text>
+        </g>
+        <text x="360" y="256" font-size="30" fill="#A9B4D8" text-anchor="middle" letter-spacing="5"
+              dominant-baseline="central" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">点牌 · 进槽 · 凑三张</text>
+
+        <!-- 圆形取景框（借参考图2 的取景框语言；4 层同心描边 = 发光层级最高档） -->
+        <g fill="none" stroke="#35E1D0">
+          <circle cx="360" cy="490" r="190" stroke-width="16" opacity="0.10"/>
+          <circle cx="360" cy="490" r="190" stroke-width="10" opacity="0.22"/>
+          <circle cx="360" cy="490" r="190" stroke-width="5"  opacity="0.55"/>
+        </g>
+        <circle cx="360" cy="490" r="190" fill="none" stroke="#EAFBFF" stroke-width="1.8"/>
+        <!-- 取景框 4 枚「螺母」刻度（45° 位、轴对齐方块 —— 与全案硬边语汇一致） -->
+        <g fill="#35E1D0" opacity="0.85">
+          <rect x="217" y="347" width="18" height="18"/>
+          <rect x="485" y="347" width="18" height="18"/>
+          <rect x="217" y="615" width="18" height="18"/>
+          <rect x="485" y="615" width="18" height="18"/>
+        </g>
+
+        <!-- 牌塔：三张真牌叠成一个小塔（先左右下、再上，保证上面的压住下面的） -->
+        <g transform="translate(370,472) scale(0.72727)">
+          <rect x="4" y="24" width="128.8" height="172.8" rx="7" fill="#2E3568"/>
+          <use href="#cTon"/>
+        </g>
+        <g transform="translate(254,472) scale(0.72727)">
+          <rect x="4" y="24" width="128.8" height="172.8" rx="7" fill="#2E3568"/>
+          <use href="#cSou"/>
+        </g>
+        <g transform="translate(312,324) scale(0.72727)">
+          <rect x="4" y="24" width="128.8" height="172.8" rx="7" fill="#2E3568"/>
+          <use href="#cWan"/>
+        </g>
+        <!-- 「被夜光照亮」：每张牌外缘一圈环境光描边（物理正确，也把牌焊进夜色） -->
+        <g fill="none" stroke="#35E1D0" stroke-width="1.5" opacity="0.5">
+          <rect x="374" y="476" width="93.7" height="125.7" rx="5"/>
+          <rect x="258" y="476" width="93.7" height="125.7" rx="5"/>
+          <rect x="316" y="328" width="93.7" height="125.7" rx="5"/>
+        </g>
+
+        <text x="360" y="826" font-size="20" fill="#7E8AB8" text-anchor="middle" letter-spacing="1"
+              dominant-baseline="central" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">点刻度 → 直接进那关　·　长按 1.5 秒 → 清空进度</text>
+
+        <!-- 霓虹管刻度条（4 段 = 4 关；既是进度显示，也是选关器） -->
+        <rect x="96" y="758" width="123" height="40" rx="4" fill="#0C1029" stroke="#35E1D0" stroke-width="1.5" stroke-opacity="0.75"/>
+        <rect x="99" y="761" width="117" height="34" rx="3" fill="#35E1D0" opacity="0.9"/>
+        <rect x="107" y="768" width="8" height="20" rx="4" fill="#F2F6FF" opacity="0.85"/>
+
+        <rect x="231" y="758" width="123" height="40" rx="4" fill="#0C1029" stroke="#35E1D0" stroke-width="1.5" stroke-opacity="0.75"/>
+        <rect x="234" y="761" width="117" height="34" rx="3" fill="#35E1D0" opacity="0.9"/>
+        <rect x="242" y="768" width="8" height="20" rx="4" fill="#F2F6FF" opacity="0.85"/>
+
+        <rect x="366" y="758" width="123" height="40" rx="4" fill="#0C1029" stroke="#FF4D9D" stroke-width="10" stroke-opacity="0.18"/>
+        <rect x="366" y="758" width="123" height="40" rx="4" fill="none" stroke="#FF4D9D" stroke-width="5" stroke-opacity="0.5"/>
+        <rect x="366" y="758" width="123" height="40" rx="4" fill="none" stroke="#FF4D9D" stroke-width="1.8"/>
+        <rect x="377" y="775" width="17" height="17" rx="2" fill="#FF4D9D"/>
+
+        <rect x="501" y="758" width="123" height="40" rx="4" fill="#0C1029" stroke="#35E1D0" stroke-width="1.5" stroke-opacity="0.22"/>
+
+        <!-- 主按钮（发光层级最高档：4 层描边，晕色用暖白 —— 越重要描边层数越多）
+             ⚠️ 这里所有 y 都是 rect 的 **top**：中心 CFG −292 → HTML 中心 932 → top 866 -->
+        <rect x="162" y="874" width="396" height="132" rx="6" fill="#0A6B66"/>
+        <g fill="none" stroke="#F2F6FF">
+          <rect x="162" y="866" width="396" height="132" rx="6" stroke-width="16" opacity="0.10"/>
+          <rect x="162" y="866" width="396" height="132" rx="6" stroke-width="10" opacity="0.22"/>
+          <rect x="162" y="866" width="396" height="132" rx="6" stroke-width="5"  opacity="0.55"/>
+        </g>
+        <rect x="162" y="866" width="396" height="132" rx="6" fill="#35E1D0"/>
+        <rect x="162" y="866" width="396" height="132" rx="6" fill="none" stroke="#EAFBFF" stroke-width="1.8"/>
+        <text x="360" y="932" font-size="44" font-weight="700" fill="#12173A" text-anchor="middle"
+              letter-spacing="7" dominant-baseline="central"
+              font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">继 续 · 第 3 关</text>
+
+        <!-- 两侧小钮：借参考图1 的「两侧功能入口」骨架，但只留两枚（中心 932 → top 896） -->
+        <rect x="72" y="896" width="72" height="72" rx="6" fill="#1B2150" stroke="#35E1D0" stroke-width="1.5" stroke-opacity="0.55"/>
+        <rect x="90" y="920" width="36" height="4" rx="2" fill="#A9B4D8"/>
+        <rect x="90" y="932" width="36" height="4" rx="2" fill="#A9B4D8"/>
+        <rect x="90" y="944" width="22" height="4" rx="2" fill="#A9B4D8"/>
+
+        <rect x="576" y="896" width="72" height="72" rx="6" fill="#1B2150" stroke="#35E1D0" stroke-width="1.5" stroke-opacity="0.55"/>
+        <rect x="594" y="936" width="6" height="16" rx="3" fill="#35E1D0"/>
+        <rect x="605" y="928" width="6" height="24" rx="3" fill="#35E1D0"/>
+        <rect x="616" y="920" width="6" height="32" rx="3" fill="#F2F6FF" opacity="0.35"/>
+
+        <text x="360" y="1064" font-size="22" fill="#A9B4D8" text-anchor="middle" letter-spacing="1"
+              dominant-baseline="central" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">点牌 → 进槽 → 凑三张</text>
+        <text x="92" y="1168" font-size="22" fill="#7E8AB8"
+              dominant-baseline="central" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">v0.4.0 · 内部开发版</text>
+      </svg>
+      <p class="cap">方案 C · 首页。深底 + 霓虹描边 + 扫描线纹理；中央圆形取景框内，是三张已定稿真牌叠成的小塔。</p>
+      <p class="cap" style="margin-top:4px">
+        牌面取自 <code>guochao-tiles.html</code> §4/§5/§6，本稿<b>未改一个像素</b>；
+        幺鸡为<b>示意</b>（真实形状以 §5 为准）。
+      </p>
+    </div>
+
+    <div class="side">
+      <h3 style="margin-top:6px">每个关键元素的 y 坐标（CFG 口径）</h3>
+      <p class="sub" style="margin:0 0 6px">
+        原点 = 屏幕中心、<b>y 轴向上</b>（<code>CFG</code> 与 <code>UIFactory</code> 的统一约定）。
+        换算：<code>HTML_top = 640 − y</code>。下表数值可直接写进 <code>CFG.MENU_LAYOUT</code>。
+      </p>
+      <table>
+        <tr><th>元素</th><th>CFG y</th><th>HTML top</th><th>尺寸 / 备注</th></tr>
+        <tr class="hl"><td>竖光缝 · 顶段</td><td class="n">+640 → +480</td><td class="n">0 → 160</td><td>宽 6，青 α0.22</td></tr>
+        <tr class="hl"><td>竖光缝 · 主段</td><td class="n">+350 → −100</td><td class="n">290 → 740</td><td>青层宽 8 α0.42 + 暖白芯宽 2 α0.70。上端收在副标题之下，不切过任何文字行</td></tr>
+        <tr><td>顶行 · 左「已通 2 / 4 关」</td><td class="n">+524</td><td class="n">118</td><td>26px，左边界 x=−268（内缩 26px 避开四角括号）</td></tr>
+        <tr><td>顶行 · 右「最快 01:12」</td><td class="n">+524</td><td class="n">118</td><td>26px，右边界 x=+268</td></tr>
+        <tr><td>顶行细线</td><td class="n">+500</td><td class="n">140</td><td>588 × 1，青 α0.30，用满 FRAME_INSET（x = ±294）</td></tr>
+        <tr><td>主标题</td><td class="n">+436</td><td class="n">204</td><td>76px 衬线 800，3 层描边 12 / 7 / 3</td></tr>
+        <tr><td>副标题</td><td class="n">+384</td><td class="n">256</td><td>30px，字距 5</td></tr>
+        <tr class="hl"><td>圆形取景框（圆心）</td><td class="n">+150</td><td class="n">490</td><td>r=190，描边 16 / 10 / 5 / 1.8</td></tr>
+        <tr><td>取景框 4 枚螺母刻度</td><td class="n">+284 / +16</td><td class="n">356 / 624</td><td>18×18，位于 x=±134 再 ∓9</td></tr>
+        <tr><td>牌塔 · 上（一萬）</td><td class="n">+252</td><td class="n">388</td><td>牌宽 96（缩放 0.727），x=0</td></tr>
+        <tr><td>牌塔 · 左下 / 右下</td><td class="n">+104</td><td class="n">536</td><td>牌宽 96，x = ∓58</td></tr>
+        <tr><td>刻度管提示</td><td class="n">−186</td><td class="n">826</td><td>20px，弱化色</td></tr>
+        <tr class="hl"><td>霓虹管刻度条（4 段）</td><td class="n">−138</td><td class="n">778</td><td>528 × 40；段宽 123、缝 12</td></tr>
+        <tr class="hl"><td>主按钮</td><td class="n">−292</td><td class="n">866（top）</td><td>396 × 132，圆角 6；中心 HTML = 932</td></tr>
+        <tr><td>左侧小钮「玩法」</td><td class="n">−292</td><td class="n">896（top）</td><td>72 × 72，x = −252</td></tr>
+        <tr><td>右侧小钮「音效」</td><td class="n">−292</td><td class="n">896（top）</td><td>72 × 72，x = +252</td></tr>
+        <tr><td>玩法一句话</td><td class="n">−424</td><td class="n">1064</td><td>22px</td></tr>
+        <tr><td>版本号（左对齐）</td><td class="n">−528</td><td class="n">1168</td><td>22px，左边界 x=−268（同顶部状态行，避开四角括号）</td></tr>
+      </table>
+
+      <div class="callout">
+        <b>纵向预算核算（不是随手摆的）：</b>取景框底边 <code>+150 − 190 = −40</code>（HTML 680）→
+        刻度管顶边 <code>−118</code>（HTML 758），间隙 <b>78px</b>；刻度管底 <code>−158</code>（798）→
+        主按钮顶 <code>−226</code>（866），间隙 <b>68px</b>；
+        主按钮底 <code>−358</code>（998）→ 玩法行顶 <code>−409</code>（1049），间隙 <b>51px</b>；
+        版本号底 <code>−543</code>（1183）→ 底部安全线 <code>−580</code>（1220，<code>SCREEN.BOTTOM_SAFE = 60</code>），余 <b>37px</b>。
+        左右用满 <code>FRAME_INSET = 66</code>，最外侧元素是 x = ±288 的小钮。
+        <br><br>
+        <b>⚠️ 落码时最容易错的一处</b>：上表 "<b>HTML top</b>" 对<b>按钮类</b>元素给的是 <code>rect</code> 的
+        <b>上边界</b>，对<b>文字</b>给的是<b>视觉中心</b>（配 <code>dominant-baseline: central</code>）。
+        主按钮中心是 <b>932</b>（= CFG −292），所以它的 <code>rect</code> 上边界是 <b>866</b> 而不是 932 ——
+        本稿第一版就在这里把 top 当成了中心，主按钮整体下沉 66px，压住了下面那行玩法提示（已修）。
+        <br><br>
+        <b>与现状的差异（要照着改的）：</b>
+        主按钮从 <b>420 × 140</b> 收到 <b>396 × 132</b>（为两侧小钮让出 18px 间隙）；
+        标题从 <code>+350</code> 上移到 <code>+436</code>；三张展示牌从一字排开（<code>+122</code>）
+        改成<b>品字形叠塔</b>（<code>+252 / +104</code>）并放大到牌宽 96（原 104 一字排）。
+      </div>
+
+      <h3>选关页删掉之后：继续 / 重玩 / 清空，各走哪条路</h3>
+      <div class="callout night">
+        <b>主张一句话：把「选关页」压成首页上的一条 4 段霓虹管，刻度即关卡；清空进度不设按钮，藏在刻度管上长按 1.5 秒。</b>
+      </div>
+      <table>
+        <tr><th style="width:96px">要办的事</th><th style="width:180px">入口</th><th>规则 / 状态</th></tr>
+        <tr class="hl">
+          <td><b>从哪继续</b></td>
+          <td>唯一主按钮 <code>START_BTN</code><br>（396×132，y=−292）</td>
+          <td>
+            文案与状态由 <code>SaveService</code> 现算，三种态（<b>首页只有这一个「开始」入口</b>）：<br>
+            · <b>0 关通关</b> → 「开 始 · 第 1 关」<br>
+            · <b>有进度未全通</b> → 「继 续 · 第 N 关」，N = 最小的未通关关号（= 现在 <code>isUnlocked()</code> 的边界）<br>
+            · <b>4 关全通</b> → 「再 来 一 次 · 第 1 关」，并在 y=−350 加一行 20px 小字「4 关已全部通关 · 最快 04:31」<br>
+            <b>不需要新增存档字段</b> —— <code>cleared[]</code> 与 <code>isUnlocked()</code>（<code>SaveService.ts:147</code>）已经够用。
+          </td>
+        </tr>
+        <tr>
+          <td><b>重玩某一关</b></td>
+          <td><b>点霓虹管刻度条第 N 段</b><br>（y=−138）</td>
+          <td>
+            4 段 = 4 关，<b>刻度条自己就是选关器</b>，不再需要独立页面。三种段态：<br>
+            · <b>已通关段</b> → 青色实心（填充 α0.9）+ 青 2 层描边 → 点击进该关重玩<br>
+            · <b>当前段</b> → 品红 3 层描边 + 内部一个 2 秒周期呼吸的方点（α 0.5 ↔ 1.0）→ 点击进该关<br>
+            · <b>未解锁段</b> → 只留 α0.22 的青描边空槽 → 点击后整段横抖 3 帧（±6px / 40ms）+ toast「先通关第 N−1 关」<br>
+            <b>热区必须吃掉 12px 段缝</b>：每段热区取 <code>135 × 64</code>（<code>123+6×2</code> × <code>40+12×2</code>）。
+            实体高 40px <b>达不到 44px 最小触摸目标</b>，只能靠热区补；且热区之间不能留缝，否则缝里的点击会丢。
+          </td>
+        </tr>
+        <tr>
+          <td><b>清空进度</b></td>
+          <td><b>长按刻度管整条 1.5 秒</b><br>（热区 528×64，y=−138）</td>
+          <td>
+            <b>为什么不给独立按钮</b>：这是不可逆的破坏性操作，不该有一个「看得见、点得到」的常驻入口；
+            而玩家要清的就是这条进度，<b>挂在进度条自己身上语义最自洽</b>，长按 1.5s 又天然防误触。<br>
+            <b>过程反馈（不做无声长按）</b>：<br>
+            · 0 ms：4 段描边从青渐变为品红（200 ms）；刻度管下方 12px（y=−166）出现一条 0→528 的填充条（高 4，品红），按长按时长线性生长<br>
+            · 中途抬手：填充条 120 ms 缩回 0、描边 160 ms 回青，<b>不执行清空</b><br>
+            · 到 1500 ms：整条闪 3 次（每 60 ms 一次，α 1.0 ↔ 0.3）→ 4 段变空槽 →
+            <code>SaveService.reset()</code>（<code>SaveService.ts:212</code> 已有）+ 一次 <code>Haptics</code> + toast「进度已清空，回到第 1 关」→
+            主按钮文案同帧重算为「开 始 · 第 1 关」<br>
+            · <b>不做二次确认弹窗</b>：长按 1.5s 本身已经是确认动作；再加弹窗会让「想清空的人点两次、不想清空的人被挡一次」。
+          </td>
+        </tr>
+      </table>
+
+      <div class="callout night">
+        <b>参考图1 的骨架借了什么、弃了什么（逐条对账）：</b><br>
+        <b>借</b>：① 顶部一条状态行；② 中央一个大主视觉（它的吉祥物 → 我们的牌塔）；③ 底部一枚大主按钮；
+        ④ 主按钮两侧各一枚功能小钮（它左右各 3 个，我们各 1 个）。
+        <b>弃</b>：木纹屏风底、大红 + 金、光晕渐变（我们做不了也没必要）、
+        以及它那些棋牌语义文案（「宗师挑战」「2 连胜」「排行榜」—— 词和概念一个都没抄）。
+        <b>改动理由</b>：参考图1 是长线运营的棋牌 App，两侧各 3 个入口是内容量撑出来的；
+        我们是 4 关小游戏，硬凑六个入口只会显得空，所以两侧各留一枚（玩法 / 音效）。
+      </div>
+
+      <div class="callout">
+        <b>顺手修掉的一处语义风险：</b>现有首页副标题与底部提示写的是「凑齐「碰 / 吃 / 杠」」——
+        这三个字是麻将专有动作词，属于「零棋牌语义」红线的擦边球
+        （<code>README.md</code> §7 记的是「不出现胡牌 / 番数 / 筹码 / 对战」，碰吃杠没写进去，但性质同类）。
+        方案 C 首页换成中性说法：副标题 <b>「点牌 · 进槽 · 凑三张」</b>、底部 <b>「点牌 → 进槽 → 凑三张」</b>。
+        <b>这条与风格无关，三个方案都建议改。</b>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     ② 色板
+     ============================================================ -->
+<section class="card" id="s2">
+  <div class="sec-head">
+    <span class="idx">②</span>
+    <h2>色板与 CFG 映射</h2>
+    <span class="hint">对比度按 WCAG 2.1 相对亮度公式<br>实算，不是估算</span>
+  </div>
+
+  <div class="hero">
+    <div class="side" style="flex:1 1 470px">
+      <h3 style="margin-top:0">本方案色板</h3>
+      <div class="sw">
+        <div><i style="background:#12173A"></i><span>12173A<br>夜蓝底</span></div>
+        <div><i style="background:#1B2150"></i><span>1B2150<br>抬高面</span></div>
+        <div><i style="background:#0C1029"></i><span>0C1029<br>凹槽底</span></div>
+        <div><i style="background:#2E3568"></i><span>2E3568<br>牌侧壁</span></div>
+        <div><i style="background:#35E1D0"></i><span>35E1D0<br>霓虹青</span></div>
+        <div><i style="background:#FF4D9D"></i><span>FF4D9D<br>品红</span></div>
+        <div><i style="background:#F2F6FF"></i><span>F2F6FF<br>暖白</span></div>
+        <div><i style="background:#A9B4D8"></i><span>A9B4D8<br>二级文字</span></div>
+        <div><i style="background:#7E8AB8"></i><span>7E8AB8<br>弱化文字</span></div>
+        <div><i style="background:#2A3060"></i><span>2A3060<br>失败灰罩</span></div>
+        <div><i style="background:#070A1C"></i><span>070A1C<br>压暗描边</span></div>
+        <div><i style="background:#FFFFFF"></i><span>FFFFFF<br>闪白</span></div>
+      </div>
+
+      <div class="callout warn2" style="margin-top:16px">
+        <b>色调是怎么「变」的 —— 三条，都是冲着合规去的：</b><br>
+        ① <b>暖底换冷底</b>：宣纸 <code>#F2EADA</code>（暖、明）→ 夜蓝 <code>#12173A</code>（冷、暗）。<br>
+        ② <b>把「颜料红」整体撤出界面</b>：朱红 <code>#C4362B</code> 从「主按钮 / 角花 / 进度」三处全部退场，
+        主强调改由霓虹青承担 —— <b>这才是本次配色改动的重点，不是"换了个深色底"</b>。<br>
+        ③ <b>金 <code>#C9A227</code> 直接删掉</b>。它原来的唯一用途是标题描边，本方案标题描边改用青。
+        <b>界面上不再出现任何「朱红 + 墨 + 金」的组合</b>（牌面自带的朱红角花是资产，见 ④-4）。
+      </div>
+
+      <h3>色板映射表</h3>
+      <table>
+        <tr><th>本方案令牌</th><th style="width:82px">hex</th><th style="width:190px">用途</th><th>与现有 <code>CFG.COLOR</code> 的关系</th></tr>
+        <tr><td><b>NIGHT</b></td><td class="n">#12173A</td><td>页面底 / 通关「熄灯」底</td><td><b>替换</b> <code>PAPER #F2EADA</code> —— 必须换：暖米底是国潮四要素的第一条，不换底就还是同一个体系</td></tr>
+        <tr><td><b>NIGHT_2</b></td><td class="n">#1B2150</td><td>抬高面（小钮、面板、提示条）</td><td><b>替换</b> <code>FACE #FBF6EA</code></td></tr>
+        <tr><td><b>NIGHT_3</b></td><td class="n">#0C1029</td><td>凹槽（刻度空槽、槽位底）</td><td><b>替换</b> <code>PAPER_DARK #EFE6D2</code></td></tr>
+        <tr><td><b>NEON</b></td><td class="n">#35E1D0</td><td>主强调：主按钮 / 描边 / 已通关刻度 / 冲击环</td><td><b>替换</b> <code>VERMILION #C4362B</code>（作为界面强调）—— 必须换：朱红是棋牌经典配色的第一味</td></tr>
+        <tr><td><b>NEON_DIM</b></td><td class="n">#1E8C86</td><td>霓虹「熄灭态」：未解锁刻度、失效描边</td><td><b>替换</b> <code>LOCK #B9B09A</code></td></tr>
+        <tr><td><b>MAGENTA</b></td><td class="n">#FF4D9D</td><td>次强调：当前关刻度 / 刷新纪录 / 撕裂条</td><td><b>替换</b> <code>GOLD #C9A227</code> —— 必须换：金是棋牌经典配色的第三味</td></tr>
+        <tr><td><b>WHITE_WARM</b></td><td class="n">#F2F6FF</td><td>主文字 / 发光芯线</td><td><b>替换</b> <code>INK #22201C</code>（仅作为<b>界面文字前景</b>）</td></tr>
+        <tr><td><b>TEXT_2</b></td><td class="n">#A9B4D8</td><td>二级文字（状态行、副标题、玩法行）</td><td><b>替换</b> <code>INK_MID #57503F</code></td></tr>
+        <tr><td><b>TEXT_3</b></td><td class="n">#7E8AB8</td><td>弱化文字（版本号、刻度提示）</td><td><b>替换</b> <code>INK_SOFT #8E8571</code> —— 换的理由见右下（原值对比度只有 3.06）</td></tr>
+        <tr><td><b>TILE_SIDE_DARK</b></td><td class="n">#2E3568</td><td>牌的立体侧壁（暗底模式）</td><td><b>新增</b>（原 <code>TILE.SOLID.SIDE #E1D5B9</code>）</td></tr>
+        <tr><td><b>TILE_SHA_DARK</b></td><td class="n">#000000</td><td>牌的投影（暗底模式，α 52 → 90）</td><td><b>新增</b>（原 <code>CFG.COLOR.SHADOW #22201C</code>）</td></tr>
+        <tr><td><b>VEIL</b></td><td class="n">#2A3060</td><td>失败时的全屏灰罩（近似降饱和）</td><td><b>新增</b></td></tr>
+        <tr><td><b>FLASH</b></td><td class="n">#FFFFFF</td><td>通关闪白（有上限，见 ③）</td><td><b>新增</b></td></tr>
+        <tr><td><b>EDGE</b></td><td class="n">#070A1C</td><td>压暗描边（代替墨线做「缝」）</td><td><b>新增</b></td></tr>
+        <tr class="hl"><td>真牌三色</td><td class="n">#2338A0<br>#B02A1E<br>#2E6B45</td><td>牌面图案</td><td><b>保留，一个像素都不动</b></td></tr>
+      </table>
+      <p class="sub" style="margin-top:8px">
+        <code>INK #22201C</code> 字面上是「保留」—— 它仍然是牌面墨线的颜色（那是牌资产）；
+        但在<b>界面层</b>它的角色被 <code>WHITE_WARM</code> 接管。<b>这两件事必须分开记</b>，
+        否则下次改版会把牌面的墨线一起改掉。
+      </p>
+    </div>
+
+    <div class="side" style="flex:1 1 380px">
+      <h3 style="margin-top:0">文字色对底对比度（实算）</h3>
+      <table>
+        <tr><th>前景 / 背景</th><th style="width:74px">对比度</th><th style="width:52px">判定</th><th>用在哪</th></tr>
+        <tr class="hl"><td class="n">#F2F6FF / #12173A</td><td class="ratio">16.04 : 1</td><td><span class="badge-aaa">AAA</span></td><td>主标题、主按钮</td></tr>
+        <tr><td class="n">#A9B4D8 / #12173A</td><td class="ratio">8.44 : 1</td><td><span class="badge-aaa">AAA</span></td><td>二级文字（26px）</td></tr>
+        <tr><td class="n">#7E8AB8 / #12173A</td><td class="ratio">5.14 : 1</td><td><span class="badge-aa">AA</span></td><td>弱化文字（20–22px 小字）✅</td></tr>
+        <tr><td class="n">#35E1D0 / #12173A</td><td class="ratio">10.61 : 1</td><td><span class="badge-aaa">AAA</span></td><td>霓虹描边 / 已通关刻度</td></tr>
+        <tr><td class="n">#FF4D9D / #12173A</td><td class="ratio">5.62 : 1</td><td><span class="badge-aa">AA</span></td><td>当前关刻度 / 纪录文本</td></tr>
+        <tr class="hl"><td class="n">#12173A / #35E1D0</td><td class="ratio">10.61 : 1</td><td><span class="badge-aaa">AAA</span></td><td>主按钮文字（暗字压青面）✅</td></tr>
+        <tr><td class="n">#12173A / #FF4D9D</td><td class="ratio">5.62 : 1</td><td><span class="badge-aa">AA</span></td><td>品红面文字（备用）</td></tr>
+        <tr><td class="n">#FBF6EA / #12173A</td><td class="ratio">16.10 : 1</td><td><span class="badge-aaa">AAA</span></td><td>牌面 vs 夜蓝底（块的辨识）</td></tr>
+        <tr><td class="n">#A9B4D8 / #1B2150</td><td class="ratio">7.40 : 1</td><td><span class="badge-aaa">AAA</span></td><td>小钮上的文字</td></tr>
+        <tr><td class="n">#7E8AB8 / #1B2150</td><td class="ratio">4.86 : 1</td><td><span class="badge-aa">AA</span></td><td>抬高面上的弱化文字</td></tr>
+      </table>
+
+      <div class="callout ok">
+        <b>顺手查出来的一处「既有」无障碍缺陷（不是本方案引入的）：</b><br>
+        现有 <code>COLOR.INK_SOFT #8E8571</code> 对宣纸底 <code>#F2EADA</code> 的对比度只有
+        <b class="ratio">3.06 : 1</b>，而它被用在 <code>SIZE_SMALL 22</code> / <code>SIZE_TINY 20</code> 的小字上
+        （版本号、三族说明、游戏页的「已清 N/M」行）。按 WCAG AA，小字需要 <b>4.5 : 1</b> ——
+        <b>这一批字当前是不合规的</b>。本方案把它换成 <code>#7E8AB8</code>，实测 <b>5.14 : 1</b>。
+        <b>这条与选哪个方案无关，建议 A / B / C 三案都采用。</b>
+        （对照：现有 <code>#57503F</code> 对宣纸底 6.69:1 是合规的，问题只在 <code>INK_SOFT</code> 这一档。）
+      </div>
+
+      <div class="callout">
+        <b>为什么暗底方案对文字对比度的要求应该更严、而不是更松：</b>
+        暗底会让瞳孔放大、小字的主观可读性确实更差。如果沿用与浅底同一档的 3.06:1，
+        20px 的刻度提示在夜蓝底上会直接糊掉。所以本方案不但没有放宽，反而把弱化档从 3.06 提到了 5.14。
+      </div>
+
+      <div class="callout warn2">
+        <b>必须点名的一个「假降饱和」：</b>失败动效里的「全局降饱和」用的是盖一层
+        <code>#2A3060</code> α0.43 的冷灰罩。它能<b>看起来</b>把画面压灰，
+        但它是「加一层冷灰」，<b>不是真的把已有的颜色去饱和</b>：牌面上本来很纯的朱红 <code>#B02A1E</code>
+        被叠灰后接近于「暗红 + 灰」，而不是「灰红」。在纯色块 + 无 shader 的前提下做不到真 desaturate，
+        这个近似必须如实标注，不能当作真降饱和验收。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     ③ 动效分镜
+     ============================================================ -->
+<section class="card" id="s3">
+  <div class="sec-head">
+    <span class="idx">③</span>
+    <h2>动效分镜（开场 / 通关 / 失败）</h2>
+    <span class="hint">关键帧为示意简笔<br>参数表是可直接落进 CFG 的数值</span>
+  </div>
+
+  <div class="callout">
+    <b>动画通道的边界（本方案全部动效只用到这四个）：</b>
+    节点的 <b>位置 / 缩放 / 旋转角 / 不透明度</b>，加上 <b>逐帧重绘 Graphics</b>。
+    逐帧重绘只用在三处：多层描边的 <code>lineWidth</code> 生长、扫描线位移、像素方块粒子。
+    <b>粒子按 32 个设计（上限 40，留 20% 余量）。</b>
+  </div>
+
+  <h3>3-1　开场动画 · 霓虹管逐段点亮 + 扫描线</h3>
+  <p class="sub" style="margin-bottom:10px">
+    场景是<b>进关后的游戏页</b>（不是首页）。骨架 = 牌堆 6 列落点的栅格；「点亮」= 把栅格画成霓虹管。
+  </p>
+
+  <div class="story">
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="开场第1格">
+        <use href="#cScene"/>
+        <rect x="354" y="630" width="12" height="20" fill="#35E1D0"/>
+      </svg>
+      <figcaption><b>F1 · 0 ms</b>一片夜蓝，光缝只在屏幕正中亮起 20px。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="开场第2格">
+        <use href="#cScene"/>
+        <rect x="354" y="0" width="12" height="1280" fill="#35E1D0" opacity="0.45"/>
+        <rect x="359" y="0" width="3" height="1280" fill="#F2F6FF" opacity="0.8"/>
+      </svg>
+      <figcaption><b>F2 · 320 ms</b>光缝向上下两端生长到满高（320 ms，quadOut）。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="开场第3格">
+        <use href="#cScene"/>
+        <g fill="#35E1D0" opacity="0.6" stroke="#EAFBFF" stroke-width="3">
+          <use href="#cColC"/><use href="#cColD"/>
+        </g>
+      </svg>
+      <figcaption><b>F3 · 620 ms</b>骨架从<b>中间两列</b>开始点亮。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="开场第4格">
+        <use href="#cScene"/>
+        <g fill="#35E1D0" opacity="0.6" stroke="#EAFBFF" stroke-width="3">
+          <use href="#cColB"/><use href="#cColC"/><use href="#cColD"/><use href="#cColE"/>
+        </g>
+      </svg>
+      <figcaption><b>F4 · 980 ms</b>向两端推进，4 列亮；扫描线进场。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="开场第5格">
+        <use href="#cScene"/>
+        <g fill="#35E1D0" opacity="0.45" stroke="#EAFBFF" stroke-width="3">
+          <use href="#cColA"/><use href="#cColB"/><use href="#cColC"/><use href="#cColD"/><use href="#cColE"/><use href="#cColF"/>
+        </g>
+        <rect x="0" y="560" width="720" height="14" fill="#F2F6FF" opacity="0.85"/>
+        <rect x="0" y="574" width="720" height="6" fill="#35E1D0" opacity="0.7"/>
+      </svg>
+      <figcaption><b>F5 · 1330 ms</b>6 列全亮；扫描线自上而下扫到中段。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="开场第6格">
+        <use href="#cScene"/>
+        <use href="#cFilled"/>
+      </svg>
+      <figcaption><b>F6 · 1750 ms</b>牌从下方涌现填满落点；信息条与槽位条点亮。</figcaption>
+    </figure>
+  </div>
+
+  <table style="margin-top:14px">
+    <tr><th style="width:44px">格</th><th style="width:104px">时刻 / 时长</th><th style="width:170px">动作</th><th style="width:96px">缓动</th><th>起止值（可直接落码）</th></tr>
+    <tr>
+      <td><b>F1</b></td><td class="n">0 / 320 ms</td><td>光缝从屏幕中心向上下两端生长</td><td class="n">quadOut</td>
+      <td>上段长度 <code>0 → 640</code>、下段 <code>0 → 640</code>；宽 8（青 α 0→0.45）+ 宽 2（暖白 α 0→0.80）</td>
+    </tr>
+    <tr>
+      <td><b>F2</b></td><td class="n">320 / 300 ms</td><td>牌阵骨架按列「通电」，<b>从中间向两端</b></td><td class="n">quadOut</td>
+      <td>6 列：第 3/4 列延迟 <code>0</code>、第 2/5 列 <code>+120 ms</code>、第 1/6 列 <code>+240 ms</code>；每列自身 <code>200 ms</code>；填充 α <code>0 → 0.55</code></td>
+    </tr>
+    <tr>
+      <td><b>F3</b></td><td class="n">620 / 710 ms</td><td>扫描线自上而下扫过整屏</td><td class="n">线性</td>
+      <td>y <code>+640 → −640</code>；亮线高 14（暖白 α0.85）+ 尾线高 6（青 α0.70）；被扫过的骨架列填充 α <code>0.55 → 0.22</code></td>
+    </tr>
+    <tr>
+      <td><b>F4</b></td><td class="n">1330 / 420 ms</td><td>骨架收成落点，牌从下方涌现（<b>取代旧的独立入场</b>）</td><td class="n">backOut + quadOut</td>
+      <td>单张：起点 = 目标正下方 <b>1.2 个牌高</b>（<code>SPROUT_FROM_RATIO</code> 不动）、起始缩放 <b>0.45</b>（<code>SPROUT_SCALE_FROM</code> 不动）、单张升程 <b>0.34 s</b>（原 0.52）；束数 3–6；落位回弹过冲 1.07、0.24 s</td>
+    </tr>
+    <tr>
+      <td><b>F5</b></td><td class="n">1750 / 350 ms</td><td>顶部信息条 + 进度条 + 槽位条点亮</td><td class="n">quadOut</td>
+      <td>错峰 <code>0 / 60 / 120 ms</code>，各自 α <code>0 → 1</code>、<code>200 ms</code></td>
+    </tr>
+    <tr>
+      <td><b>F6</b></td><td class="n">2100 / 250 ms</td><td>关卡名从下方上浮落定</td><td class="n">backOut</td>
+      <td>位置 <code>−30 → 0</code>、缩放 <code>0.9 → 1.0</code>（过冲至 1.06 再回落）</td>
+    </tr>
+  </table>
+
+  <div class="callout night">
+    <b>为什么「从中间向两端」而不是从一端扫过去 —— 三条理由：</b><br>
+    ① <b>构图对称</b>：牌堆在屏幕上是居中对称的（落点区 x 从 −294 到 +294）。点亮顺序与构图的对称轴一致，
+    读起来才是「通电 / 开机」；从一端扫过，在竖屏上会被读成「进度条在加载」——
+    那是<b>加载感</b>，不是<b>开机感</b>。<br>
+    ② <b>与下一拍正交</b>：接下来是「牌从下方涌出」（方向 = 下→上）。若点亮也是单向线性（比如左→右），
+    两拍都是「扫过去」，节奏会打架；从中间向两端是<b>向外扩张</b>，与随后<b>向上生长</b>正交，两拍不抢。<br>
+    ③ <b>「点亮完成」落在视线自然落点上</b>：从中间向两端时，最后一格亮起在屏幕两侧边缘 ——
+    中心构图下那是视线自然扫到的位置，收尾更"完成"；从一端扫过时收尾发生在对角，视线要跳一下。
+  </div>
+
+  <div class="callout warn2">
+    <b>与现有「牌从下方涌现」的关系：<u>取代</u>，不是叠加在它之前。</b><br>
+    现状（<code>CFG.MOTION.SPROUT_*</code>，S17 方案 B）：起点在目标<b>正下方 1.2 个牌高</b>、起始缩放 <b>0.45</b>、
+    单张升程 <b>0.52 s</b>、总预算 <code>SPROUT_TOTAL_MAX = 1.6 s</code>。<br>
+    新版把「涌现」<b>降级成开场动画的第 F4 格</b>，并整体压缩：单张 0.52 → <b>0.34 s</b>、总预算 1.6 → <b>1.05 s</b>。
+    <b>两个定义"生长感"的核心参数不动</b>：起点倍数 1.2 与起始缩放 0.45。<br><br>
+    <b>为什么不叠加</b>：叠加 = 1.6 + 2.35 = <b>3.95 s / 关</b>，4 关就是 16 秒纯等待；
+    而且第 2 次玩同一关时，3.95 s 会让人直接想退出。<br>
+    <b>两版时长</b>：<br>
+    · <b>长版 2350 ms</b> —— 只在「这一关第一次玩」（<code>!SaveService.isCleared(levelId)</code>）时播满 6 格。<br>
+    · <b>短版 950 ms</b> —— 重玩已通关的关：跳过 F2 / F3（骨架点亮与扫描线），直接 F4 涌现 + F5 点亮（各压缩 30%）。<br>
+    · <b>可跳过</b>：长版期间点击屏幕任意处 → 立刻跳到 F4 起点（不打断，只是把前 1.33 s 折掉）。
+    2.35 s 只是勉强压在"不可跳过"的门槛内，仍然要给跳过。
+  </div>
+
+  <h3>3-2　通关动效 · 熄灯爆点</h3>
+  <p class="sub" style="margin-bottom:10px">
+    5 格，总长 720 ms。「魔性」全落在具体参数上：过冲 +18%、弹 4 次、抖 8 帧、每帧 ±1.5px 随机。
+  </p>
+
+  <div class="story">
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="通关第1格">
+        <use href="#cScene"/><use href="#cFilled"/>
+      </svg>
+      <figcaption><b>W1 · 0 ms</b>最后一组牌凑成，画面静止一帧（蓄力）。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="通关第2格">
+        <use href="#cScene"/>
+        <circle cx="360" cy="580" r="200" fill="none" stroke="#F2F6FF" stroke-width="44" opacity="0.5"/>
+        <circle cx="360" cy="580" r="120" fill="#F2F6FF" opacity="0.25"/>
+      </svg>
+      <figcaption><b>W2 · 60 ms</b>环形冲击波起（r=200、线宽 44）；中心保留、不参与闪白。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="通关第3格">
+        <use href="#cScene"/>
+        <circle cx="360" cy="580" r="380" fill="none" stroke="#35E1D0" stroke-width="16" opacity="0.28"/>
+        <g fill="#35E1D0">
+          <rect x="40" y="352" width="18" height="18"/><rect x="112" y="430" width="18" height="18"/>
+          <rect x="204" y="330" width="18" height="18"/><rect x="318" y="452" width="18" height="18"/>
+          <rect x="430" y="316" width="18" height="18"/><rect x="544" y="440" width="18" height="18"/>
+          <rect x="640" y="356" width="18" height="18"/>
+        </g>
+        <g fill="#FF4D9D">
+          <rect x="58" y="586" width="18" height="18"/><rect x="176" y="524" width="18" height="18"/>
+          <rect x="292" y="640" width="18" height="18"/><rect x="406" y="548" width="18" height="18"/>
+          <rect x="522" y="636" width="18" height="18"/><rect x="636" y="566" width="18" height="18"/>
+        </g>
+        <g fill="#F2F6FF">
+          <rect x="140" y="700" width="18" height="18"/><rect x="268" y="756" width="18" height="18"/>
+          <rect x="392" y="704" width="18" height="18"/><rect x="516" y="762" width="18" height="18"/>
+        </g>
+      </svg>
+      <figcaption><b>W3 · 180 ms</b>牌爆成 32 个像素方块（轴对齐、不旋转）。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="通关第4格">
+        <use href="#cScene"/>
+        <rect width="720" height="1280" fill="#FFFFFF" opacity="0.35"/>
+        <text x="360" y="580" font-size="150" font-weight="800" fill="#12173A" text-anchor="middle"
+              dominant-baseline="central" font-family="'Songti SC','STSong','SimSun',serif">通关</text>
+      </svg>
+      <figcaption><b>W4 · 260 ms</b>字号弹出（0.6→1.18→0.96→1.06→1.0）+ 画面震 8 帧。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="通关第5格">
+        <use href="#cScene"/>
+        <g fill="#35E1D0" opacity="0.5">
+          <rect x="150" y="240" width="16" height="16"/><rect x="286" y="196" width="16" height="16"/>
+          <rect x="420" y="248" width="16" height="16"/><rect x="548" y="200" width="16" height="16"/>
+          <rect x="212" y="120" width="16" height="16"/><rect x="470" y="118" width="16" height="16"/>
+          <rect x="352" y="96" width="16" height="16"/>
+        </g>
+        <text x="360" y="580" font-size="150" font-weight="800" fill="#12173A" text-anchor="middle"
+              dominant-baseline="central" font-family="'Songti SC','STSong','SimSun',serif">通关</text>
+        <text x="360" y="720" font-size="46" font-weight="700" fill="#FF4D9D" text-anchor="middle"
+              dominant-baseline="central" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">+ 最快 01:02</text>
+      </svg>
+      <figcaption><b>W5 · 560 ms</b>粒子飞散变淡；刷新纪录时品红小字上浮。</figcaption>
+    </figure>
+  </div>
+
+  <table style="margin-top:14px">
+    <tr><th style="width:44px">格</th><th style="width:104px">时刻 / 时长</th><th style="width:170px">动作</th><th style="width:110px">缓动</th><th>起止值（可直接落码）</th></tr>
+    <tr><td><b>W1</b></td><td class="n">0 / 60 ms</td><td>静止蓄力</td><td class="n">—</td><td>无参数。这 60 ms 是「炸」之前必须有的静</td></tr>
+    <tr>
+      <td><b>W2</b></td><td class="n">60 / 380 ms</td><td>环形冲击波 + 单帧全屏白闪</td><td class="n">quadOut / 无（白闪）</td>
+      <td>环：半径 <code>190 → 560</code>、线宽 <code>44 → 0</code>、暖白 α <code>0.85 → 0</code>；<br>
+          白闪：全屏 <code>#FFFFFF</code>，α <code>0 → <b>0.35</b> → 0</code>，<b>单帧 16 ms</b>，整段只出现 1 次</td>
+    </tr>
+    <tr>
+      <td><b>W3</b></td><td class="n">120 / 620 ms</td><td>32 个像素方块爆散</td><td class="n">线性（重力段）</td>
+      <td>数量 <b>32</b>（上限 40）；尺寸 <code>12–22 px</code> 随机；<br>
+          初速 <code>220 → 380 px/s</code>（±15% 随机）；<b>其中 8 颗强制 45° 斜向</b>（"整齐感"的那 1/4）；<br>
+          出射角 = 向上 60° ± 35° 扇形；重力 <code>900 px/s²</code>；寿命 <code>620 ms</code>；最后 180 ms α 线性 <code>1 → 0</code>；<br>
+          <b>不旋转</b>（轴对齐才有像素感，也省掉逐帧重算四角）</td>
+    </tr>
+    <tr>
+      <td><b>W4</b></td><td class="n">200 / 420 ms</td><td>字号弹出 + 画面震动</td><td class="n">backOut / quadOut 交替</td>
+      <td>「通关」缩放 <code>0.6 → <b>1.18</b>(@120) → <b>0.96</b>(@230) → <b>1.06</b>(@330) → 1.0(@420)</code>，
+          <b>弹 4 次、过冲 +18%</b>；<br>
+          震动：<b>8 帧 × 22 ms = 176 ms</b>，根节点位移序列 <code>0 / −9 / +7 / −5 / +4 / −2 / +1 / 0</code>，每帧再叠 <b>±1.5 px 随机</b></td>
+    </tr>
+    <tr>
+      <td><b>W5</b></td><td class="n">560 / 260 ms</td><td>纪录文本上浮</td><td class="n">quadOut</td>
+      <td>仅在刷新纪录时出现：位置 <code>+24 → 0</code>、α <code>0 → 1</code>、品红 <code>#FF4D9D</code> 46px；
+          同帧粒子剩 7 颗、α 已 &lt; 0.3</td>
+    </tr>
+  </table>
+
+  <div class="callout warn2">
+    <b>关于「全屏闪白」—— 我的明确态度和上限：</b><br>
+    <b>我能接受的上限：单帧 16 ms、α ≤ 0.35（白 × 0.35 叠在夜蓝上，合成亮度约为纯白的 1/5）、每局最多 1 次、两次之间间隔 ≥ 5 s。</b>
+    超过这个我就不接受。三条理由：<br>
+    ① <b>光敏性</b>：WCAG 2.3.1 禁止「每秒 3 次以上的全屏亮度跳变」。α=1.0 的全屏纯白闪，
+    对暗环境下的眼睛是生理级刺激，而这个游戏的主力使用时段恰恰是睡前。<br>
+    ② <b>夜蓝底的放大效应</b>：底越暗，同一 α 的闪白越刺眼 —— 夜蓝 <code>#12173A</code> 与纯白的对比是
+    <b class="ratio">17.36 : 1</b>，闪白在这个底上比在宣纸底上"重"得多，<b>不能沿用浅底方案的闪白强度</b>。<br>
+    ③ <b>更推荐的替代（图 W2 画的就是这一版）</b>：把「闪白」换成<b>「环形冲击波 + 中心保留」</b> ——
+    全屏只白到 α 0.35，但<b>中心 r&lt;190 的区域不参与闪白</b>（牌塔所在的那个圆保持原样）。
+    爆发感来自"外围被白光吃掉"，而不是"整屏被闪一下"，既保住传播力又不刺眼。<br>
+    若你想要更强的白闪：<b>请让我把它做成默认关闭的设置项</b>，而不是默认开着。
+  </div>
+
+  <h3>3-3　失败动效 · 降饱和 + 扫描线撕裂</h3>
+  <p class="sub" style="margin-bottom:10px">
+    5 格，总长 1150 ms。<b>与通关是刻意相反的一组对照</b>：通关是「弹上去」，失败是「垂下来」。
+  </p>
+
+  <div class="story">
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="失败第1格">
+        <use href="#cScene"/><use href="#cFilled"/>
+        <rect x="84" y="1052" width="120" height="64" rx="6" fill="#FF4D9D" opacity="0.5"/>
+      </svg>
+      <figcaption><b>L1 · 0 ms</b>槽位满格，画面静止一帧。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="失败第2格">
+        <use href="#cScene"/><use href="#cFilled"/>
+        <rect width="720" height="1280" fill="#2A3060" opacity="0.43"/>
+      </svg>
+      <figcaption><b>L2 · 80 ms</b>冷灰罩盖全屏（α 0→0.43，300 ms）—— 近似降饱和。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="失败第3格">
+        <use href="#cScene"/>
+        <rect width="720" height="1280" fill="#2A3060" opacity="0.43"/>
+        <rect x="0" y="300" width="470" height="30" fill="#FF4D9D" opacity="0.7"/>
+        <rect x="248" y="470" width="472" height="18" fill="#F2F6FF" opacity="0.45"/>
+        <rect x="0" y="640" width="380" height="38" fill="#0C1029" opacity="0.9"/>
+        <rect x="300" y="820" width="420" height="22" fill="#35E1D0" opacity="0.35"/>
+      </svg>
+      <figcaption><b>L3 · 200 ms</b>撕裂第 1 帧：4 条横向故障条带，左右错开。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="失败第4格">
+        <use href="#cScene"/>
+        <rect width="720" height="1280" fill="#2A3060" opacity="0.43"/>
+        <rect x="120" y="380" width="600" height="26" fill="#F2F6FF" opacity="0.40"/>
+        <rect x="0" y="530" width="330" height="20" fill="#FF4D9D" opacity="0.6"/>
+        <rect x="380" y="700" width="340" height="34" fill="#0C1029" opacity="0.9"/>
+        <rect x="0" y="880" width="520" height="16" fill="#35E1D0" opacity="0.30"/>
+      </svg>
+      <figcaption><b>L4 · 250 ms</b>撕裂第 2 帧：条带位置与偏移全换。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="0 0 720 1280" role="img" aria-label="失败第5格">
+        <use href="#cScene"/>
+        <rect width="720" height="1280" fill="#2A3060" opacity="0.43"/>
+        <text x="360" y="600" font-size="96" font-weight="700" fill="#A9B4D8" text-anchor="middle"
+              dominant-baseline="central" font-family="'Songti SC','STSong','SimSun',serif">卡 住 了</text>
+        <rect x="162" y="980" width="396" height="120" rx="6" fill="#35E1D0" opacity="0.85"/>
+        <text x="360" y="1040" font-size="40" font-weight="700" fill="#12173A" text-anchor="middle"
+              letter-spacing="7" dominant-baseline="central"
+              font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">重 来</text>
+      </svg>
+      <figcaption><b>L5 · 700 ms</b>撕裂停；「卡住了」垂落 + 主按钮上浮 + 扫描线反向扫回。</figcaption>
+    </figure>
+  </div>
+
+  <table style="margin-top:14px">
+    <tr><th style="width:44px">格</th><th style="width:104px">时刻 / 时长</th><th style="width:150px">动作</th><th style="width:130px">缓动</th><th>起止值（可直接落码）</th></tr>
+    <tr><td><b>L1</b></td><td class="n">0 / 80 ms</td><td>静止蓄力</td><td class="n">—</td><td>无参数</td></tr>
+    <tr>
+      <td><b>L2</b></td><td class="n">80 / 300 ms</td><td>全屏冷灰罩（近似降饱和）</td><td class="n">quadOut</td>
+      <td>1 个全屏矩形 <code>#2A3060</code>，α <code>0 → <b>0.43</b></code>。盖完后牌面米黄 <code>#FBF6EA</code> 会被压成灰蓝一带 ——
+          <b>这不是真的降饱和，只是"加了一层冷灰"</b>，见 ②</td>
+    </tr>
+    <tr>
+      <td><b>L3</b></td><td class="n">200 / 50 ms</td><td>撕裂帧 1</td><td class="n">无（硬切）</td>
+      <td>一个 Graphics 画 <b>4–7 条</b>水平条带，每帧一整套随机：<br>
+          高度 <code>14–40 px</code> 随机；y 随机落在 <code>200–980</code>；横向错位 <code>±(10–36) px</code>
+          （<b>条带整体左右平移，不是斜切</b>）；<br>
+          颜色只从 4 个里取：<code>#0C1029</code> α0.90 / <code>#FF4D9D</code> α0.70 / <code>#F2F6FF</code> α0.45 / <code>#35E1D0</code> α0.35</td>
+    </tr>
+    <tr>
+      <td><b>L4</b></td><td class="n">250 / 50 ms</td><td>撕裂帧 2 / 3</td><td class="n">无（硬切）</td>
+      <td>同上，<b>换一套随机种子</b>。3 帧总长 150 ms（200 / 250 / 300 ms 各 50 ms），<b>只跳 3 次</b> —— 这是刻意的，见下</td>
+    </tr>
+    <tr>
+      <td><b>L5</b></td><td class="n">700 / 450 ms</td><td>「卡住了」垂落 + 按钮上浮 + 扫描线反向</td><td class="n">quadIn（垂落）<br>backOut（上浮）<br>线性（扫描线）</td>
+      <td>文本：缩放 <code>1.0 → <b>0.94</b></code>（<b>不弹，只缩</b> —— 与通关的 +18% 过冲正好相反）、位置 <code>0 → −6</code>，
+          随后横向抖 <b>4 帧 × 40 ms</b>、每帧 <code>±4 px</code>；<br>
+          按钮：位置 <code>+40 → 0</code>、α <code>0 → 0.85</code>、<code>300 ms</code>、延迟 <code>200 ms</code>；<br>
+          扫描线：y <code>−640 → +640</code>（<b>方向与开场相反，隐喻"重启"</b>）、<code>900 ms</code>、线宽 12、青 α0.30</td>
+    </tr>
+  </table>
+
+  <div class="callout warn2">
+    <b>「撕裂」在纯色块下怎么做出来 —— 以及它不是真撕裂，我必须说清楚：</b><br>
+    真撕裂（tearing）是<b>把画面本身按水平条带切开、每条独立平移</b>。工程里做不到，因为 UI 是整棵节点树：
+    你只能移动<b>整个节点</b>，没有"只移动这个节点的一部分"这种操作；
+    而"把每个节点按条带复制成 6 份、各自裁切"等于把界面 draw call × 6，不可能。<br>
+    所以我做的是一层<b>「伪撕裂」= 覆盖在画面上的故障条带（glitch bars）</b>：
+    一叠半透明的纯色横条，每帧换位置和横向错位。观众读到的仍然是"信号断了"，
+    但<b>底下的画面其实一直在正常渲染，一条都没被切开</b>。
+    评审时必须按「伪」来接受，不能当成真撕裂验收。
+  </div>
+
+  <div class="callout warn2">
+    <b>为什么撕裂只跳 3 帧、为什么抖动要用「帧」而不是「秒」：</b>
+    <b>每帧 50 ms（= 20 Hz）× 3 帧 = 150 ms</b>，频率落在「可读作故障」而不是「可读作频闪」的区间。
+    如果把条带跳变做到 6 帧以上、或把间隔压到 30 ms（33 Hz），它就从"故障"变成"频闪"，
+    既触发光敏风险，又会让人觉得"游戏卡死了"。同理，通关的震动锁死在
+    <b>8 帧 × 22 ms = 176 ms、单帧位移 ≤ 9 px</b>：再长就是"晃"不是"震"，单帧位移再大就有前庭不适的投诉面。<br>
+    <b>这三组动效都必须挂在同一个「减弱动效」开关下面</b>（见 ④-6）。
+  </div>
+
+  <div class="callout ok">
+    <b>失败文案：不说"失败"。</b>用「卡 住 了」+ 按钮「重 来」。
+    理由：第 1 关被设计成"不可能失败"，失败集中在 L3/L4，而失败原因是"没解了"而不是"你菜"。
+    「卡住了」把责任放在局面而不是玩家身上；配合"垂落"而不是"弹出"的动效，情绪是"有点可惜"，不是"你输了"。
+    <b>这是唯一一处我建议改文案的地方，与风格无关，A / B / C 都适用。</b>
+  </div>
+</section>
+
+<!-- ============================================================
+     ④ 实现成本与风险
+     ============================================================ -->
+<section class="card" id="s4">
+  <div class="sec-head">
+    <span class="idx">④</span>
+    <h2>实现成本与风险</h2>
+    <span class="hint">成本等级：<b>高</b><br>改动面：5 改 + 2 新增 + 摘 1 路由</span>
+  </div>
+
+  <h3 style="margin-top:4px">4-1　需要新增的三个绘制原语（都能用纯色块画出来）</h3>
+  <table>
+    <tr><th style="width:132px">原语</th><th>怎么用纯色块实现</th><th style="width:104px">代价</th></tr>
+    <tr class="hl">
+      <td><b>霓虹多层描边<br>（模拟发光）</b></td>
+      <td>
+        <b>没有模糊就不能真发光</b>，所以用「多重同心描边」硬造一圈渐暗的光晕。做法：
+        <b>同一路径（同一个 roundRect / circle）反复 stroke 4 次，只改 <code>lineWidth</code> 与 <code>strokeColor</code> 的 α</b>。
+        因为 Graphics 的描边以路径为中心向两侧各画一半，宽描边自然形成外圈、窄描边形成芯：
+        <table style="margin:8px 0 0">
+          <tr><th>层</th><th>lineWidth</th><th>α（0–255）</th><th>几何覆盖</th><th>作用</th></tr>
+          <tr><td>L1</td><td class="n">16</td><td class="n">26（0.10）</td><td class="n">±8.0 px</td><td>最外雾层</td></tr>
+          <tr><td>L2</td><td class="n">10</td><td class="n">56（0.22）</td><td class="n">±5.0 px</td><td>中晕</td></tr>
+          <tr><td>L3</td><td class="n">5</td><td class="n">140（0.55）</td><td class="n">±2.5 px</td><td>近芯</td></tr>
+          <tr><td>L4</td><td class="n">1.8</td><td class="n">255（1.00）</td><td class="n">±0.9 px</td><td>灯管芯（用暖白，不用青）</td></tr>
+        </table>
+        4 层叠加后的实际亮度梯度：芯 ≤0.9px 不透明 → 2.5px 处 α≈0.87 → 5px 处 α≈0.32 → 8px 处 α≈0.10，
+        读起来就是一根有晕的灯管。<br>
+        <b>「发光层级」= 描边层数</b>，全页统一三档：
+        <b>4 层</b>（主按钮 / 主标题 / 圆形取景框，最重要）、<b>3 层</b>（当前关刻度段）、
+        <b>2 层</b>（已通关刻度段）、<b>1 层</b>（两侧小钮、四角括号 —— 只是描边，不算发光）。
+      </td>
+      <td>每元素 <b>4 次 <code>stroke()</code></b>；<br>可按「层」合批，见 4-3</td>
+    </tr>
+    <tr class="hl">
+      <td><b>扫描线 / 纹理</b></td>
+      <td>
+        一个 <code>Graphics</code>，<b>连续调 106 次 <code>rect()</code>（不要每画一条就 fill）</b>，
+        最后<b>只调一次 <code>fill()</code></b> → 一次绘制出 106 条线。<br>
+        参数：屏高 1280 ÷ 间距 12 = <b>106 条</b>；每条高 1px、宽 720（满宽）；色 <code>#35E1D0</code> α 0.075。<br>
+        <b>⚠️ 这是本方案最容易踩的坑</b>：写成 106 次 <code>rect()+fill()</code>，首页 draw call 会从 29 顶到 170+，
+        比 L4 最重局面还重。必须合到一次 fill。
+      </td>
+      <td>1 次 fill；<br>106×4 = 424 顶点</td>
+    </tr>
+    <tr class="hl">
+      <td><b>像素方块粒子</b></td>
+      <td>
+        一个 <code>Graphics</code>，<b>每帧 <code>clear()</code> → 32 次 <code>rect()</code> → 1 次 <code>fill()</code></b>，
+        位置自己算（<code>p += v·dt</code>、<code>v.y −= 900·dt</code>）。<b>方块不旋转</b>（轴对齐既是像素风，也省掉逐帧算四角）。<br>
+        <b>两条实现路径，我推荐第 2 条：</b><br>
+        · 路径 A（省 DC）：1 个 Graphics 逐帧重绘 → <b>1 DC/帧</b>，代价是每帧重建约 128 个顶点的 mesh（约 0.1–0.2 ms）。<br>
+        · 路径 B（省事）：复用工程现成的 <code>FxPool</code> + <code>spawnDebris</code>
+        （<code>ui/MotionFx.ts:578 / 691</code>），一颗粒子一个池化节点 → <b>32 DC</b>，但<b>零新代码</b>。<br>
+        <b>为什么推荐 B</b>：通关瞬间场上已经清空（S7.9 起「场上清空即通关」，残留牌走 <code>SWEEP_OUT</code>），
+        那一刻的 draw call 远低于 L4 峰值 162，多 32 个完全吃得下；而失败路径我不放粒子（只放故障条带），
+        所以不存在「162 + 32」的叠加。<b>路径 A 作为后备</b>：若实测通关瞬间 &gt; 90 DC 就切过去。
+      </td>
+      <td>B：32 DC<br>A：1 DC/帧</td>
+    </tr>
+    <tr>
+      <td><b>（附带）逐段生长的线</b></td>
+      <td>开场 F1/F2 的光缝与骨架点亮，如果只靠"线宽变大"是靠不住的（描边以路径为中心，宽度变化会两头同时长）。
+        正确做法是<b>逐帧重绘一个矩形 / 一条 path</b>，长度参数插值。它不算新原语（就是 <code>rect()</code>），
+        但要点名：<b>它必须逐帧重绘</b>。</td>
+      <td>1 DC/帧（峰值期共 2 处）</td>
+    </tr>
+  </table>
+
+  <h3>4-2　贴图需求</h3>
+  <div class="callout ok">
+    <b>零贴图，新增体积 0 KB。</b>所有效果都是纯色块：霓虹是多层描边、扫描线是一次 fill 的多段矩形、
+    粒子是轴对齐矩形、故障条带是矩形、降饱和是半透明全屏矩形、闪白是全屏矩形、字号弹出是 Label 缩放。<br><br>
+    <b>一个被否掉的省事方案</b>：扫描线做成一张 1×12 px 的 PNG 用 repeat 平铺，能省掉 106 个 rect 的顶点。
+    但（a）它只省 424 个顶点，本来就便宜；（b）工程现行约定是"零贴图"（<code>README.md</code> 与 <code>UIFactory</code> 都写死了）；
+    （c）它会给包体开一个坏头。所以不做。若真要做，体积约 <b>0.2 KB</b>（1×12 8-bit PNG），
+    对 1.85 MB 余量无关紧要 —— <b>但理由不成立，我还是不做</b>。
+  </div>
+
+  <h3>4-3　draw call / 性能成本 —— 本方案最需要交代的一项</h3>
+  <p class="sub" style="margin-bottom:8px">
+    口径：Cocos 3.x 的 <code>Graphics</code> 会把同一组件内多次 <code>fill()/stroke()</code> 汇编进同一块 mesh，
+    但「各自触发一次绘制」的保守假设更安全 —— 所以我给的是<b>「一次 fill/stroke = 1 DC」的保守上界</b>，
+    并同时给"按层合批"后的乐观值。<b>最终必须以 <code>director.root.device.numDrawCalls</code> 实测为准</b>
+    （采样方法见 <code>docs/verify/S10/README.md</code>；注意该值每帧清零，必须取 6 次采样的峰值）。
+  </p>
+
+  <table>
+    <tr><th>首页元素</th><th style="width:280px">绘制动作</th><th style="width:78px">保守 DC</th><th style="width:96px">按层合批后</th></tr>
+    <tr><td>夜蓝底</td><td>1 rect + 1 fill</td><td class="r n">1</td><td class="r n">1</td></tr>
+    <tr><td>扫描线 ×106</td><td>106 rect + <b>1 fill</b></td><td class="r n">1</td><td class="r n">1</td></tr>
+    <tr><td>竖光缝（2 段 × 2 层）</td><td>4 rect + 2 fill（按色分 2 批）</td><td class="r n">2</td><td class="r n">2</td></tr>
+    <tr><td>圆形取景框</td><td>4 stroke</td><td class="r n">4</td><td class="r n">1</td></tr>
+    <tr><td>取景框 4 枚螺母块</td><td>4 rect + 1 fill</td><td class="r n">1</td><td class="r n">1</td></tr>
+    <tr><td>页面四角霓虹括号</td><td>1 path（8 段）+ 1 stroke<br><span class="sub" style="margin:0">把 4 条折线合成 1 个 path —— <code>guochao-tiles.html</code> §10 也点了这条，省 3 次 DC</span></td><td class="r n">1</td><td class="r n">1</td></tr>
+    <tr><td>刻度管：4 段空槽</td><td>4 rect + 1 fill</td><td class="r n">1</td><td class="r n">1</td></tr>
+    <tr class="hl"><td>刻度管：<b>已通关 2 段</b>（各 4 层）</td><td>8 stroke</td><td class="r n">8</td><td class="r n">4</td></tr>
+    <tr><td>刻度管：当前段（3 层）</td><td>3 stroke</td><td class="r n">3</td><td class="r n">3</td></tr>
+    <tr><td>刻度管：未解锁段（1 层）</td><td>1 stroke</td><td class="r n">1</td><td class="r n">1</td></tr>
+    <tr><td>刻度管：内部高光 / 呼吸点</td><td>3 rect + 1 fill</td><td class="r n">1</td><td class="r n">1</td></tr>
+    <tr><td>主按钮：厚度层</td><td>1 fill</td><td class="r n">1</td><td class="r n">1</td></tr>
+    <tr class="hl"><td>主按钮：面 + 4 层描边</td><td>1 fill + 4 stroke</td><td class="r n">5</td><td class="r n">5</td></tr>
+    <tr><td>主按钮：文字</td><td>1 Label</td><td class="r n">1</td><td class="r n">1</td></tr>
+    <tr><td>两侧小钮 ×2（面 + 描边 + 图标）</td><td>2 ×（1 fill + 1 stroke + 1 fill）</td><td class="r n">6</td><td class="r n">4</td></tr>
+    <tr><td>牌塔 ×3（面 fill + 面 stroke + 内框 stroke + 角花 1 stroke）</td><td>3 × 4</td><td class="r n">12</td><td class="r n">7</td></tr>
+    <tr><td>牌塔 ×3 侧壁</td><td>3 fill</td><td class="r n">3</td><td class="r n">1</td></tr>
+    <tr><td>牌塔 ×3 的「环境光」外描边</td><td>3 stroke（可合 1 path）</td><td class="r n">3</td><td class="r n">1</td></tr>
+    <tr><td>万子文字 ×1</td><td>1 Label</td><td class="r n">1</td><td class="r n">1</td></tr>
+    <tr class="hl"><td><b>主标题 3 层发光</b></td><td>3 个叠放的 Label（Label 只能挂 1 个 <code>LabelOutline</code>，所以文字发光只能靠叠节点）</td><td class="r n">3</td><td class="r n">3</td></tr>
+    <tr><td>其余文字 6 处</td><td>6 Label</td><td class="r n">6</td><td class="r n">6</td></tr>
+    <tr class="hl"><td><b>首页合计</b></td><td>—</td><td class="r n"><b>≈ 62</b></td><td class="r n"><b>≈ 44</b></td></tr>
+  </table>
+
+  <table style="margin-top:12px">
+    <tr><th>场景</th><th style="width:150px">基线（实测）</th><th style="width:110px">本方案增量</th><th style="width:96px">合计</th><th>判定</th></tr>
+    <tr><td><b>首页</b>（现状 29 DC）</td><td class="n">29</td><td class="n">+15 ~ +33</td><td class="n">44 ~ 62</td><td><b>不触碰红线</b>，但首屏绘制成本翻倍（低端机首帧最敏感）</td></tr>
+    <tr><td><b>游戏页 L4 峰值</b></td><td class="n">162</td><td class="n">+0</td><td class="n">162</td><td>游戏页<b>不套夜景</b>，只在开场 / 结算时叠</td></tr>
+    <tr class="hl"><td><b>L4 · 开场动画峰值</b></td><td class="n">—</td><td class="n">+5（光缝 2 + 扫描线 1 + 骨架逐帧重绘 2）</td><td class="n">≈ 167</td><td>低于历史峰值 186，<b>可接受</b></td></tr>
+    <tr class="hl"><td><b>L4 · 通关瞬间</b></td><td class="n">&lt; 60（场上已清空）</td><td class="n">+32（粒子）+ 1（冲击环）+ 1（闪白）</td><td class="n">≈ 94</td><td><b>可接受</b>。若实测 &gt; 90 就切到"单 Graphics 粒子"（−31）</td></tr>
+    <tr><td><b>L4 · 失败瞬间</b></td><td class="n">162</td><td class="n">+2（灰罩 1 + 故障条带 1）</td><td class="n">≈ 164</td><td>低于 186，可接受</td></tr>
+  </table>
+
+  <div class="callout warn2">
+    <b>本方案的性能红线（写在最显眼的地方）：</b><br>
+    ① <b>扫描线必须一次 <code>fill()</code></b>。写成 106 次 fill，首页 DC ≈ <b>170+</b>，
+    比 L4 最重局面还重，直接不合格。<br>
+    ② <b>霓虹描边必须按「层」合批，不要按「元素」</b>。做法：建 4 个 Graphics 层（L1/L2/L3/L4），
+    把全页所有需要同一层描边的元素都画进对应的那一个 Graphics。
+    这时上表的 62 会掉到 44 上下 —— 注意这一条<b>依赖引擎对不同颜色 stroke 的合批行为，我没有实测</b>，
+    所以它写成"优化目标"而不是"既定事实"。<b>第一次落地时必须先用性能面板量一遍，量完再决定要不要做合批。</b><br>
+    ③ <b>验收阈值：首页 <code>numDrawCalls</code> 6 次采样峰值 ≤ 70</b>（现状 29 + 41）。超过就按顺序砍：
+    先砍扫描线（−1）→ 再砍四角括号（−1）→ 再把取景框从 4 层降到 2 层（−2）→ 最后才动主按钮的 4 层。
+  </div>
+
+  <h3>4-4　与已有牌面的协调性（诚实回答第一个问题）</h3>
+  <div class="callout warn2">
+    <b>问：这套视觉与已有的 27 张真牌牌面（深蓝 / 朱红 / 竹绿，纸底黑线）放在一起协调吗？</b><br>
+    <b>答：不协调。而且我能指出具体是哪里不协调、怎么改才能共存。</b>
+  </div>
+  <ul class="tight">
+    <li><b>冲突的本质不是"颜色不一样"，是两套物性语义。</b>
+      真牌是「<b>印刷在纸上的图案</b>」：暖（纸底 <code>#FBF6EA</code>）、低饱和、哑光、有墨线边界；
+      夜蓝底是「<b>屏幕自己发的光</b>」：冷、高饱和、光会溢出。把"哑物"放进"光环境"，冲突点有三个，全是具体的：</li>
+    <li><b>冲突 1 —— 牌的投影会失效。</b>牌的立体投影是 <code>#22201C</code> × 3 层 × α52
+      （<code>CFG.TILE.SOLID.SHADOW_*</code>），它靠"比底色暗"成立：对宣纸底 <code>#F2EADA</code> 的对比是
+      <b class="ratio">13.6 : 1</b>；对夜蓝底 <code>#12173A</code> 只有 <b class="ratio">1.06 : 1</b> ——
+      <b>几乎完全看不见</b>。结果是牌会"浮"起来，失去"被放在桌面上"的重量感。<br>
+      <b>改法</b>：暗底模式不用"更淡的墨"，改用"更黑"（<code>#000000</code>，α 52 → 90），
+      并给牌加一圈 1.5px 的 <code>#35E1D0</code> α0.5 环境光描边，把牌"焊"进夜色（本稿首页画的就是这一版）。</li>
+    <li><b>冲突 2 —— 牌的侧壁变成画面里唯一的暖色大块。</b>侧壁 <code>SIDE #E1D5B9</code> 与牌面 <code>#FBF6EA</code>
+      本来同族（暖米色系，差 12 级明度），在宣纸底上它是"厚度"；在夜蓝底上它是<b>画面中面积最大的暖色</b>，
+      会与霓虹青形成冷暖对撞，而不是层次。<br>
+      <b>改法</b>：暗底模式把侧壁换成 <code>#2E3568</code>（冷灰蓝），读作"被夜光染过的暗边"，不再与霓虹抢色。</li>
+    <li><b>冲突 3 —— 12 处朱红角花会把棋牌配色重新拉回来。</b>三张展示牌各 4 段朱红角花（<code>#C4362B</code>），
+      在宣纸底上是"器物感"；在夜蓝底上它会变成 12 个暖红亮点，而且<b>朱红与霓虹青是互补关系，会互相"跳"</b>。
+      更麻烦的是：本方案好不容易才把「朱红 + 墨 + 金」从界面撤出去，这 12 个点又把朱红带回来了。<br>
+      <b>改法</b>：给 <code>TileRenderer.drawFrame(g, isDim, k)</code> 增加一个独立的 <code>noCorner</code> 参数
+      （现在这个开关和"被压住"绑在一起，见 <code>TileRenderer.ts:380</code> 的 <code>if (!isDim)</code>），
+      首页展示牌传 <code>true</code>。约 3 行改动。</li>
+    <li><b>结论</b>：做完上面三处改造（合计约 12 行代码：侧壁色 + 投影色 + 一个开关），
+      <b>牌与夜蓝底能"共存"，但不会"相得益彰"</b> —— 牌仍然像是"被搬进了一个不属于它的房间"。
+      这三个改造<b>一处都不能省</b>，少了任何一处都会立刻看出不搭。<b>我不会说"毫无违和"。</b></li>
+    <li><b>一句话</b>：牌面在这套视觉里唯一的角色是<b>"夜空里发亮的那三张"</b> ——
+      它们靠明度（16.10 : 1）而不是靠色彩和谐取胜。接受这一点，方案才成立。</li>
+  </ul>
+
+  <h3>4-5　品类契合度（诚实回答第二个问题）</h3>
+  <div class="callout warn2">
+    <b>问：这页的观感与「休闲益智 + 中国风麻将」这个品类定位是否匹配？如果不匹配，你认为它适合什么场景？</b><br>
+    <b>答：不匹配。而且我认为它真正有价值的不是"首页长这样"，而是"通关那一下可以这样"。</b>
+  </div>
+  <ul class="tight">
+    <li><b>为什么不匹配：两套联想的交集几乎是空集。</b>
+      「休闲益智 + 中国风麻将」在用户心里唤起的是<b>可拿在手里把玩的材质</b>：纸、木、竹、瓷 —— 明亮、温润、有触感。
+      霓虹 / 夜蓝 / 扫描线唤起的是<b>赛博、街机、电子乐、深夜</b>。这两组联想没有交叠。具体后果三条：</li>
+    <li><b>后果 1 —— 缩略图会"读成另一个品类"。</b>微信小游戏列表页是浅色底，一张暗底霓虹图在里面会显得"像另一个游戏"。
+      这既是优势（够跳）也是风险（错位）：用户点进来发现玩法是温和的消除，会有轻微的期待落差。</li>
+    <li><b>后果 2 —— 与主力用户群的接受度错配。</b>麻将题材里中老年占比明显更高。
+      荧光色在他们的审美里普遍被读作"廉价游戏"，而暗底 + 高饱和青对老花眼的负担也确实更大
+      （本方案弱化文字对比度 5.14 : 1 是达标的，但<b>暗底让小字主观上更吃力</b>这件事，达标也解决不了）。</li>
+    <li><b>后果 3 —— 与「零棋牌语义」的关系是双刃的。</b>
+      好消息：霓虹 / 夜光和中国风棋牌<b>没有任何经典配色关联</b>，从合规角度它比现有的「朱红 + 墨 + 金」安全得多，
+      这正好是用户说的"色调要变"想要的效果。
+      坏消息：<b>牌面那三色（深蓝 / 朱红 / 竹绿）和 12 处朱红角花没有变</b> ——
+      改配色只改了界面壳，没改牌。而真正的棋牌联想风险在牌上，牌又是已定稿资产。
+      <b>所以"换色调"这件事，本方案只做到了一半。</b></li>
+    <li><b>我建议的落地方式（最想强调的一条）—— 只把通关动效做成夜光版，页面骨架不要：</b><br>
+      保留 A / B 方案的浅色页面，只在<b>通关那 1.2 秒里</b>把背景短暂压暗成夜蓝
+      （0.22 s 内盖一层 <code>#12173A</code> α0.92），然后在夜色里做霓虹爆点 + 像素方块 ——
+      这个做法叫「<b>熄灯爆点</b>」（light-off burst）。四个好处：<br>
+      ① 首页与游戏页的品类定位一个字不动；<br>
+      ② 短视频最有传播力的那 1.2 秒拿到了（"暗下来 → 炸开"的对比本身就是最好的钩子）；<br>
+      ③ 成本极低：只在通关时多 2 个全屏色块的补间 + 一个已有的粒子层；<br>
+      ④ 不把"整局都在暗底上玩"的用眼负担加给玩家。<br>
+      <b>③ 里的图 W2/W3/W4 画的就是这个版本</b> —— 那一刻背景其实还是浅色的，只是被一层夜蓝盖住了 1.2 秒。
+      这就是本方案真正的用法：<b>它是一段动效，不是一个主题。</b></li>
+  </ul>
+
+  <h3>4-6　无障碍与合规风险</h3>
+  <table>
+    <tr><th style="width:112px">风险</th><th>判断与上限</th></tr>
+    <tr class="hl"><td><b>全屏闪白</b></td>
+      <td><b>上限：单帧 16 ms、α ≤ 0.35、单次、间隔 ≥ 5 s。</b>WCAG 2.3.1 禁止 &gt;3 Hz 的全屏亮度跳变；
+        夜蓝底与纯白对比 17.36 : 1，同一 α 在暗底上的刺激远大于浅底，<b>不能沿用浅底方案的强度</b>。
+        更推荐「环形冲击波 + 中心保留」（中心 r&lt;190 不参与闪白）。若用户要更强 → 做成默认关闭的设置项。</td></tr>
+    <tr><td><b>光敏 / 频闪</b></td>
+      <td>撕裂只跳 <b>3 帧 × 50 ms = 150 ms（20 Hz）</b>，不做 6 帧以上、间隔不做 &lt;30 ms。
+        20 Hz × 3 帧整体读作"故障"，33 Hz 会读作"频闪"。这是本方案唯一一处「故意做得不够狠」的地方。</td></tr>
+    <tr><td><b>运动刺激</b></td>
+      <td>震动锁在 <b>8 帧 × 22 ms、单帧位移 ≤ 9 px</b>；失败抖 <b>4 帧 × 40 ms、单帧 ±4 px</b>。
+        <b>必须提供「减弱动效」开关</b> —— 微信小游戏没有系统的 prefers-reduced-motion，只能自己做。
+        建议把右下角那枚小钮改成「设置」，里面放「音效 / 动效」两个开关（本稿画的是音效，可扩成设置）。</td></tr>
+    <tr><td><b>高饱和大色块</b></td>
+      <td>霓虹青对夜蓝 10.61 : 1，可读性很好；但<b>大面积高饱和青 + 暗底</b>长时间注视会产生余像。
+        规则：<b>霓虹只出现在"线"上（描边，宽度 ≤ 16px），不做大面积霓虹填充。</b>
+        本稿唯一的大面积青是主按钮面（396×132）—— 那是按钮，局部的、可移开视线的。</td></tr>
+    <tr><td><b>触摸目标</b></td>
+      <td>刻度段实体高只有 40px，<b>低于 44px 最小值</b> → 热区必须补到 <b>135 × 64</b>，且段缝要分给热区
+        （缝里也必须能点到）。主按钮 396×132 ✅、小钮 72×72 ✅、刻度段 135×64 ✅（靠热区达标）。</td></tr>
+    <tr><td><b>暗底在强光下</b></td>
+      <td>户外强光下，暗底 + 霓虹的可读性<b>低于</b>浅底。这是所有暗色界面的通病，设计上无法解决，
+        只能靠"入场时默认不暗"来规避 —— 这也正是 4-5 建议「只把通关做成夜光」的又一条理由。</td></tr>
+    <tr><td><b>合规（棋牌语义）</b></td>
+      <td>界面层：<b>本方案在这一点上优于现行方案</b>（朱红 / 金 / 角花从界面退场，不出现任何棋牌语义词）。
+        牌面层：<b>风险原封不动</b>（三色 + 朱红角花），牌是定稿资产，本方案不碰。
+        → 提审前仍须按 <code>minigame-publish-compliance</code> 复核一遍（<code>README.md</code> §7 的未解除风险）。</td></tr>
+  </table>
+
+  <h3>4-7　落地清单：改哪几个文件</h3>
+  <table>
+    <tr><th style="width:230px">文件</th><th style="width:96px">动作</th><th>内容 / 规模</th></tr>
+    <tr class="hl"><td><code>assets/scripts/ui/NeonFactory.ts</code></td><td><b>新增</b></td>
+      <td>三个原语的实现：<code>strokeNeon()</code>（多层描边，接层级档 4/3/2/1）、<code>fillRects()</code>（一次 fill 画 N 个矩形，扫描线与故障条带共用）、<code>PixelBurst</code>（32 方块的逐帧批）。<b>约 260 行</b></td></tr>
+    <tr class="hl"><td><code>assets/scripts/ui/LevelIntro.ts</code></td><td><b>新增</b></td>
+      <td>开场动画时间轴（6 格 + 短版 + 点击跳过）。<b>约 180 行</b></td></tr>
+    <tr><td><code>assets/scripts/CFG.ts</code></td><td><b>改</b></td>
+      <td>① 新增 <code>COLOR.NEON_*</code> 一组 12 个令牌（与现有 <code>COLOR</code> 并存，不删旧的，便于 A/B 对比）；
+      ② <code>MENU_LAYOUT</code> 按 ① 的坐标表重排（含新增的刻度管 / 小钮 / 光缝）；
+      ③ 新增 <code>MOTION.INTRO_* / WIN_* / LOSE_*</code> 三组参数。<b>约 +120 行</b></td></tr>
+    <tr><td><code>assets/scripts/ui/MenuPage.ts</code></td><td><b>改（重写）</b></td>
+      <td>整页重做：布局替换、刻度管（4 段 + 点击选关 + 长按清空）、主按钮三态文案、两枚小钮。<b>190 行 → 约 320 行</b></td></tr>
+    <tr><td><code>assets/scripts/ui/UIFactory.ts</code></td><td><b>改</b></td>
+      <td>加两个工具：<code>strokeBoxMultilayer()</code>（多层描边盒子）与 <code>fillRectsOnce()</code>（多矩形一次 fill）。<b>约 +50 行</b></td></tr>
+    <tr><td><code>assets/scripts/ui/TileRenderer.ts</code></td><td><b>改</b></td>
+      <td>立体装饰的「暗底模式」（侧壁 <code>#2E3568</code> + 投影 <code>#000000</code> α90）+ <code>drawFrame</code> 增 <code>noCorner</code> 参数。<b>约 +12 行</b>，<b>不动 27 张牌面图案一个像素</b></td></tr>
+    <tr><td><code>assets/scripts/core/PageManager.ts</code></td><td><b>改</b></td>
+      <td>摘掉 <code>levelSelect</code> 路由（<code>LevelSelectPage.ts</code> 文件保留、不再可达，标注为归档，便于回溯）。<b>约 ±6 行</b></td></tr>
+    <tr><td><code>assets/scripts/core/SaveService.ts</code></td><td><b>不改</b></td>
+      <td><code>cleared[]</code> / <code>isUnlocked()</code> / <code>getBestTime()</code> / <code>reset()</code> 全部够用。
+      唯一可选的增项：<code>seenHint?: boolean</code>（刻度管提示只在首次 3 次会话显示），<b>向后兼容</b>，缺字段视为未看过。</td></tr>
+  </table>
+
+  <div class="callout warn2" style="margin-top:16px">
+    <b>一句话成本等级：<span class="grade">高</span></b>
+    —— 三份提案里最高的一个，理由不是"效果多"，而是它要求<b>同时改界面壳、改牌的三维装饰、改入场动画、摘一条路由</b>，
+    四面同时动；其中"霓虹按层合批"这一条还<b>依赖一次未验证的引擎行为</b>。
+    如果只在通关用（4-5 的「熄灯爆点」），成本会掉到 <b>中低</b>：只需要 <code>NeonFactory</code> 里的两个函数 + 三组 <code>MOTION</code> 参数，
+    <b>首页、牌面、路由一个都不用碰</b>。
+  </div>
+</section>
+
+<div class="verdict">
+  <h2>我的结论</h2>
+
+  <div class="warn" style="border-left-color:#C4362B;">
+    <p>
+      <b>方案 C 是一张彩票，不是一份方案。</b>
+      它在三个方向里<b>画面冲击力最强</b>（深底 + 霓虹在微信列表的浅色底里几乎不会不被看见），
+      在<b>合规角度也最有价值</b>（终于把「朱红 + 墨 + 金」从界面上撤干净了，这是现行国潮方案尚未解除的风险），
+      但它同时是<b>离现有视觉体系最远的、与品类定位错位最明显的、性能账最难算的一个</b>。
+      请把它当成"要不要为了那 1.2 秒的爆点付这笔代价"的判断题，而不是"哪个更好看"的选择题。
+    </p>
+  </div>
+
+  <p><b>三个我认为必须一起拍板的事（都不属于风格范畴，建议 A / B / C 三案统一）：</b></p>
+  <ol>
+    <li><b>弱化文字色 <code>INK_SOFT #8E8571</code> 要换</b>：它对宣纸底只有 <b>3.06 : 1</b>，
+      用在 20–22px 小字上不合 WCAG AA（需 4.5）。本方案给的值 <code>#7E8AB8</code> 是给暗底用的，
+      浅底方案需要另配一个同族深色（例如把 <code>INK_SOFT</code> 压到 <code>#6F6759</code> 一带再复测）。</li>
+    <li><b>首页文案里的「碰 / 吃 / 杠」要拿掉</b>：这三个是麻将专有动作词，
+      与「零棋牌语义」是同性质的风险（<code>README.md</code> §7 只是没把它写进例子）。
+      建议换成「点牌 · 进槽 · 凑三张」。</li>
+    <li><b>通关 / 失败的动效上限要写进规范，而不是留在代码里</b>：
+      闪白 α ≤ 0.35 且单次、抖动 ≤ 8 帧、撕裂 ≤ 3 帧、粒子 ≤ 40。
+      再加一个<b>「减弱动效」开关</b>（微信小游戏拿不到系统的 reduced-motion，只能自己做）。
+      这条不是方案 C 专属 —— 三案都会加通关动效，谁做谁要守。</li>
+  </ol>
+
+  <p><b>如果只让我留一句话给这个方案：</b></p>
+  <div class="callout night" style="max-width:900px;">
+    把「夜光牌局」当作<b>一段 1.2 秒的动效</b>用，而不是当作一套主题。
+    页面还是浅色的（A 或 B 都行），只在通关时熄灯：0.22 秒压暗成夜蓝 → 霓虹环形冲击波 → 像素方块爆散 → 亮回来。
+    这样你拿到了全部传播价值（"暗下来又炸开"是短视频最好的钩子），
+    却没有把"整局在暗底上玩"的代价转嫁给玩家，也不用动牌面、不用动路由、不用赌那次未验证的合批行为。
+    <b>而首页做成夜光深底，我认为是一次不该做的赌博。</b>
+  </div>
+
+  <div class="warn">
+    <p>
+      <b>最后一句实话</b>：如果三份提案里必须选一份当主视觉，我不推荐这一份 ——
+      推荐理由在别处（A 或 B 的浅色骨架更贴品类）。但如果你（或用户）就是想要那个"跳"，
+      请至少接受下面两条不可谈判的前提：
+      <b>① 闪白上限 α 0.35 且单次</b>；<b>② 必须做「减弱动效」开关</b>。
+      这两条不是设计偏好，是产品责任。
+    </p>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

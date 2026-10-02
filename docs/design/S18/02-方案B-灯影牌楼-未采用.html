@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>《麻麻大消除》S18 界面改版 · 方案 B「灯影牌楼」</title>
+<style>
+  /* ============ 脚手架：直接复用 style-directions.html，保证三份提案外观统一 ============ */
+  :root {
+    --paper: #F5F3EF;
+    --ink: #1F1D1A;
+    --ink-2: #5C574F;
+    --ink-3: #8C857A;
+    --line: #DED8CD;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 28px 64px; }
+
+  header.top { border-bottom: 1px solid var(--line); padding-bottom: 24px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .18em; color: var(--ink-3); text-transform: uppercase; margin: 0 0 10px; }
+  h1 { font-size: 27px; font-weight: 600; letter-spacing: -.01em; margin: 0 0 12px; }
+  .lede { font-size: 14px; line-height: 1.75; color: var(--ink-2); max-width: 760px; margin: 0; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  .facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .fact { font-size: 12px; line-height: 1.5; color: var(--ink-2); background: var(--card);
+          border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; }
+  .fact b { color: var(--ink); font-weight: 600; }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+
+  .col { flex: 1 1 340px; min-width: 320px; background: var(--card); border: 1px solid var(--line);
+         border-radius: 14px; padding: 20px 20px 24px; }
+  .col.pick { border-color: #1F1D1A; box-shadow: 0 0 0 1px #1F1D1A inset; }
+
+  .col-head { display: flex; align-items: baseline; gap: 9px; margin-bottom: 3px; }
+  .tag { font-size: 11px; font-weight: 600; letter-spacing: .06em; color: #FFFFFF; background: var(--ink);
+         border-radius: 5px; padding: 3px 7px; }
+  .col-head h2 { font-size: 17px; font-weight: 600; margin: 0; }
+  .sub { font-size: 12.5px; color: var(--ink-3); margin: 0 0 16px; line-height: 1.6; }
+
+  .phone { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
+  .strip { display: block; width: 100%; max-width: 396px; height: auto; margin-top: 8px; border-radius: 10px; border: 1px solid var(--line); }
+  .cap { font-size: 11px; color: var(--ink-3); margin: 6px 0 0; }
+
+  h3 { font-size: 12px; font-weight: 600; letter-spacing: .08em; color: var(--ink-3);
+       text-transform: uppercase; margin: 22px 0 10px; }
+
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 44px; }
+  .sw i { display: block; height: 34px; border-radius: 7px; border: 1px solid rgba(0,0,0,.10); }
+  .sw span { display: block; font-size: 9.5px; color: var(--ink-3); margin-top: 4px;
+             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  ul.pro, ul.con { margin: 0; padding-left: 0; list-style: none; }
+  ul.pro li, ul.con li { font-size: 13px; line-height: 1.65; padding-left: 16px; position: relative; margin-bottom: 5px; }
+  ul.pro li::before { content: "＋"; position: absolute; left: 0; color: #1D9E75; font-weight: 600; }
+  ul.con li::before { content: "−"; position: absolute; left: 0; color: #C4362B; font-weight: 600; }
+
+  .verdict { margin-top: 40px; background: var(--card); border: 1px solid var(--line);
+             border-radius: 14px; padding: 26px 26px 28px; }
+  .verdict h2 { font-size: 18px; font-weight: 600; margin: 0 0 14px; }
+  .verdict p { font-size: 14px; line-height: 1.8; color: var(--ink-2); margin: 0 0 12px; max-width: 860px; }
+  .verdict p b { color: var(--ink); font-weight: 600; }
+  .verdict ol { font-size: 13.5px; line-height: 1.9; color: var(--ink-2); padding-left: 20px; margin: 0; max-width: 860px; }
+  .warn { border-left: 3px solid #C4362B; padding-left: 14px; margin: 18px 0 4px; }
+  .warn p { margin: 0; }
+
+  /* ============ 本方案追加（表格 / 分镜 / 小件）============ */
+  /* 注 1：以下尺寸比 style-directions.html 更紧凑 —— 本页内容量是它的 4 倍。
+     注 2：【硬上限】tools/page-shot.mjs 用 captureBeyondViewport 整页截图，
+     Chrome 会把曲面补齐到 2048 宽，于是整页高度一旦超过 8192px
+     就要求 2048×16384 = 2^25 像素，超过 2^24 的栅格预算 → CDP 永久挂起（不是慢，是挂）。
+     实测：1300×8800 约 0.6s，1300×9100 直接挂死。所以本页必须压到 8192px 以内。 */
+  header.top { padding-bottom: 10px; margin-bottom: 13px; }
+  h1 { font-size: 24px; margin: 0 0 7px; }
+  .lede { line-height: 1.58; }
+  .facts { gap: 6px; margin-top: 9px; }
+  .fact { padding: 3px 10px; }
+  .grid { gap: 12px; }
+  .col { padding: 12px 13px 13px; }
+  .sub { margin: 0 0 9px; }
+  h3 { margin: 7px 0 4px; }
+  .verdict { margin-top: 9px; padding: 10px 13px 11px; }
+  .verdict h2 { font-size: 15px; margin: 0 0 6px; }
+  .verdict p { font-size: 12px; line-height: 1.5; margin: 0 0 4px; }
+  .verdict ol { font-size: 11.5px; line-height: 1.55; }
+  .verdict ul.pro li, .verdict ul.con li { font-size: 11.5px; line-height: 1.5; }
+  .warn { margin: 7px 0 2px; }
+  .verdict > p.wide { max-width: none; }
+  table.kv { width: 100%; border-collapse: collapse; font-size: 10.5px; margin: 2px 0 5px; }
+  table.kv th { font-size: 9px; font-weight: 600; letter-spacing: .05em; color: var(--ink-3);
+                text-transform: uppercase; text-align: left; padding: 1.5px 5px; border-bottom: 1px solid var(--line);
+                white-space: nowrap; }
+  table.kv td { padding: 1.5px 5px; border-bottom: 1px solid #F0EDE6; vertical-align: top; line-height: 1.32; }
+  table.kv tr:last-child td { border-bottom: none; }
+  table.kv td.n { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                  font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.kv tbody tr:hover td { background: #FCFBF8; }
+  .ok { color: #1D9E75; font-weight: 600; }
+  .bad { color: #C4362B; font-weight: 600; }
+  .mid { color: #B87526; font-weight: 600; }
+  /* 分镜：帧宽 138px → 一行 6 格，16 格排成 3 行（原先 208px 要 4 行）*/
+  .shots { display: flex; flex-wrap: wrap; gap: 7px; align-items: flex-start; }
+  .shot { background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 5px 5px 4px; }
+  .shot svg { display: block; width: 130px; height: auto; border-radius: 5px; }
+  .shot .lb { font-size: 9.5px; color: var(--ink-3); margin: 3px 0 0; line-height: 1.3; max-width: 126px; }
+  .kind { display: inline-block; font-size: 9.5px; font-weight: 600; color: #fff; background: var(--ink-3);
+          border-radius: 4px; padding: 2px 6px; margin: 0 0 5px; letter-spacing: .04em; }
+  .callout { background: #FCFBF8; border: 1px solid var(--line); border-radius: 11px;
+             padding: 8px 11px; margin: 5px 0 2px; }
+  .callout h4 { font-size: 12px; margin: 0 0 4px; }
+  .callout p { font-size: 12px; line-height: 1.5; margin: 0 0 3px; max-width: none; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout ul.pro li, .callout ul.con li { font-size: 12px; line-height: 1.46; margin-bottom: 1px; }
+  /* ④ 的 5 条"新原语"卡：两列并排（每条只有 2~4 行，并排不会变高）*/
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; align-items: start; }
+  .cols2 .callout { margin: 0; }
+  .rank { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+  .rank b { flex: 0 0 21px; height: 21px; border-radius: 50%; background: var(--ink); color: #fff;
+            font-size: 10.5px; display: flex; align-items: center; justify-content: center; }
+  .rank p { margin: 0; font-size: 12px; line-height: 1.52; color: var(--ink-2); }
+  .rank p b { color: var(--ink); background: none; width: auto; height: auto; border-radius: 0; display: inline; }
+  .col .cap { font-size: 11px; }
+  code.tok { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+             background: #F0EDE6; border: 1px solid var(--line); border-radius: 4px; padding: 1px 3px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">麻麻大消除 · S18 界面改版 · 方案 B</p>
+  <h1>方案 B ·「灯影牌楼」——把参考图1 的骨架留下，把它的木纹 / 大红 / 金整套换掉</h1>
+  <p class="lede">
+    这是三个方案里<b>最接近参考图1 骨架、但视觉最不像参考图1</b>的一个 —— 这个矛盾就是本方案要解的题。
+    骨架照抄它"顶部状态条 / 中央主视觉 / 底部一枚大按钮 / 两侧功能入口"的四段式，
+    但把<b>木纹屏风 + 大红 + 金 + 棋牌语义文案</b>整套换掉：底是<b>深靛夜空</b>，强调是<b>暖灯黄</b>，
+    主视觉从"圆形棋牌屏风"换成<b>尖顶六边形灯罩</b>（参考图2 的"圆形取景框 + 中央徽记"同样被改造）。
+  </p>
+  <div class="facts">
+    <span class="fact">关键词：<b>深靛夜空 · 灯笼 · 六边形罩</b></span>
+    <span class="fact">棋牌语义：<b>禁词表逐条自查通过</b></span>
+    <span class="fact">大红与金 <b>全部出局</b></span>
+    <span class="fact">新增贴图：<b>0 张</b>（包体仍 2.15/4 MB）</span>
+    <span class="fact">正文对比度最低 <b>6.20:1</b></span>
+    <span class="fact">成本：<b>中</b></span>
+  </div>
+</header>
+
+
+<!-- ==================================================================== -->
+<!-- ①  首页精绘稿                                                          -->
+<!-- ==================================================================== -->
+<div class="grid">
+
+  <div class="col" style="flex:0 0 430px; padding-right:7px">
+    <div class="col-head"><span class="tag">B · 首页</span><h2>精绘稿（1:1 矢量）</h2></div>
+    <p class="sub">720×1280 等比例稿。<b>内部坐标与 720×1280 严格对应</b>（viewBox = <code class="tok">0 0 720 1280</code>，这里只是 CSS 缩小显示）。
+    牌面是<b>已定稿资产</b>，原样嵌入、一张都没重画。</p>
+
+    <svg class="phone" viewBox="0 0 720 1280" width="330" height="587" role="img"
+         aria-label="方案 B 灯影牌楼 首页精绘稿">
+
+      <!-- ===== ① 夜空：两段纯色带（替代渐变）+ 台基线 ===== -->
+      <rect width="720" height="1280" fill="#1B2540"/>
+      <rect x="0" y="0" width="720" height="330" fill="#141B30"/>
+      <rect x="0" y="1020" width="720" height="260" fill="#141B30"/>
+      <line x1="0" y1="330" x2="720" y2="330" stroke="#2A3760" stroke-width="1.5"/>
+      <line x1="0" y1="1020" x2="720" y2="1020" stroke="#2A3760" stroke-width="2"/>
+
+      <!-- ===== ② 瓦檐：檐面从屏幕外压进来（只看得到檐底），被胶囊占掉的那一段放在"重檐"之后 ===== -->
+      <rect x="0" y="0" width="720" height="176" fill="#232F52"/>
+      <!-- 瓦垄（只画到 x=496，右边 248px 是胶囊净空区，一根线都不进）-->
+      <path d="M0 60 H496 M0 110 H496" stroke="#2A3760" stroke-width="2"/>
+      <!-- 重檐：第二道檐口只到 x=472 就立下去（右端收口 = 檐的侧面） -->
+      <path d="M0 136 H472 V176" stroke="#33406B" stroke-width="2" opacity="0.75" fill="none"/>
+      <!-- 檐口双线（全宽）+ 椽头 27 条短竖线（1 个 path 的 27 个子路径，只 stroke 一次） -->
+      <line x1="0" y1="176" x2="720" y2="176" stroke="#33406B" stroke-width="3"/>
+      <line x1="0" y1="185" x2="720" y2="185" stroke="#2A3760" stroke-width="1.5"/>
+      <path d="M16 178V186 M42 178V186 M68 178V186 M94 178V186 M120 178V186 M146 178V186 M172 178V186
+               M198 178V186 M224 178V186 M250 178V186 M276 178V186 M302 178V186 M328 178V186 M354 178V186
+               M380 178V186 M406 178V186 M432 178V186 M458 178V186 M484 178V186 M510 178V186 M536 178V186
+               M562 178V186 M588 178V186 M614 178V186 M640 178V186 M666 178V186 M692 178V186"
+            stroke="#2A3760" stroke-width="2"/>
+
+      <!-- ===== ③ 灯笼串（进度：第 N 关亮 N 盏 —— 这里 2 / 4）===== -->
+      <path d="M264 176V202 M328 176V202 M392 176V202 M456 176V202" stroke="#33406B" stroke-width="1.5"/>
+
+      <!-- 第 1 盏 · 亮 -->
+      <rect x="234" y="197" width="60" height="62" rx="26" fill="none" stroke="#E8A33D" stroke-width="2" opacity="0.22"/>
+      <rect x="255" y="199" width="18" height="7" rx="2" fill="#B87526"/>
+      <rect x="242" y="205" width="44" height="52" rx="22" fill="#E8A33D"/>
+      <path d="M256 213V249 M272 213V249" stroke="#B87526" stroke-width="1.6" opacity="0.5"/>
+      <circle cx="264" cy="231" r="11" fill="#F6C877"/>
+      <rect x="255" y="255" width="18" height="7" rx="2" fill="#B87526"/>
+      <line x1="264" y1="262" x2="264" y2="278" stroke="#B87526" stroke-width="3"/>
+
+      <!-- 第 2 盏 · 亮 -->
+      <rect x="298" y="197" width="60" height="62" rx="26" fill="none" stroke="#E8A33D" stroke-width="2" opacity="0.22"/>
+      <rect x="319" y="199" width="18" height="7" rx="2" fill="#B87526"/>
+      <rect x="306" y="205" width="44" height="52" rx="22" fill="#E8A33D"/>
+      <path d="M320 213V249 M336 213V249" stroke="#B87526" stroke-width="1.6" opacity="0.5"/>
+      <circle cx="328" cy="231" r="11" fill="#F6C877"/>
+      <rect x="319" y="255" width="18" height="7" rx="2" fill="#B87526"/>
+      <line x1="328" y1="262" x2="328" y2="278" stroke="#B87526" stroke-width="3"/>
+
+      <!-- 第 3 盏 · 灭 -->
+      <rect x="362" y="197" width="60" height="62" rx="26" fill="none" stroke="#3A4670" stroke-width="1.5" opacity="0.45"/>
+      <rect x="383" y="199" width="18" height="7" rx="2" fill="#3A4670"/>
+      <rect x="370" y="205" width="44" height="52" rx="22" fill="#2A3760" stroke="#3A4670" stroke-width="1.5"/>
+      <path d="M384 213V249 M400 213V249" stroke="#3A4670" stroke-width="1.6"/>
+      <rect x="383" y="255" width="18" height="7" rx="2" fill="#3A4670"/>
+      <line x1="392" y1="262" x2="392" y2="278" stroke="#3A4670" stroke-width="3" opacity="0.7"/>
+
+      <!-- 第 4 盏 · 灭 -->
+      <rect x="426" y="197" width="60" height="62" rx="26" fill="none" stroke="#3A4670" stroke-width="1.5" opacity="0.45"/>
+      <rect x="447" y="199" width="18" height="7" rx="2" fill="#3A4670"/>
+      <rect x="434" y="205" width="44" height="52" rx="22" fill="#2A3760" stroke="#3A4670" stroke-width="1.5"/>
+      <path d="M448 213V249 M464 213V249" stroke="#3A4670" stroke-width="1.6"/>
+      <rect x="447" y="255" width="18" height="7" rx="2" fill="#3A4670"/>
+      <line x1="456" y1="262" x2="456" y2="278" stroke="#3A4670" stroke-width="3" opacity="0.7"/>
+
+      <text x="48" y="316" font-size="24" fill="#A9B2CB">已通关 2 / 4</text>
+
+      <!-- ===== ④ 标题 / 副标题（纸白字 + 灯黄描边 = 灯照在字上的边光）===== -->
+      <text x="360" y="382" text-anchor="middle" font-size="52" font-weight="800" letter-spacing="6"
+            fill="#F2EDE2" stroke="#E8A33D" stroke-width="2.5" paint-order="stroke fill"
+            font-family="'Songti SC','STSong','SimSun',serif">麻麻大消除</text>
+      <text x="360" y="424" text-anchor="middle" font-size="24" letter-spacing="3" fill="#A9B2CB">点牌 · 凑型 · 一路清</text>
+
+      <!-- ===== ⑤ 六边形灯罩：光晕（2 圈开口折线，只绕下部 5 个顶点，避开上方最贵的版面）===== -->
+      <path d="M181.6 537 L181.6 743 L360 846 L538.4 743 L538.4 537" fill="none" stroke="#E8A33D" stroke-width="2" opacity="0.09"/>
+      <path d="M188.5 541 L188.5 739 L360 838 L531.5 739 L531.5 541" fill="none" stroke="#E8A33D" stroke-width="2.5" opacity="0.16"/>
+
+      <!-- 罩体（尖顶六边形 R=190，中心 640）+ 罩内暗腔（R=174）-->
+      <path d="M360 450 L524.5 545 L524.5 735 L360 830 L195.5 735 L195.5 545 Z" fill="#232F52" stroke="#E8A33D" stroke-width="3.5"/>
+      <path d="M360 466 L510.7 553 L510.7 727 L360 814 L209.3 727 L209.3 553 Z" fill="#141B30"/>
+
+      <!-- 罩内 6 条短棱（从每个顶点向内 24px）+ 罩底灯芯 + 光锥 -->
+      <path d="M360 450V474 M524.5 545L503.7 557 M524.5 735L503.7 723 M360 830V806 M195.5 735L216.3 723 M195.5 545L216.3 557"
+            stroke="#2A3760" stroke-width="3"/>
+      <path d="M306 792 H414 L400 560 H320 Z" fill="#E8A33D" opacity="0.06"/>
+      <circle cx="360" cy="786" r="24" fill="none" stroke="#E8A33D" stroke-width="2" opacity="0.18"/>
+      <circle cx="360" cy="786" r="17" fill="#E8A33D" opacity="0.30"/>
+      <circle cx="360" cy="786" r="8" fill="#F6C877"/>
+
+      <!-- ===== ⑥ 本关主视觉牌阵：2 层 5 张（叠塔的读法靠"上层压住下层 53%"），牌面资产原样 ===== -->
+      <g>
+        <svg x="210" y="591.4" width="104" height="133.3" viewBox="-12 -12 156 200" data-tile="sou-3"></svg>
+        <svg x="308" y="591.4" width="104" height="133.3" viewBox="-12 -12 156 200" data-tile="ton-9"></svg>
+        <svg x="406" y="591.4" width="104" height="133.3" viewBox="-12 -12 156 200" data-tile="wan-2"></svg>
+        <svg x="259" y="529.4" width="104" height="133.3" viewBox="-12 -12 156 200" data-tile="sou-1"></svg>
+        <svg x="357" y="529.4" width="104" height="133.3" viewBox="-12 -12 156 200" data-tile="wan-5"></svg>
+      </g>
+
+      <!-- ===== ⑦ 关卡名 / 最佳成绩 ===== -->
+      <text x="360" y="894" text-anchor="middle" font-size="30" fill="#F2EDE2">第 3 关 · 上道了</text>
+      <text x="360" y="930" text-anchor="middle" font-size="22" fill="#A9B2CB">本关最佳 1:42</text>
+
+      <!-- ===== ⑧ 主按钮：亮面 + 暗字（全页最亮的一块，留给唯一的操作）===== -->
+      <rect x="100" y="956" width="520" height="124" rx="6" fill="#101728"/>
+      <rect x="100" y="948" width="520" height="124" rx="6" fill="#E8A33D"/>
+      <text x="360" y="1010" text-anchor="middle" font-size="42" font-weight="700" letter-spacing="4"
+            fill="#141B30" dominant-baseline="central">继续闯关 · 第 3 关</text>
+
+      <!-- ===== ⑨ 次按钮：只有描边（于是"重玩"和"继续"不可能点错）===== -->
+      <rect x="184" y="1088" width="352" height="80" rx="6" fill="none" stroke="#E8A33D" stroke-width="2.5"/>
+      <text x="360" y="1128" text-anchor="middle" font-size="32" letter-spacing="3"
+            fill="#E8A33D" dominant-baseline="central">重玩第 2 关</text>
+
+      <!-- ===== ⑩ 长按清空的进度条（平时不可见，长按才出现）===== -->
+      <rect x="184" y="1180" width="352" height="6" rx="0" fill="#2A3760"/>
+      <rect x="184" y="1180" width="99" height="6" rx="0" fill="#E8A33D" opacity="0.35"/>
+      <text x="360" y="1206" text-anchor="middle" font-size="15" fill="#A9B2CB">长按「重玩」1.2 秒可清空进度</text>
+
+      <!-- ===== ⑪ 两侧各一枚小印章入口（左「音效」/ 右「关于」，x = ±298 等高对称）===== -->
+      <rect x="34" y="516" width="56" height="56" rx="5" fill="#3A5F45" stroke="#4E7A5A" stroke-width="1.5"/>
+      <text x="62" y="556" text-anchor="middle" font-size="26" font-weight="700" fill="#F2EDE2"
+            font-family="'Songti SC','STSong','SimSun',serif">音</text>
+      <text x="62" y="593" text-anchor="middle" font-size="18" fill="#A9B2CB">音效</text>
+
+      <rect x="630" y="516" width="56" height="56" rx="5" fill="#3A5F45" stroke="#4E7A5A" stroke-width="1.5"/>
+      <text x="658" y="556" text-anchor="middle" font-size="26" font-weight="700" fill="#F2EDE2"
+            font-family="'Songti SC','STSong','SimSun',serif">问</text>
+      <text x="658" y="593" text-anchor="middle" font-size="18" fill="#A9B2CB">关于</text>
+    </svg>
+
+    <p class="cap">首页精绘稿 · 尖顶六边形灯罩 + 瓦檐 + 灯笼进度串 + 亮面主按钮 + 两侧各一枚印章（左「音效」/ 右「关于」）。
+    <b>胶囊净空区</b>（x 540~720 × y 40~100）只让两样过：檐面纯色块，以及瓦垄里 <b>y = 60</b> 那一条（<b>从 x = 496 就收笔</b>）。
+    其余横向线（y = 176 / 185 / 178~186）都比胶囊底边低 48px 以上，可放心走全宽。见 §④ 适配风险。</p>
+
+  </div>
+
+  <div class="col" style="flex:1 1 0; min-width:0">
+    <div class="col-head"><span class="tag">说明</span><h2>重心 / 两条自洽 / 与参考图的账</h2></div>
+
+    <h3>视觉重心顺序（第一眼 → 第四眼）</h3>
+    <div class="rank"><b>1</b><p><b>六边形灯罩里的牌阵。</b>牌面是整页最亮的色（纸白 #FBF6EA 对罩内暗腔 #141B30 <b>15.84:1</b>，
+      保守按主体底 #1B2540 算也有 <b>14.06:1</b>），
+      又独占屏幕正中心 + 两层光晕 + 罩内最暗的腔体（#141B30）反衬，全页只有这一块是"被打了光"的。</p></div>
+    <div class="rank"><b>2</b><p><b>主按钮。</b>暖灯黄 #E8A33D 的实色大块（520×124）+ 6px 立体厚度，
+      是全页<b>面积最大</b>的亮色块。它比牌阵弱一档、比其它元素强一档，正好卡在"要按的第一个东西"的位置。</p></div>
+    <div class="rank"><b>3</b><p><b>顶部灯笼串 + 檐线。</b>4 盏灯回答了"我玩到哪"。
+      刻意用<b>暖黄（亮）对靛青（灭）</b>的对比而不是数字，所以它比标题更先被看到 —— 这是有意的：
+      进度是玩家回到首页时最想确认的一件事，标题第二次看就够了。</p></div>
+    <div class="rank"><b>4</b><p><b>两侧各一枚印章。</b>x = ±298 等高对称（CFG +96），正好落进"檐的侧脸"让出的那两块空档里。竹青底（#3A5F45）+ 26px 纸白字（6.20:1）+ 18px 次级标签（7.16:1），是全页唯一的"冷色"角落，明确读作"这儿次要"。
+      <b>刻意的取舍</b>：这里<b>不</b>靠"把字调灰"压层级 —— 深底上降对比度最容易踩 4.5 那条线，层级一律由<b>字号（26→18）+ 位置</b>承担。
+      版本号这类"给开发看的"信息<b>整个移出首页</b>（进「关于」面板）。</p></div>
+
+    <div class="callout">
+      <h4>删掉选关页之后的两件事（各给一个主张，不列选项）</h4>
+      <p><b>① 从哪继续：</b>主按钮 = <code class="tok">继续闯关 · 第 N 关</code>（N = 已通关数 + 1），进入即直接开局，中间不再有任何选择页。
+      4 关全通后变成 <code class="tok">再玩一遍 · 第 1 关</code>（进度不清空，灯笼保持全亮）。按钮正上方还有一行「第 3 关 · 上道了」补全关卡名 ——
+      这样"继续"一词不必承担关卡名的信息。</p>
+      <p><b>② 怎么重玩 / 怎么清空：</b>次按钮 = <code class="tok">重玩第 K 关</code>（K = 最近通关的那一关；无记录时显示「重玩第 1 关」，可用）。
+      <b>清空进度 = 长按次按钮 1.2 秒</b>：按住时进度条在按钮正下方从 0 长到 352px，走满后弹出确认条「清空进度？／清空 · 算了」。<br>
+      为什么不是"一枚独立小按钮"：清空低频且不可逆，独立按钮就等于在这一屏多加一个"会不会点错"的焦虑源，而这一版元素本来就比方案 A 多。
+      长按把<b>入口成本</b>抬到"刻意为之"且<b>不占版面</b>；再加一道确认条，是因为长按只防误触、不防"手滑按满"。两级保护，且都不引入新按钮。</p>
+      <p><b>③ 怎么跳着重玩某一关：</b>不提供。这是删掉选关页的代价，也是有意的 ——
+      4 关的体量下，"跳关"是伪需求；真要回第 1 关，连清空进度一起做（长按 1.2 秒），
+      代价比多养一个选关页低得多。</p>
+    </div>
+
+    <div class="callout">
+      <h4>与参考图 1 的账：借了骨架，换了皮</h4>
+      <ul class="pro">
+        <li><b>借</b>：四段式纵向骨架（顶部状态条 → 中央主视觉 → 底部大主按钮 → 两侧功能入口）。</li>
+        <li><b>借</b>：顶部状态条"用图元而不是数字表达数量"（它是 5 颗星 / 40 金币，我是 4 盏灯）。</li>
+        <li><b>借</b>：主按钮"立体厚度 + 强色实底"，次级只给描边或小图标。</li>
+      </ul>
+      <ul class="con">
+        <li><b>换</b>：木纹屏风 + 大红 + 金 → 深靛夜空 + 暖灯黄 + 竹青（朱红 #C4362B 与 金 #C9A227 全页 0 次出现）。</li>
+        <li><b>换</b>：圆形棋牌屏风 → 尖顶六边形灯罩（为什么不是圆，见下方整段）。</li>
+        <li><b>换</b>：它那 8 个入口（主题收集 / 臻享礼包 / 道具商店 / 签到 / 任务 / 活动 …共 8 个）→ <b>2 枚小印章</b>。
+          一屏 8 个入口是给"要变现的运营号"的，本项目 4 关、个人主体，多一个入口就多一份误导。</li>
+        <li><b>删</b>：它顶部那排「称号 / 战绩 / 榜单」类文案 —— <b>竞技与炫耀语义一个都没留</b>。</li>
+      </ul>
+    </div>
+
+    <h3>次要入口的两个状态（同一套 720 宽坐标）</h3>
+    <svg class="strip" viewBox="0 0 720 240" width="360" height="120" role="img" aria-label="长按清空的两个状态">
+      <rect width="720" height="240" fill="#1B2540"/>
+      <!-- 长按中 -->
+      <rect x="184" y="30" width="352" height="80" rx="6" fill="#232F52" stroke="#E8A33D" stroke-width="2.5"/>
+      <text x="360" y="70" text-anchor="middle" font-size="32" letter-spacing="3" fill="#E8A33D" dominant-baseline="central">重玩第 2 关</text>
+      <rect x="184" y="122" width="352" height="6" rx="0" fill="#2A3760"/>
+      <rect x="184" y="122" width="176" height="6" rx="0" fill="#E8A33D"/>
+      <text x="360" y="150" text-anchor="middle" font-size="17" fill="#A9B2CB">按住了 · 176 / 352（1.2 秒走满）</text>
+      <!-- 确认条 -->
+      <rect x="120" y="166" width="480" height="62" rx="6" fill="#232F52" stroke="#33406B" stroke-width="2"/>
+      <text x="144" y="198" font-size="22" fill="#F2EDE2" dominant-baseline="central">清空进度？</text>
+      <rect x="424" y="178" width="80" height="38" rx="5" fill="none" stroke="#E8A33D" stroke-width="2"/>
+      <text x="464" y="198" text-anchor="middle" font-size="20" fill="#E8A33D" dominant-baseline="central">清空</text>
+      <rect x="512" y="178" width="72" height="38" rx="5" fill="#2A3760"/>
+      <text x="548" y="198" text-anchor="middle" font-size="20" fill="#A9B2CB" dominant-baseline="central">算了</text>
+    </svg>
+    <p class="cap">左：长按进行中（进度条出现在次按钮正下方 44px）。右：走满 1.2 秒后弹出的确认条
+    （同一位置，不遮挡牌阵与主按钮）。<b>两级保护</b>：长按本身防误触 + 确认条防误清。</p>
+  </div>
+
+</div>
+
+<!-- ★ 本方案的关键差异点：形状。独占整幅宽度，因为它是"为什么是六边形而不是圆"的正面回答 -->
+<div class="verdict">
+  <h2>★ 关键差异点：为什么是尖顶六边形，不是参考图2 的圆</h2>
+  <p class="wide">参考图2 的取景框是<b>圆（月洞门）</b>；本方案把它换成了<b>尖顶六边形</b>。
+  这不是"换个形状免得像"，四个理由按重要性排：</p>
+  <div class="cols2">
+    <div class="callout">
+      <h4>① 语义：我们要的是「灯罩」，不是「门洞」</h4>
+      <p>参考图2 那个圆的职能是<b>框住外面的景</b>（取景框 / 月洞门）；本方案的形状要<b>装东西</b>（牌阵），职能是<b>容器</b>。
+      中式宫灯本来就是六角 / 八角灯，棱边是它作为「灯具」的身份特征；一旦做成圆，它就退回成"框"，和参考图2 撞得最狠。</p>
+    </div>
+    <div class="callout">
+      <h4>② 构图：六边形与牌阵同构，圆形不同构</h4>
+      <p>牌阵的轮廓是一个上窄下宽的<b>梯形</b>，而尖顶六边形的上半部正好是一个三角形 —— 梯形插进去时两条斜边与六边形的斜边<b>近乎平行</b>，
+      空出来的只是左右两窄条。<b>换成圆</b>，梯形四角会把圆的内侧切出四块大的月牙形空腔，牌阵在框里"发飘"；
+      要么缩小牌阵、要么加装饰填满 —— 两条路都比六边形贵。</p>
+    </div>
+    <div class="callout">
+      <h4>③ 工程：六边形与瓦檐共用同一个原语</h4>
+      <p>两者都是"多边形填充 + 折线描边"，一个新原语
+      <code class="tok">fillPoly / strokePoly</code> 同时喂两处；圆则是另一条 arc 路径。
+      在"元素比方案 A 多"的这一版里，少一类原语就是少一处要单独调的地方。</p>
+    </div>
+    <div class="callout">
+      <h4>④ 形状谱系：与参考图2 整体拉开</h4>
+      <p>参考图2 是「圆形取景框 + 圆形徽记 + 一道竖直光缝」；这里是「尖顶六边形灯罩 + 梯形牌阵 + 罩底光锥」。
+      三个图元全换了，只留下"中央有东西、被光照着"这一层抽象关系。</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ==================================================================== -->
+<!-- ①-b 关键元素 y 坐标表（CFG 口径）                                       -->
+<!-- ==================================================================== -->
+<div class="verdict">
+  <h2>①-b 关键元素坐标表 —— CFG 口径（原点 = 屏幕中心、y 向上）</h2>
+  <p class="wide"><b>换算公式：</b><code class="tok">HTML_top = 640 − y</code>；
+  反过来 <code class="tok">y = 640 − HTML_top</code>。下表第二列是 HTML 里的页面坐标（左上为原点、y 向下），
+  第三列就是可以直接写进 <code class="tok">CFG.MENU_LAYOUT</code> 的值。
+  <b>x 一律为 0（屏幕水平居中）</b>，除非该行另有标注 —— 这正好对上 <code class="tok">createNode(..., {x, y})</code> 的中心锚点约定。</p>
+
+  <table class="kv">
+    <thead>
+      <tr><th>元素</th><th>HTML top</th><th>CFG y</th><th>尺寸 / 说明</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>瓦檐檐面（实心带）</td><td class="n">0 → 176</td><td class="n">+640 → +464</td>
+          <td>檐从屏幕外压进来（只看得到檐底），所以檐面是 <b>0~176 一个实心矩形</b>，没有"屋顶的顶边" —— 这一条同时解决了"胶囊压线"和"看着像楼梯"两个问题</td></tr>
+      <tr><td>瓦垄（两条横线）</td><td class="n">60 / 110</td><td class="n">+580 / +530</td>
+          <td>x 只画 <b>0 → 496</b>：再往右就是胶囊净空区，一根线都不进</td></tr>
+      <tr><td>重檐（第二道檐口）</td><td class="n">136</td><td class="n">+504</td>
+          <td>x 0 → 472，右端立下去接到主檐口（这一竖笔就是"檐的侧面"）</td></tr>
+      <tr><td>檐口主线（双线之上）</td><td class="n">176</td><td class="n">+464</td>
+          <td>全宽 720，线宽 3</td></tr>
+      <tr><td>檐口副线</td><td class="n">185</td><td class="n">+455</td>
+          <td>全宽 720，线宽 1.5（"双框"的转译：国潮是墨线双框，这里是檐口双线）</td></tr>
+      <tr><td>椽头（27 条短竖线）</td><td class="n">178 → 186</td><td class="n">+462 → +454</td>
+          <td>x 从 16 到 692，步长 26；1 个 path 的 27 个子路径</td></tr>
+      <tr><td>灯笼挂点</td><td class="n">176</td><td class="n">+464</td>
+          <td>4 盏，x = ±32 / ±96（即 −96 −32 +32 +96）</td></tr>
+      <tr><td>灯笼身中心</td><td class="n">231</td><td class="n">+409</td>
+          <td>44 × 52，<b>圆角 22 = 半圆头</b>（一个胶囊形，才有灯笼的轮廓）；亮层 + 灭层两个节点叠在同一位置</td></tr>
+      <tr><td>灯笼穗底</td><td class="n">278</td><td class="n">+362</td>
+          <td>穗长 16 + 下盖 7</td></tr>
+      <tr><td>进度文字「已通关 2 / 4」</td><td class="n">307（中心）</td><td class="n">+333</td>
+          <td>字号 24，左对齐，x = −312</td></tr>
+      <tr><td>标题「麻麻大消除」</td><td class="n">363（中心）</td><td class="n">+277</td>
+          <td>字号 52 · 衬线 · 纸白字 + 灯黄描边 2.5</td></tr>
+      <tr><td>副标题</td><td class="n">415（中心）</td><td class="n">+225</td>
+          <td>字号 24，字距 3（文案 = <code class="tok">CFG.GAME.SUBTITLE</code>，合规，照用）</td></tr>
+      <tr><td><b>灯罩中心</b></td><td class="n">640</td><td class="n"><b>0</b></td>
+          <td>尖顶六边形，<b>外接圆半径 R = 190</b>（正好落在 CFG 的原点上，报告数值时不用做换算）</td></tr>
+      <tr><td>灯罩 · 6 个顶点</td><td class="n">450 / 545 / 735 / 830</td><td class="n">+190 / +95 / −95 / −190</td>
+          <td>顶点 x = 0 / ±164.5。罩内暗腔 R = 174；罩外光晕 2 圈为开口折线（R = 198 / 206，只绕下部 5 个顶点）</td></tr>
+      <tr><td>罩底灯芯</td><td class="n">786</td><td class="n">−146</td>
+          <td>三层同心圆 r = 24（描边）/ 17（0.30）/ 8（实心）；光锥 = 梯形 (306,792)(414,792)(400,560)(320,560)，alpha 0.06</td></tr>
+      <tr><td>牌阵 · 底层 3 张</td><td class="n">658</td><td class="n">−18</td>
+          <td>牌宽 88，中心 x = 0 / ±98（间距 98 = 牌宽 88 + 缝 10）</td></tr>
+      <tr><td>牌阵 · 上层 2 张</td><td class="n">596</td><td class="n">+44</td>
+          <td>中心 x = ±49；层间距 62 → 上层压住下层 <b>53%</b>（117 高的牌露出 55px），"叠塔"读得出来</td></tr>
+      <tr><td>关卡名「第 3 关 · 上道了」</td><td class="n">886（中心）</td><td class="n">−246</td>
+          <td>字号 30，纸白</td></tr>
+      <tr><td>最佳成绩</td><td class="n">922（中心）</td><td class="n">−282</td>
+          <td>字号 22，次级灰；无记录时换成「首次闯关」</td></tr>
+      <tr><td><b>主按钮</b></td><td class="n">1010（中心）</td><td class="n"><b>−370</b></td>
+          <td>520 × 124，圆角 6，厚度层 8px 向下；文案 42px 深靛字</td></tr>
+      <tr><td><b>次按钮</b></td><td class="n">1128（中心）</td><td class="n"><b>−488</b></td>
+          <td>352 × 80，圆角 6，仅描边 2.5；文案 32px 灯黄</td></tr>
+      <tr><td>长按进度条</td><td class="n">1183（中心）</td><td class="n">−543</td>
+          <td>352 × 6，槽 #2A3760 / 填充 #E8A33D，平时 opacity 0</td></tr>
+      <tr><td>底部小字行</td><td class="n">1201（中心）</td><td class="n"><b>−561</b></td>
+          <td>居中，字号 <b>15</b>，色彩 <b>TEXT_MUTED #A9B2CB</b>——它落在台基线以下的夜空带（#141B30）上，
+              实测 <b>8.07:1</b>，达标；文案「长按「重玩」1.2 秒可清空进度」</td></tr>
+      <tr><td>印章 ①「音」/ ②「问」</td><td class="n">544（中心）</td><td class="n">+96</td>
+          <td>各 56 × 56，<b>等高对称</b>：<b>① x = −298（左）</b>、<b>② x = +298（右）</b>；
+              其下标签「音效」/「关于」中心 y = <b>+53</b>（字号 18，落在夜景主体 #1B2540 上）</td></tr>
+      <tr><td>夜空顶带 / 台基线</td><td class="n">0 → 330 / 1020</td><td class="n">+640 → +310 / −380</td>
+          <td>两段纯色带（#141B30），替代渐变；台基线画在 y = −380</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn" style="border-left-color:#1F1D1A;">
+    <p><b>顺带修掉一处现存的合规隐患（本来就有的，不是本次引入）：</b>
+    现有首页 <code class="tok">CFG.MENU_LAYOUT.TIP_Y</code> 那行是
+    「点击牌 → 进槽位 → 凑齐「碰 / 吃 / 杠」」—— <b>「碰 / 吃 / 杠」是明确的棋牌语义</b>，
+    与"必须申报休闲益智类目"直接冲突。本方案把它换成
+    <b>「三张同款成一组就能消掉」</b>（合并进底部小字行，不新增版面）。
+    这一条建议无论选哪个方案都要改。</p>
+  </div>
+</div>
+
+
+<!-- ==================================================================== -->
+<!-- ②  色板                                                                -->
+<!-- ==================================================================== -->
+<div class="verdict">
+  <h2>② 色板 —— hex / 用途 / 与现有 CFG.COLOR 的关系 / 实测对比度</h2>
+  <p class="wide"><b>对比度公式（WCAG 2.1 相对亮度法，我自己算的，不是估的）：</b>
+  <code class="tok">L = 0.2126R' + 0.7152G' + 0.0722B'</code>，每通道
+  <code class="tok">c' = c/12.92 (c≤0.03928)</code> 否则 <code class="tok">((c+0.055)/1.055)^2.4</code>（c 为 0~1 的 sRGB）；
+  <code class="tok">对比度 = (L_亮+0.05)/(L_暗+0.05)</code>。阈值：正文 <b>≥4.5:1</b>，大字（≥24px 或 ≥18.66px 粗体）<b>≥3:1</b>，非文字图形 <b>≥3:1</b>。</p>
+
+  <table class="kv">
+    <thead>
+      <tr><th>令牌</th><th>hex</th><th>用途</th><th>与 CFG.COLOR 的关系</th><th>对比度（实测）</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>NIGHT</b></td><td class="n">#141B30</td>
+        <td>夜空顶带 / 台基带 / 罩内暗腔 / 按钮厚度层 / 遮罩外的底</td>
+        <td><b>替换</b> <code class="tok">SHADOW #22201C</code>（立体厚度层）<br>
+            <b>新增</b>其余三个用途</td>
+        <td>—（非文字）</td>
+      </tr>
+      <tr>
+        <td><b>INDIGO</b></td><td class="n">#1B2540</td>
+        <td>页面主底色（"夜色"）</td>
+        <td><b>替换</b> <code class="tok">PAPER #F2EADA</code><br>
+            <span class="mid">为什么必须换 ——</span>纸白底 + 墨线 + 朱红角花合起来就是"纸牌/牌谱"的语汇，
+            玩家第一眼读到的是"桌面"；深靛底把它变成"场景"（夜里的楼），这是本方案脱开棋牌观感的第一笔。</td>
+        <td>—（底）</td>
+      </tr>
+      <tr>
+        <td><b>SHADE</b></td><td class="n">#232F52</td>
+        <td>檐面 / 灯罩外壁 / 面板与确认条底</td>
+        <td><b>替换</b> <code class="tok">FACE #FBF6EA</code><br>
+            <span class="mid">为什么必须换 ——</span>旧的 FACE 同时承担"牌面底"和"面板底"两个职责。
+            在新方案里这两件事必须分开：面板要暗、牌面要亮。<b>面板一旦与牌面同色，牌就淹在板里</b>
+            —— 而牌面是已定稿资产，不能让面板去抢它的亮度。</td>
+        <td>—（底）</td>
+      </tr>
+      <tr>
+        <td><b>INDIGO_LINE</b></td><td class="n">#33406B</td>
+        <td>檐口主线 / 挂绳 / 印章外描边 / 确认条描边</td>
+        <td><b>替换</b> <code class="tok">INK #22201C</code> 在"界面描边"上的职责<br>
+            （INK 保留给牌面：牌面上的墨线不动）</td>
+        <td>1.51（装饰线，不承载信息）</td>
+      </tr>
+      <tr>
+        <td><b>RIB</b></td><td class="n">#2A3760</td>
+        <td>檐口副线 / 椽头 / 罩内短棱 / 灭灯填充 / 进度槽</td>
+        <td><b>替换</b> <code class="tok">LOCK_BG #EAE3D2</code>（"未激活"的底）<br>
+            并新增"灭灯 / 空槽"两个用途</td>
+        <td>1.31（装饰）</td>
+      </tr>
+      <tr>
+        <td><b>LANTERN</b></td><td class="n">#E8A33D</td>
+        <td>主按钮面 / 亮灯身 / 次按钮描边与文字 / 光晕 / 长按进度填充</td>
+        <td><b>替换</b> <code class="tok">VERMILION #C4362B</code>（主按钮 / 进度）+ <code class="tok">GOLD #C9A227</code>（强调）<br>
+            <span class="mid">本方案最重要的一笔 ——</span>"朱红 + 墨 + 金"三色<b>同时在场</b>才是棋牌类的配色。
+            这里把红整条去掉、把金换成暖灯黄（H 35° vs 金 45°，且配的是深靛而不是墨），三色缺一角，"牌感"就散了。</td>
+        <td>对 INDIGO <b>7.03</b> · 对 NIGHT <b>7.92</b> · 对 SHADE <b>6.09</b><br>
+            <span class="ok">全部 ≥ 4.5，可作正文色</span></td>
+      </tr>
+      <tr>
+        <td><b>LANTERN_HI</b></td><td class="n">#F6C877</td>
+        <td>灯芯 / 灯笼点亮瞬间的过冲色 / 大字描边</td>
+        <td><b>新增</b></td>
+        <td>对 INDIGO <b>9.71</b> <span class="ok">≥ 4.5</span></td>
+      </tr>
+      <tr>
+        <td><b>LANTERN_RIBS</b></td><td class="n">#B87526</td>
+        <td>灯骨 / 灯盖 / 灯穗</td>
+        <td><b>新增</b></td>
+        <td>对 INDIGO 4.05（装饰图形，仅作"看得出有根骨头"用）</td>
+      </tr>
+      <tr>
+        <td><b>BAMBOO</b></td><td class="n">#4E7A5A</td>
+        <td>印章外描边 / 装饰棱（<b>不承载任何文字</b>）</td>
+        <td><b>替换</b> <code class="tok">VERMILION</code> 在"角花 / 印章"上的位置<br>
+            <span class="mid">为什么换 ——</span>角花与印章是"这里有个器物"的信号，
+            职责要保留、颜色要换：同一个位置换成<b>全页唯一的冷色</b>，红墙金瓦的味道立刻没了。</td>
+        <td>对 INDIGO <b>3.07</b><br>
+            <span class="mid">⚠️ 刚过 3:1（非文字图形的门槛），因此只用它画"看得见就行"的装饰，
+            任何文字与关键图形都不用它。</span></td>
+      </tr>
+      <tr>
+        <td><b>BAMBOO_DEEP</b></td><td class="n">#3A5F45</td>
+        <td><b>印章底</b>（印章上的字是纸白）</td>
+        <td><b>新增</b>（把"印章底"从 BAMBOO 里拆出来单独调深）</td>
+        <td>纸白对印章底 <b>6.20</b> <span class="ok">≥ 4.5</span><br>
+            <span class="mid">（若直接用 BAMBOO #4E7A5A 做印章底只有 4.23，只能按"大字 3:1"过 ——
+            既然调深 12% 就能拿到正文级，就不留这个灰色地带。）</span></td>
+      </tr>
+      <tr>
+        <td><b>PAPER</b></td><td class="n">#F2EDE2</td>
+        <td>主文字 / 标题 / 关卡名 / 印章上的字 / 过关大字</td>
+        <td><b>保留</b> <code class="tok">PAPER</code> 的"纸白"语义，<b>值微调</b> #F2EADA → #F2EDE2<br>
+            <span class="mid">为什么微调 ——</span>旧值偏米黄暖调，落在深靛上会显"脏"；
+            新值降饱和、略偏冷，同样叫纸白但更干净。差异很小，属于"换底之后必须回头校一遍"的那一类。</td>
+        <td>对 INDIGO <b>12.98</b> · 对 NIGHT <b>14.63</b> · 对 SHADE <b>11.24</b>
+            <span class="ok">全部 ≥ 4.5（且都过 AAA 7:1）</span></td>
+      </tr>
+      <tr>
+        <td><b>TEXT_MUTED</b></td><td class="n">#A9B2CB</td>
+        <td>次级文字：进度 / 最佳成绩 / 副标题 / 印章标签</td>
+        <td><b>替换</b> <code class="tok">INK_MID #57503F</code> + <code class="tok">INK_SOFT #8E8571</code><br>
+            <span class="mid">为什么必须换 ——</span>这两个是"墨系的中间色"，在深靛底上是黑字，
+            <b>对比度会掉到 1.2~1.5，等于不可见</b>。深色底上只能用"带蓝调的浅灰"做次级，
+            让它在色相上属于这套夜景（而不是把两个墨色勉强提亮）。</span></td>
+        <td>对 INDIGO <b>7.16</b> · 对 NIGHT <b>8.07</b> · 对 SHADE <b>6.20</b>
+            <span class="ok">全部 ≥ 4.5</span></td>
+      </tr>
+      <tr>
+        <td><b>TEXT_FAINT</b></td><td class="n">#6E7799</td>
+        <td><b>装饰专用</b>：分镜箭头、分隔线、刻度 —— <b>本方案里它一次都不作为文字颜色出现</b></td>
+        <td><b>替换</b> <code class="tok">LOCK #B9B09A</code> 的"最弱"职责
+            <span class="mid">（但把它的活儿从"最弱的字"改成"最弱的线"）</span></td>
+        <td>对 INDIGO <b>3.44</b> · 对 NIGHT <b>3.87</b><br>
+            <span class="mid">走的是<b>非文字图形</b>的 3:1 阈值，通过。<b>为什么不让它当文字：</b>
+            这一版把"最弱的那行字"（底部 15px 操作说明）改用了 TEXT_MUTED ——
+            层级改由<b>字号 + 位置</b>承担，不由对比度承担。深底上"用灰做层级"是最容易踩线的一招，
+            干脆不用：全页所有文字都 ≥ 6.09，一条例外都没有。</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <h4>淘汰的四色（必须显式删掉，不能只是"不用"）</h4>
+    <table class="kv" style="margin-bottom:0">
+      <thead><tr><th>原令牌</th><th>原值</th><th>处理</th><th>为什么必须换掉</th></tr></thead>
+      <tbody>
+        <tr><td><code class="tok">VERMILION</code></td><td class="n">#C4362B</td>
+            <td><b>界面内 0 次出现</b>；牌面自带的红（#B02A1E 与角花）保留</td>
+            <td>朱红 + 墨 + 金是棋牌经典配色，也是本项目尚未解除的合规风险（README §7）。它同时是参考图1 的主色，是"要变"的第一目标。</td></tr>
+        <tr><td><code class="tok">GOLD</code></td><td class="n">#C9A227</td>
+            <td><b>整条删除</b>（含标题描边与消除反馈）</td>
+            <td>金色的"贵重感"正是棋牌 / 老游戏盒的语言。它在本方案里的全部职责（强调）由 LANTERN 接手。</td></tr>
+        <tr><td><code class="tok">PAPER_DARK</code></td><td class="n">#EFE6D2</td><td><b>删除</b>（进度槽底）</td>
+            <td>职责被 RIB #2A3760 顶替 —— 深底上的"槽"必须是"更暗的坑"，不是"更浅的面"，方向反了。</td></tr>
+        <tr><td><code class="tok">FACE_DIM</code></td><td class="n">#EDE6D4</td><td><b>删除</b>（被压住的牌面）</td>
+            <td>仍由牌面资产内部使用（牌不可改）；界面层不再引用它，避免"界面又出现一块米黄"。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>色卡</h3>
+  <div class="sw">
+    <div><i style="background:#1B2540"></i><span>1B2540</span></div>
+    <div><i style="background:#141B30"></i><span>141B30</span></div>
+    <div><i style="background:#232F52"></i><span>232F52</span></div>
+    <div><i style="background:#33406B"></i><span>33406B</span></div>
+    <div><i style="background:#2A3760"></i><span>2A3760</span></div>
+    <div><i style="background:#E8A33D"></i><span>E8A33D</span></div>
+    <div><i style="background:#F6C877"></i><span>F6C877</span></div>
+    <div><i style="background:#B87526"></i><span>B87526</span></div>
+    <div><i style="background:#4E7A5A"></i><span>4E7A5A</span></div>
+    <div><i style="background:#3A5F45"></i><span>3A5F45</span></div>
+    <div><i style="background:#F2EDE2"></i><span>F2EDE2</span></div>
+    <div><i style="background:#A9B2CB"></i><span>A9B2CB</span></div>
+    <div><i style="background:#6E7799"></i><span>6E7799</span></div>
+  </div>
+</div>
+
+
+<!-- ==================================================================== -->
+<!-- ③-1  动效分镜 · 开场「掌灯」                                            -->
+<!-- ==================================================================== -->
+<div class="verdict">
+  <h2>③-1 动效分镜 · 开场「掌灯」</h2>
+  <p class="wide">每一帧的 SVG 是简笔画，只画清"位置与形态的变化"。
+  分镜下方的参数表里的数可以直接落成 <code class="tok">MotionFx</code> 的调用，
+  缓动名一律用 <code class="tok">CFG.MOTION</code> 的语义名。</p>
+
+  <span class="kind">分镜 · 6 格</span>
+  <div class="shots">
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M88 34V49 M128 34V49 M168 34V49 M208 34V49" stroke="#33406B" stroke-width="1.5"/>
+        <rect x="77" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="117" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="157" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="197" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <path d="M150 100 L195 126 L195 178 L150 204 L105 178 L105 126 Z" fill="#232F52" stroke="#E8A33D" stroke-width="2.5" opacity="0.55"/>
+        <path d="M150 112 L185 132 L185 172 L150 192 L115 172 L115 132 Z" fill="#141B30" opacity="0.55"/>
+        <rect x="139" y="145" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.16"/>
+        <rect x="139" y="127" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.16"/>
+        <rect x="139" y="109" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.16"/>
+        <text x="150" y="228" text-anchor="middle" font-size="13" fill="#A9B2CB">罩 opacity 55% · 灯全灭 · 牌阵 0</text>
+      </svg>
+      <p class="lb">F1 · t = 0ms<br>罩 55% 透明、scale 1.35 定住（首页推近而来）；牌阵全是虚影。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M88 34V49 M128 34V49 M168 34V49 M208 34V49" stroke="#33406B" stroke-width="1.5"/>
+        <rect x="77" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="117" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="157" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="197" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <path d="M150 100 L195 126 L195 178 L150 204 L105 178 L105 126 Z" fill="#232F52" stroke="#E8A33D" stroke-width="2.5"/>
+        <path d="M150 112 L185 132 L185 172 L150 192 L115 172 L115 132 Z" fill="#141B30"/>
+        <path d="M133 174 L167 174 L182 116 L118 116 Z" fill="#E8A33D" opacity="0.10"/>
+        <circle cx="150" cy="176" r="17" fill="none" stroke="#E8A33D" stroke-width="1.6" opacity="0.18"/>
+        <circle cx="150" cy="176" r="12" fill="#E8A33D" opacity="0.30"/>
+        <circle cx="150" cy="176" r="5" fill="#F6C877"/>
+        <text x="150" y="228" text-anchor="middle" font-size="13" fill="#A9B2CB">灯芯先亮 → 罩 opacity 100%</text>
+      </svg>
+      <p class="lb">F2 · t = 120ms<br>罩内灯芯先亮（r 6→18 = scale 0.33→1.00，220ms）；光锥淡入到 0.06。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M88 34V49 M128 34V49 M168 34V49 M208 34V49" stroke="#33406B" stroke-width="1.5"/>
+        <rect x="73" y="47" width="30" height="30" rx="12" fill="none" stroke="#E8A33D" stroke-width="1.5" opacity="0.22"/>
+        <rect x="77" y="49" width="22" height="22" rx="8" fill="#E8A33D"/>
+        <circle cx="88" cy="60" r="5" fill="#F6C877"/>
+        <rect x="111" y="45" width="34" height="34" rx="14" fill="none" stroke="#F6C877" stroke-width="1.5" opacity="0.45"/>
+        <rect x="117" y="49" width="22" height="22" rx="8" fill="#F6C877"/>
+        <rect x="157" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="197" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <path d="M150 100 L195 126 L195 178 L150 204 L105 178 L105 126 Z" fill="#232F52" stroke="#E8A33D" stroke-width="2.5"/>
+        <path d="M150 112 L185 132 L185 172 L150 192 L115 172 L115 132 Z" fill="#141B30"/>
+        <path d="M150 96 L198 124 L198 180 L150 208 L102 180 L102 124 Z" fill="none" stroke="#E8A33D" stroke-width="5" opacity="0.12"/>
+        <text x="150" y="228" text-anchor="middle" font-size="13" fill="#A9B2CB">第 1 盏亮 · 第 2 盏正在过冲</text>
+      </svg>
+      <p class="lb">F3 · t = 120 / 295 / 470 / 645ms<br>4 盏灯<b>逐盏</b>亮（固定间隔 175ms）；每盏 scale 1.00→1.28→1.00。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M88 34V49 M128 34V49 M168 34V49 M208 34V49" stroke="#33406B" stroke-width="1.5"/>
+        <rect x="77" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="88" cy="60" r="5" fill="#F6C877"/>
+        <rect x="117" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="128" cy="60" r="5" fill="#F6C877"/>
+        <rect x="157" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="168" cy="60" r="5" fill="#F6C877"/>
+        <rect x="197" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="208" cy="60" r="5" fill="#F6C877"/>
+        <path d="M150 100 L195 126 L195 178 L150 204 L105 178 L105 126 Z" fill="#232F52" stroke="#E8A33D" stroke-width="2.5"/>
+        <path d="M150 112 L185 132 L185 172 L150 192 L115 172 L115 132 Z" fill="#141B30"/>
+        <!-- 2 层 5 张：底层 3 张已经在路上（y 还差 7px、alpha 一半），上层 2 张只是虚影 -->
+        <rect x="112" y="148" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.5"/>
+        <rect x="139" y="148" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.5"/>
+        <rect x="166" y="148" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.5"/>
+        <rect x="126" y="135" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.22"/>
+        <rect x="152" y="135" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.22"/>
+        <path d="M150 100 L195 126 L195 178 L150 204 L105 178 L105 126 Z" fill="none" stroke="#E8A33D" stroke-width="6" opacity="0.12"/>
+        <text x="150" y="228" text-anchor="middle" font-size="13" fill="#A9B2CB">4 盏全亮 · 底层 3 张上浮中 · 上层 2 张虚影</text>
+      </svg>
+      <p class="lb">F4 · t = 520 / 650 / 780ms<br>牌阵<b>逐层</b>浮起（底 3 → 上 2）：层间隔 130ms，y +68→0。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M150 100 L195 126 L195 178 L150 204 L105 178 L105 126 Z" fill="#232F52" stroke="#E8A33D" stroke-width="2.5"/>
+        <path d="M150 112 L185 132 L185 172 L150 192 L115 172 L115 132 Z" fill="#141B30"/>
+        <!-- 2 层 5 张全部到位（底 3 / 上 2），上层压住下层约 57% -->
+        <rect x="112" y="141" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2"/>
+        <rect x="139" y="141" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2"/>
+        <rect x="166" y="141" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2"/>
+        <rect x="126" y="124" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2"/>
+        <rect x="152" y="124" width="22" height="30" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2"/>
+        <path d="M150 100 L195 126 L195 178 L150 204 L105 178 L105 126 Z" fill="none" stroke="#E8A33D" stroke-width="7" opacity="0.14"/>
+        <text x="150" y="228" text-anchor="middle" font-size="13" fill="#A9B2CB">牌阵到位 · 灯串上升收起（340ms）</text>
+      </svg>
+      <p class="lb">F5 · t = 1180ms<br>灯串 y 0→−52、opacity→0（340ms）；牌阵<b>两层</b>到位。<b>局中不常驻灯串</b>。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M150 80 L213 116 L213 196 L150 232 L87 196 L87 116 Z" fill="none" stroke="#E8A33D" stroke-width="3" opacity="0.35"/>
+        <rect x="122" y="176" width="26" height="35" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.8"/>
+        <rect x="152" y="176" width="26" height="35" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.8"/>
+        <rect x="107" y="152" width="26" height="35" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.7"/>
+        <rect x="137" y="152" width="26" height="35" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.7"/>
+        <rect x="167" y="152" width="26" height="35" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.7"/>
+        <rect x="137" y="120" width="26" height="35" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="2" opacity="0.5"/>
+        <text x="150" y="60" text-anchor="middle" font-size="13" fill="#A9B2CB">↑ 罩炸开出画 · 牌堆 1000ms 涌现</text>
+      </svg>
+      <p class="lb">F6 · t = 1180 → 2550ms<br>罩（连罩内牌）scale 1.00→1.60、opacity→0；真实牌堆接着涌现。</p>
+    </div>
+  </div>
+
+  <h3>参数表 · 开场</h3>
+  <table class="kv">
+    <thead><tr><th>格</th><th>时刻 (ms)</th><th>对象</th><th>起 → 止</th><th>缓动</th><th>段时长 (ms)</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td>F1</td><td class="n">0</td><td>灯罩</td>
+          <td>opacity 0→140 / scale 1.35（保持）</td><td>EASE_ENTER</td><td class="n">0（随转场）</td>
+          <td>scale 1.35 是在<b>转场里</b>完成的：首页灯罩 scale 1.00→1.35 并淡出，局内接着 1.35 淡入</td></tr>
+      <tr><td>F2</td><td class="n">120</td><td>罩内灯芯</td>
+          <td>r 6→18（scale 0.33→1.00）；opacity 0→255</td><td>EASE_ENTER</td><td class="n">220</td>
+          <td>一点先亮 —— 给"光是从下面来的"一个来源</td></tr>
+      <tr><td>F2</td><td class="n">120</td><td>光锥</td>
+          <td>opacity 0→18（alpha 0.07）</td><td>EASE_ENTER</td><td class="n">260</td>
+          <td>梯形纯色块当渐变用</td></tr>
+      <tr><td>F3</td><td class="n">120 / 295 / 470 / 645</td><td>4 盏灯笼 · 亮层</td>
+          <td>opacity 0→255；scale 1.00→1.28→1.00</td>
+          <td>前段 EASE_POP / 后段 EASE_MOVE</td><td class="n">180 + 120 = 300</td>
+          <td><b>不是一起亮</b>：起亮时刻固定为 120 / 295 / 470 / 645（间隔 175ms）</td></tr>
+      <tr><td>F3</td><td class="n">120 / 295 / 470 / 645</td><td>4 盏灯笼 · 灭层</td>
+          <td>opacity 255→0</td><td>EASE_MOVE</td><td class="n">180</td>
+          <td>灭层与亮层是<b>两个节点</b>，靠 opacity 交叉换状态 —— 不做逐帧重绘</td></tr>
+      <tr><td>F3</td><td class="n">120 → 945</td><td>罩外光晕（2 圈，R = 198 / 206）</td>
+          <td>基准 alpha <b>0.16 / 0.09</b> × 系数 k；<b>k</b>：0 → 0.40 → 0.63 → 0.85 → 1.00</td>
+          <td>linear</td><td class="n">每档 175（跟着灯走）</td>
+          <td>亮得越多、罩越亮 —— 这是"灯把罩点亮"的因果。<b>k 只在开场这一路里跑，静止态恒为 1.00</b>：
+              进度<b>不</b>靠光晕强弱表达（那是数字，玩家不会去比），只靠灯的亮灭（亮黄 vs 靛青）</td></tr>
+      <tr><td>F4</td><td class="n">520 / 650 / 780</td><td>牌阵 2 层（底 3 / 上 2）</td>
+          <td>y +68→0；scale 0.52→1.00；opacity 0→255</td>
+          <td>位移+缩放 EASE_POP / 淡入 EASE_ENTER</td><td class="n">420 / 160</td>
+          <td>层间隔 <b>130ms</b>，逐层被照亮；同一层内的 3 张（或 2 张）<b>同时</b>起，不做层内错峰</td></tr>
+      <tr><td>F5</td><td class="n">1180</td><td>灯串（容器）</td>
+          <td>y 0→−52；opacity 255→0</td><td>EASE_EXIT</td><td class="n">340</td>
+          <td>收起后局中不再出现灯串</td></tr>
+      <tr><td>F6</td><td class="n">1180</td><td>灯罩 + 罩内牌</td>
+          <td>scale 1.00→1.60；opacity 255→0</td>
+          <td>EASE_POP 前 180 / EASE_EXIT 后 200</td><td class="n">380</td>
+          <td>"牌从罩里被放出来"</td></tr>
+      <tr><td>F6</td><td class="n">1400</td><td>真实牌堆</td>
+          <td>起点 y = 目标 − <b>0.9 个牌高</b>；scale <b>0.48</b>→1.00</td><td>EASE_POP</td><td class="n"><b>1000</b></td>
+          <td>沿用现有 SPROUT 的三条手感资产，只改三个起点参数</td></tr>
+      <tr><td>—</td><td class="n">2550</td><td>输入解锁</td>
+          <td><code class="tok">_busy = false</code></td><td>—</td><td class="n">—</td>
+          <td><b>铁律</b>：解锁走 setTimeout，不挂 tween 回调</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <h4>与现有「牌从下方涌现」的关系：<b>叠加在它之前</b>，并且就地改写它的三个起点参数</h4>
+    <p><b>现有实现（<code class="tok">GamePage.playSproutMotion</code>，S17 方案 B）：</b>起点在目标正下方 <b>1.2 个牌高</b>、起始缩放 <b>0.45</b>、总时长 <b>1.6s</b>，随机成束错峰 + backOut 过冲 + 落位挤压回弹。<b>新版<b>叠加在它之前</b>（不是替换）</b> —— 涌现仍是"牌堆怎么上场"的唯一答案，但它不再承担"仪式感"。因此就地改写三处：</p>
+    <ul class="pro">
+      <li>起点 <b>1.2 牌高 → 0.9 牌高</b>：0.9 牌高≈罩底到牌堆顶的实测距离，牌看起来是<b>从罩里出来</b>的，
+          而不是"从屏幕外飞进来"。</li>
+      <li>起始缩放 <b>0.45 → 0.48</b>：起手距离变短了，缩放再压到 0.45 会显得"从远处冲过来"，与"就在罩底下"矛盾。</li>
+      <li>总时长 <b>1600ms → 1000ms</b>：仪式时间已经由掌灯给了，涌现要更干脆；否则两次"铺开"语义重复，
+          总时长会到 3.2s。</li>
+    </ul>
+    <ul class="con" style="margin-top:8px">
+      <li><b>被换掉的</b>：错峰粒度从"随机成束（空间簇）"改为"按层（底→中→顶）"。
+          理由是掌灯之后玩家的期待是"按层显形"（罩内已经用层讲过一次），
+          局内再打散成随机束，两段动效的"节奏语言"就不一致了。</li>
+      <li><b>完整保留的</b>：backOut 过冲、落位「挤压→回弹→过冲→归位」三段、落牌声节流、入场锁输入。</li>
+    </ul>
+    <p><b>播完整版还是速版：</b>每关<b>首次</b>进入播完整版（2550ms 后解锁）；<b>重玩同一关 / 复活后重开</b>播速版
+    （跳过 F3 的逐盏与 F4 的逐层：灯串 200ms 一次性全亮、牌阵 300ms 一次性显形 → 总 1500ms）。
+    判重只用<b>一个内存标记</b>（同一次会话内该关是否已播过完整版），<b>不写存档</b> ——
+    这是"手感"不是"进度"，写进存档会让改一次时长就污染老玩家的档。</p>
+  </div>
+</div>
+
+
+<!-- ==================================================================== -->
+<!-- ③-2  动效分镜 · 通关                                                 -->
+<!-- ==================================================================== -->
+<div class="verdict">
+  <h2>③-2 动效分镜 · 通关「灯炸 + 过关上顶」</h2>
+  <p class="wide">结算时灯串<b>先降下</b>（局中它不在场），再依次炸开。所有"魔性"都落在具体参数上：
+  固定的 70ms 先后、7.2% 的过冲、2 次弹跳、振幅衰减到 40%、32 颗金点。</p>
+
+  <span class="kind">分镜 · 5 格</span>
+  <div class="shots">
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M88 34V49 M128 34V49 M168 34V49 M208 34V49" stroke="#33406B" stroke-width="1.5"/>
+        <rect x="77" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="88" cy="60" r="5" fill="#F6C877"/>
+        <rect x="117" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="128" cy="60" r="5" fill="#F6C877"/>
+        <rect x="157" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="168" cy="60" r="5" fill="#F6C877"/>
+        <rect x="197" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="208" cy="60" r="5" fill="#F6C877"/>
+        <path d="M88 30 L82 22 M128 30 L122 22 M168 30 L162 22 M208 30 L202 22" stroke="#6E7799" stroke-width="1.5"/>
+        <text x="150" y="200" text-anchor="middle" font-size="13" fill="#A9B2CB">灯串从檐上降下（y −44 → 0，260ms）</text>
+      </svg>
+      <p class="lb">F1 · t = 0ms<br>4 盏同时落下（<b>不</b>错峰）；错峰留给下一格的炸开。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <rect x="71" y="43" width="34" height="34" rx="14" fill="none" stroke="#E8A33D" stroke-width="1.5" opacity="0.2"/>
+        <rect x="111" y="43" width="34" height="34" rx="14" fill="none" stroke="#E8A33D" stroke-width="1.5" opacity="0.2"/>
+        <circle cx="88" cy="60" r="4" fill="#F6C877"/><circle cx="76" cy="48" r="3" fill="#E8A33D"/>
+        <circle cx="100" cy="46" r="3" fill="#E8A33D"/><circle cx="66" cy="68" r="3" fill="#E8A33D"/>
+        <circle cx="112" cy="72" r="3" fill="#E8A33D"/><circle cx="80" cy="84" r="3" fill="#E8A33D"/>
+        <circle cx="128" cy="60" r="4" fill="#F6C877"/><circle cx="118" cy="48" r="3" fill="#E8A33D"/>
+        <circle cx="142" cy="46" r="3" fill="#E8A33D"/><circle cx="108" cy="68" r="3" fill="#E8A33D"/>
+        <circle cx="152" cy="72" r="3" fill="#E8A33D"/><circle cx="122" cy="84" r="3" fill="#E8A33D"/>
+        <text x="150" y="200" text-anchor="middle" font-size="13" fill="#A9B2CB">第 1 盏炸开（t=260）· 第 2 盏 还有 70ms</text>
+      </svg>
+      <p class="lb">F2 · t = 260 / 330 / 400 / 470ms<br>逐盏炸开：scale 1.00→1.45→0.00；每盏甩 8 颗金点，共 32。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M150 78 L210 112 L210 188 L150 222 L90 188 L90 112 Z" fill="none" stroke="#E8A33D" stroke-width="2" opacity="0.22"/>
+        <circle cx="70" cy="90" r="3" fill="#E8A33D"/><circle cx="230" cy="86" r="3" fill="#E8A33D"/>
+        <circle cx="96" cy="70" r="3" fill="#E8A33D"/><circle cx="206" cy="66" r="3" fill="#E8A33D"/>
+        <text x="150" y="150" text-anchor="middle" font-size="42" font-weight="800" fill="#F2EDE2"
+              stroke="#141B30" stroke-width="4" paint-order="stroke fill"
+              font-family="'Songti SC','STSong','SimSun',serif">过关</text>
+        <text x="150" y="190" text-anchor="middle" font-size="11" fill="#A9B2CB">↑ 字在 y = +56（过冲位），脚下是 "+20" 的落定位</text>
+      </svg>
+      <p class="lb">F3 · t = 300ms<br>「过关」y −480 → <b>+56</b>：过冲 36px = <b>7.2%</b>，backOut 420ms。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <text x="150" y="188" text-anchor="middle" font-size="42" font-weight="800" fill="#F2EDE2"
+              stroke="#141B30" stroke-width="4" paint-order="stroke fill"
+              font-family="'Songti SC','STSong','SimSun',serif">过关</text>
+        <path d="M108 200 L192 200" stroke="#E8A33D" stroke-width="1.5" opacity="0.35"/>
+        <text x="150" y="218" text-anchor="middle" font-size="11" fill="#A9B2CB">落定 y = +20，随后 +20→+44→+20 → +34→+20</text>
+      </svg>
+      <p class="lb">F4 · t = 720ms 起<br>回落 +56→+20，紧接<b>弹 2 次</b>（+44 → +34），第 2 次振幅只剩 <b>40%</b>。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M150 62 L224 104 L224 196 L150 238 L76 196 L76 104 Z" fill="none" stroke="#E8A33D" stroke-width="2.5" opacity="0.16"/>
+        <path d="M150 74 L214 112 L214 192 L150 228 L86 192 L86 112 Z" fill="none" stroke="#E8A33D" stroke-width="3" opacity="0.10"/>
+        <text x="150" y="170" text-anchor="middle" font-size="42" font-weight="800" fill="#F2EDE2"
+              stroke="#141B30" stroke-width="4" paint-order="stroke fill"
+              font-family="'Songti SC','STSong','SimSun',serif">过关</text>
+        <text x="150" y="218" text-anchor="middle" font-size="11" fill="#A9B2CB">光晕炸 2 轮 + 整屏闪 1 次（255→90→255）</text>
+      </svg>
+      <p class="lb">F5 · t = 300 / 420ms（两轮）· 900ms（闪）<br>光晕副本 scale 1.00→1.45、alpha 0.22→0，炸 2 轮。整屏<b>只闪一次</b>。</p>
+    </div>
+  </div>
+
+  <h3>参数表 · 通关</h3>
+  <table class="kv">
+    <thead><tr><th>格</th><th>时刻 (ms)</th><th>对象</th><th>起 → 止</th><th>缓动</th><th>段时长 (ms)</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td>F1</td><td class="n">0</td><td>灯串（4 盏整体）</td><td>y −44→0；opacity 0→255</td><td>EASE_POP</td><td class="n">260</td><td>4 盏同步落下</td></tr>
+      <tr><td>F2</td><td class="n">260 / 330 / 400 / 470</td><td>4 盏灯笼</td>
+          <td>scale 1.00→1.45→0.00；opacity 255→0</td>
+          <td>前 EASE_POP 80 / 后 EASE_EXIT 120</td><td class="n">200 / 盏</td>
+          <td><b>固定先后 70ms，不随机</b> —— 随机就听不出节奏，只剩"一堆东西在闪"</td></tr>
+      <tr><td>F2</td><td class="n">同上 4 个时刻</td><td>金点 8 颗 / 盏（共 32）</td>
+          <td>距离 60→(0.6~1.25)×150；scale 1.00→0.30；opacity 255→0</td>
+          <td>EASE_MOVE</td><td class="n">420</td>
+          <td>起角 = 圆周均分 <b>+ 随机 ±0.6 rad</b>；32 &lt; 40（粒子上限）</td></tr>
+      <tr><td>F3</td><td class="n">300</td><td>「过关」大字（双层节点）</td>
+          <td>y −480 → <b>+56</b>（过冲 36px = 7.2%）</td><td>EASE_POP</td><td class="n">420</td>
+          <td>纸白字 + 深靛描边 6 + 灯黄副本偏移 4px（<code class="tok">LabelOutline</code> 只有一层，立体感靠偏移副本）</td></tr>
+      <tr><td>F4</td><td class="n">720</td><td>大字回落</td><td>y +56 → +20</td><td>EASE_MOVE</td><td class="n">160</td><td>落定位 = +20</td></tr>
+      <tr><td>F4</td><td class="n">880 / 990</td><td>大字弹跳 ×2</td>
+          <td>+20→+44→+20，然后 +20→+34→+20</td>
+          <td>每段 EASE_IDLE</td><td class="n">100+90 / 55+55</td>
+          <td><b>弹 2 次</b>，第 2 次振幅 = 24px 的 58%（≈14px，取 40%~60% 区间内的可观测量）</td></tr>
+      <tr><td>F5</td><td class="n">300 / 420</td><td>罩外光晕<b>副本</b> ×2 圈</td>
+          <td>scale 1.00→1.45（R 198→287 / 206→299）；alpha 0.22 / 0.13 → 0</td><td>EASE_ENTER</td><td class="n">380</td>
+          <td>炸 <b>2 轮</b>，第 2 轮起点 scale 0.95（余震感）。炸的是<b>副本</b>，常驻的 2 圈光晕不动</td></tr>
+      <tr><td>F5</td><td class="n">900</td><td>灯罩亮度层</td><td>opacity 255→90→255</td><td>各 linear 60</td><td class="n">120</td><td>整屏只闪一次</td></tr>
+      <tr><td>—</td><td class="n">1100</td><td>结算条进场</td><td>y −40→0；opacity 0→255</td><td>EASE_POP</td><td class="n">280</td>
+          <td>1.38s 起可点。结算条<b>不遮画面</b>：主按钮「下一关」+ 次按钮「回首页」，落在 y = −370 / −488 的同一位置上（与首页同一套坐标）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <h4>通关后的去向（选关页已删）</h4>
+    <p>第 1~3 关通关 → 结算条给 <b>「下一关」</b>（灯黄实色，抢占原先主按钮的位置）+ <b>「回首页」</b>（描边）。
+    第 4 关通关 → <b>「再玩一遍 · 第 1 关」</b> + <b>「回首页」</b>，进度<b>不清空</b>（灯笼保持全亮，这是荣誉不是障碍）。
+    <b>不做"2 秒自动跳下一关"</b>：现有实现是 <code class="tok">setTimeout(…, 2000) → goto('levelSelect')</code>，
+    去掉选关页之后如果保留自动跳转，玩家会"还没看清成绩就被推进下一关"；改成必须有一下点击。</p>
+  </div>
+</div>
+
+
+<!-- ==================================================================== -->
+<!-- ③-3  动效分镜 · 失败                                                 -->
+<!-- ==================================================================== -->
+<div class="verdict">
+  <h2>③-3 动效分镜 · 失败「摇灯 → 逐盏熄 → 余晖」</h2>
+  <p class="wide">失败与通关<b>严格对偶</b>：通关是"灯炸开、字上顶、有金点"；失败是"灯摇晃、字下沉、有烟"。
+  最后一盏灯<b>不立刻灭</b> —— 先闪一下余晖，再慢一档熄掉，然后从灯位升起三缕烟。</p>
+
+  <span class="kind">分镜 · 5 格</span>
+  <div class="shots">
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M88 34V49 M128 34V49 M168 34V49 M208 34V49" stroke="#33406B" stroke-width="1.5"/>
+        <rect x="77" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="88" cy="60" r="5" fill="#F6C877"/>
+        <rect x="117" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="128" cy="60" r="5" fill="#F6C877"/>
+        <rect x="157" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="168" cy="60" r="5" fill="#F6C877"/>
+        <rect x="197" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="208" cy="60" r="5" fill="#F6C877"/>
+        <text x="150" y="200" text-anchor="middle" font-size="13" fill="#A9B2CB">灯串降下 · 4 盏全亮</text>
+      </svg>
+      <p class="lb">F1 · t = 0ms<br>与通关同一格：灯串 y −44→0。<b>两段开场必须一样</b>，玩家才来不及预判输赢。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <g transform="rotate(4.5 150 34)">
+          <path d="M88 34V49 M128 34V49 M168 34V49 M208 34V49" stroke="#33406B" stroke-width="1.5"/>
+          <rect x="77" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="88" cy="60" r="5" fill="#F6C877"/>
+          <rect x="117" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="128" cy="60" r="5" fill="#F6C877"/>
+          <rect x="157" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="168" cy="60" r="5" fill="#F6C877"/>
+          <rect x="197" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="208" cy="60" r="5" fill="#F6C877"/>
+        </g>
+        <path d="M34 62 L44 70" stroke="#6E7799" stroke-width="1.5"/>
+        <text x="150" y="200" text-anchor="middle" font-size="13" fill="#A9B2CB">整串绕檐口挂点摇晃（+4.5° 起）</text>
+      </svg>
+      <p class="lb">F2 · t = 0 / 90 / 180 / 220ms<br>整串<b>绕檐口挂点</b>（非自身中心）摆：+4.5° → −4.5° → +3.0° → −3.0°，摆幅递减。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M88 34V49 M128 34V49 M168 34V49 M208 34V49" stroke="#33406B" stroke-width="1.5"/>
+        <rect x="77" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="117" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="157" y="49" width="22" height="22" rx="8" fill="#E8A33D" opacity="0.55"/>
+        <rect x="197" y="49" width="22" height="22" rx="8" fill="#E8A33D"/><circle cx="208" cy="60" r="5" fill="#F6C877"/>
+        <path d="M150 78 L210 112 L210 188 L150 222 L90 188 L90 112 Z" fill="none" stroke="#E8A33D" stroke-width="2" opacity="0.10"/>
+        <text x="150" y="200" text-anchor="middle" font-size="13" fill="#A9B2CB">第 1 盏已灭 · 第 2 盏正在灭 · 第 4 盏还亮</text>
+      </svg>
+      <p class="lb">F3 · t = 240 / 370 / 500 / 630ms<br>逐盏熄灭，<b>固定间隔 130ms</b>；每盏先 scale 1.00→0.86。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M88 34V49 M128 34V49 M168 34V49 M208 34V49" stroke="#33406B" stroke-width="1.5"/>
+        <rect x="77" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="117" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="157" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="191" y="43" width="34" height="34" rx="14" fill="none" stroke="#F6C877" stroke-width="2" opacity="0.5"/>
+        <rect x="197" y="49" width="22" height="22" rx="8" fill="#E8A33D"/>
+        <circle cx="208" cy="60" r="6" fill="#FFFFFF"/>
+        <text x="150" y="200" text-anchor="middle" font-size="13" fill="#A9B2CB">最后一盏：余晖闪一下，再慢一档灭</text>
+      </svg>
+      <p class="lb">F4 · t = 630 → 960ms<br>最后一盏先闪一次余晖（255→70→255），再用 <b>240ms</b> 缓灭（前 3 盏只用 180ms）。</p>
+    </div>
+
+    <div class="shot">
+      <svg width="232" height="186" viewBox="0 0 300 240">
+        <rect width="300" height="240" fill="#1B2540"/>
+        <path d="M0 8 H110 V16 H240 V26 H300 V34 H0 Z" fill="#232F52"/>
+        <line x1="0" y1="34" x2="300" y2="34" stroke="#33406B" stroke-width="2.5"/>
+        <path d="M88 34V49 M128 34V49 M168 34V49 M208 34V49" stroke="#33406B" stroke-width="1.5"/>
+        <rect x="77" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="117" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="157" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <rect x="197" y="49" width="22" height="22" rx="8" fill="#2A3760" stroke="#3A4670" stroke-width="1.2"/>
+        <circle cx="208" cy="84" r="4" fill="#3A4670" opacity="0.75"/>
+        <circle cx="204" cy="100" r="6" fill="#3A4670" opacity="0.5"/>
+        <circle cx="214" cy="118" r="7" fill="#3A4670" opacity="0.3"/>
+        <path d="M150 78 L210 112 L210 188 L150 222 L90 188 L90 112 Z" fill="none" stroke="#E8A33D" stroke-width="2" opacity="0.05"/>
+        <text x="150" y="200" text-anchor="middle" font-size="13" fill="#A9B2CB">全灭 + 3 缕烟升起（#3A4670）· 大字「差一点」下沉落定</text>
+      </svg>
+      <p class="lb">F5 · t = 960 → 1400ms<br>三缕烟升起：y 0→+72、scale 0.50→1.60，错峰 0/90/180ms。<b>不甩金点</b>（金点是通关的语汇）。</p>
+    </div>
+  </div>
+
+  <h3>参数表 · 失败</h3>
+  <table class="kv">
+    <thead><tr><th>格</th><th>时刻 (ms)</th><th>对象</th><th>起 → 止</th><th>缓动</th><th>段时长 (ms)</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td>F1</td><td class="n">0</td><td>灯串</td><td>y −44→0；opacity 0→255</td><td>EASE_POP</td><td class="n">260</td><td>与通关同一格</td></tr>
+      <tr><td>F2</td><td class="n">0 / 90 / 180 / 220</td><td>灯串容器 <code class="tok">angle</code></td>
+          <td>0 → +4.5° → −4.5° → +3.0° → −3.0°</td><td>EASE_IDLE</td><td class="n">90+90+40+40</td>
+          <td>绕<b>檐口挂点</b>旋转（灯笼节点的原点放在挂点上方）；4 帧抖动、摆幅递减</td></tr>
+      <tr><td>F3</td><td class="n">240 / 370 / 500 / 630</td><td>4 盏灯笼 · 亮层</td>
+          <td>scale 1.00→0.86；随后 opacity 255→0</td><td>EASE_EXIT / EASE_MOVE</td><td class="n">160 / 180</td>
+          <td>先"暗一下"再灭；间隔固定 <b>130ms</b></td></tr>
+      <tr><td>F3</td><td class="n">同上</td><td>4 盏灯笼 · 灭层</td><td>opacity 0→255</td><td>EASE_MOVE</td><td class="n">180</td>
+          <td>灭灯不是"消失"，是"还在但不亮了" —— 所以必须换色/交叉，不能只 fade 到 0</td></tr>
+      <tr><td>F4</td><td class="n">630 → 720</td><td>第 4 盏（最后一盏）</td><td>opacity 255→70→255</td><td>各 linear 45</td><td class="n">90</td>
+          <td><b>余晖</b>：只闪一次，闪两次就变成"故障灯"</td></tr>
+      <tr><td>F4</td><td class="n">720 → 960</td><td>第 4 盏（最后一盏）</td><td>opacity 255→0</td><td>EASE_EXIT</td><td class="n">240</td>
+          <td>比前 3 盏的 180ms <b>慢 33%</b>，单独一档时长</td></tr>
+      <tr><td>F4</td><td class="n">960 → 1400</td><td>烟 ×3</td>
+          <td>y 0→+72；scale 0.50→1.60；opacity 255→0；错峰 0/90/180ms</td><td>EASE_MOVE</td><td class="n">520</td>
+          <td>颜色 #3A4670（对底 1.65，纯装饰）。<b>不是金点</b></td></tr>
+      <tr><td>F4</td><td class="n">240 → 1000</td><td>罩外光晕（2 圈，R = 198 / 206）</td>
+          <td>基准 alpha 0.16 / 0.09 × 系数 k；<b>k</b>：1.00 → 0.63 → 0.38 → 0.16 → 0</td><td>linear</td><td class="n">每档 190</td>
+          <td>跟着已灭的灯数往下走（与开场 F3 是<b>同一套系数、同一个方向的反面</b>，不另起一套数值）</td></tr>
+      <tr><td>F4</td><td class="n">240 → 900</td><td>罩内牌阵</td><td>opacity 255→150</td><td>EASE_MOVE</td><td class="n">660</td>
+          <td><b>不到 0</b>：结算面板要压在上面，画面不能先空掉</td></tr>
+      <tr><td>F4</td><td class="n">240</td><td>「差一点」大字</td><td>y +80 → +20（<b>无过冲</b>）</td><td>EASE_DROP</td><td class="n">240</td>
+          <td>与「过关」的上顶过冲<b>严格对偶</b>：一个是顶上来弹跳，一个是沉下来</td></tr>
+      <tr><td>F4</td><td class="n">480</td><td>「差一点」大字</td><td>x 0 → −1.5 → +1.5 → 0</td><td>linear</td><td class="n">3 × 30</td>
+          <td>只抖 <b>3 帧</b>。抖多了像卡顿，抖 1 帧看不见</td></tr>
+      <tr><td>—</td><td class="n">240</td><td>失败面板</td><td>遮罩 alpha 0→190；面板 y −40→0</td><td>EASE_ENTER</td><td class="n">280</td>
+          <td><b>与灯灭并行</b>，不等动效播完 —— 玩家要知道"为什么输、能不能复活"，这件事不能等 1.4 秒</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <h4>两条与现有代码的对接约定</h4>
+    <p><b>① 灯串的 z 序在失败面板之上。</b>失败面板 240ms 就进（这是玩家最需要的信息），
+    而灯灭到 1400ms 才完。因此灯串节点必须挂在 modal 层<b>之上</b>（现在是
+    <code class="tok">this._modalLayer</code> 之下）。否则"灯一盏盏灭"会被遮罩压掉一半亮度，
+    观感变成"没播完整"。</p>
+    <p><b>② 失败面板的三枚按钮文案要跟着改。</b>现在第三枚是「返回」（回 <code class="tok">levelSelect</code>），
+    选关页删掉后必须改成「回首页」；配色跟随新令牌（靛底 + 灯黄主按钮 + 描边次按钮），
+    与首页的主/次按钮同一套形制 —— 这样"主操作永远是暖黄实色"这条规则在三页里是连贯的。</p>
+  </div>
+</div>
+
+
+<!-- ==================================================================== -->
+<!-- ④  实现成本与风险                                                      -->
+<!-- ==================================================================== -->
+<div class="verdict">
+  <h2>④ 实现成本与风险</h2>
+
+  <h3>1 · 需要新增哪些绘制原语（全部是"纯色块叠加 + 描边"）</h3>
+
+  <div class="callout">
+    <h4>① 六边形（尖顶）+ 光晕</h4>
+    <p><b>怎么画：</b>6 个顶点一次算出来 —— <code class="tok">for k in 0..5: a = −90° + 60k; (cx + R·cos a, cy + R·sin a)</code>，
+    然后 <code class="tok">moveTo → lineTo ×5 → close → fill()</code>。
+    描边要<b>重新走一遍同样的点</b>再 <code class="tok">stroke()</code> ——
+    Cocos 的 <code class="tok">Graphics</code> 里 <code class="tok">fill()</code> 之后路径不保留，
+    <b>不能像 SVG 那样一次同时 fill+stroke</b>。这是唯一一处"看起来一样但要写两遍"的地方，
+    建议在 UIFactory 加两个通用原语 <code class="tok">fillPoly(g, pts, color, alpha)</code> /
+    <code class="tok">strokePoly(g, pts, color, lw)</code>（各约 10 行），后面几项全靠它们。</p>
+    <p><b>光晕 = 同一个六边形再描 2 次边</b>（R = <b>198 / 206</b>，alpha <b>0.16 / 0.09</b>，内圈更亮）。
+    <b>不用渐变、不用模糊、不用图层混合</b>：由内到外变淡是靠两层低 alpha <b>叠</b>出来的，不是算出来的
+    （想更柔就把 R 档位加到 3~4 层，成本是每层一次 <code class="tok">strokePoly</code>）。
+    这两圈是<b>开口折线</b>（只绕<b>下部 5 个顶点</b>、不闭合），光晕因此只出现在罩的下半部 ——
+    既符合"光从灯芯往上洒"，也避开了上部最贵的版面（标题）。实现上只是"传 5 个点、不 close"，
+    与闭合描边同一个原语，只差一个参数。</p>
+    <p><b>罩内短棱（6 条）</b>用同一个 <code class="tok">strokePath</code>，以及<b>罩底灯芯</b>用 3 个同心
+    <code class="tok">circle</code>（r 24 描边 / 17 半透 / 8 实心）—— 都是已有原语，零新增。</p>
+  </div>
+
+  <div class="callout">
+    <h4>② 瓦檐（檐面 + 瓦垄 + 重檐 + 檐口双线 + 椽头）</h4>
+    <p><b>檐面：</b>一个普通矩形 <code class="tok">fillBox(g, 0, 552, 720, 176, 0, SHADE)</code>（HTML 0~176 = CFG +640~+464），
+    <b>不是多边形</b> —— 檐从屏幕外压进来，玩家只看得到檐底，<b>顶边本来就在画面之外</b>。
+    这一条同时消掉两个麻烦：不会被胶囊拦腰截断，也不会读成往上的楼梯（第一版画成 8 顶点台阶就是这个毛病）。</p>
+    <p><b>瓦垄</b>（1 条 <code class="tok">strokePath</code> 画 2 条横线，y = 60 / 110）：y = 60 那条落在胶囊带内，
+    所以 <b>x 只到 496 就收笔</b>；y = 110 那条不用管胶囊。<br>
+    <b>重檐</b>（1 条开口 <code class="tok">strokePath</code> <code class="tok">[(0,136)→(472,136)→(472,176)]</code>）：
+    第三点<b>不闭合</b>，右端那一竖笔就是"檐的侧面"，把右上被让出来的空白解释成造型而不是"挖的洞"。<br>
+    <b>檐口双线</b>（2 条全宽 <code class="tok">strokePath</code>，y = 176 / 185）：这是"国潮墨线双框"在新体系里的转译 ——
+    双框的<b>结构记忆</b>保留、颜色换成靛青 #33406B / #2A3760；它们比胶囊底边低 48px 以上，可安全走全宽。<br>
+    <b>椽头</b>（27 条短竖线，x 16→692 步长 26，y 178→186）：一个 path 里 27 个子路径
+    （<code class="tok">moveTo/lineTo</code> 循环 27 次、只调一次 <code class="tok">stroke()</code>）——
+    与现有 <code class="tok">drawCorners</code> 画朱红角花是同一手法，<b>不是 27 个节点</b>。</p>
+    <p>整个顶部区块合计 <b>6 条路径、1 个 Graphics 节点</b>（不同颜色之间改一次 <code class="tok">strokeColor</code> 即可，
+    不必拆节点），一次画完、永不重绘。灯要独立节点，因为它要动 opacity（见下条）。</p>
+  </div>
+
+  <div class="callout">
+    <h4>③ 灯笼（亮 / 灭两个节点叠在一起）</h4>
+    <p><b>形制：</b>挂绳（折线）+ 上盖（小圆角矩形）+ 灯身（<b>44 × 52、圆角 22 = 半圆头</b>，圆角再小就读成方块）
+    + 两条灯骨 + 灯芯（<b>r = 11</b>）+ 下盖 + 灯穗。全部是已有原语。</p>
+    <p><b>「熄灭」怎么做，是这里唯一需要拍板的技术选择：</b>熄灭<b>不是</b>透明度归零（灯还在，只是不亮了），
+    理论上要重绘颜色。<b>本方案不重绘</b>：每盏灯准备<b>亮层 + 灭层两个节点叠在同一位置</b>（尺寸完全一致、只有颜色不同 ——
+    亮层灯身 #E8A33D / 芯 #F6C877 / 盖与骨 #B87526，灭层灯身 #2A3760 / 描边与骨 #3A4670；
+    外圈柔光只在亮层有），熄灭 = 两层 opacity 交叉 180ms。
+    理由：逐帧重绘要给每盏改 5 个图形的颜色参数、4 盏 × 60fps，在微信上不划算；
+    而 opacity 交叉是引擎最省的通道（合批友好、零 CPU 路径计算）。
+    代价是节点数 ×2（共 8 个），静态几何各画一次 —— 这个交换在任何机型上都划算。</p>
+  </div>
+
+  <div class="callout">
+    <h4>④ 光锥（"渐变"的纯色块替身）+ ⑤ 长按进度条</h4>
+    <p><b>光锥：</b>罩底灯芯往上洒的光，用一个<b>梯形 fillPoly + alpha 0.06</b> 表达。
+    这是<u>刻意的近似</u>：不追求连续过渡，只要"上淡下浓"的大感觉。
+    若评审觉得"一眼看出是块面"，叠 3 层梯形即可（alpha 0.04 / 0.03 / 0.02，逐层收窄、逐层变高），
+    成本 +2 次 <code class="tok">fillPoly</code>。<b>无论如何不用渐变</b> ——
+    <code class="tok">Graphics</code> 没有渐变填充，而"叠低 alpha 实色"是它能力边界内的等价手段。</p>
+    <p><b>长按进度条：</b>一个矩形槽 + 一个按 0→352px 改宽的实色矩形。<b>刻意不用环形</b>：
+    环形要用 24 段折线近似、每帧重绘线段数，而本方案元素已经比方案 A 多 ——
+    逐帧预算要全部留给开场动效（灯串点亮 / 牌阵显形才需要逐帧观察）。</p>
+  </div>
+
+  <h3>2 · 贴图需求</h3>
+  <p class="wide"><b>0 张新增位图。</b>全方案的所有效果都在 <code class="tok">Graphics</code> 的能力边界内实现：
+  圆角矩形（灯身 / 按钮 / 面板）、圆（灯芯 / 鼓点 / 金点 / 烟）、折线（檐线 / 椽头 / 灯骨 / 灯穗 / 挂绳 / 光晕）、
+  多边形填充（檐面 / 六边形 ×4 / 光锥）。<b>包体不变，仍是 2.15 MB / 4 MB，余量 1.85 MB 一分没动。</b></p>
+  <p class="wide">唯一"看起来像贴图"的两处（光晕、光锥）都是纯色块叠加，已在上面给了做法与叠层参数。
+  如果将来确有某处必须靠位图（例如真的要做一盏写实灯笼），按本项目口径要单独标注体积；
+  本方案<b>没有这样的地方</b>。</p>
+
+  <h3>3 · 适配 / 无障碍风险</h3>
+
+  <div class="callout">
+    <h4>风险 ①：深色底在低亮度户外手机上的可读性 <span class="mid">（中风险，已有对策）</span></h4>
+    <p><b>真实情况要先说清楚：</b>深色底在阳光下"看不清"，原因几乎从不是对比度不足（对比度是相对量，
+    屏幕再暗，纸白与深靛的比值仍是 12.98:1），而是<b>屏幕反射光把整个画面提灰</b>，
+    于是"暗部不再是暗部"、"亮部还是亮部"，中间的次级信息先糊掉。</p>
+    <p><b>对策（三条，都在设计里落死）：</b></p>
+    <ol>
+      <li><b>全页最亮的一块留给唯一的操作</b>：主按钮是灯黄实底 + 深靛字（7.92:1），
+          它是"亮面 + 暗字"，在反光环境下比"暗面 + 亮字"更抗打 —— 任何时候玩家都能找到"下一步点哪"。</li>
+      <li><b>正文一律 ≥ 6.20:1，一条例外都没有</b>（最弱的是印章上 26px 的纸白字对竹青底 6.20:1，
+          其次是次按钮灯黄字对夜景底 7.92:1、次级文字 #A9B2CB 7.16:1）。
+          <b>不是"刚好 4.5"</b> —— 深底上不给自己留"刚刚达标"的余量。</li>
+      <li><b>层级一律由字号 + 位置承担，不由对比度承担。</b>
+          这一版把上一稿里那行 15px 的"#6E7799 装饰文字"直接<b>取消了</b>（它当时只有 3.44:1）：
+          底部操作说明改用 #A9B2CB（8.07:1，字号仍是最小的 15px），
+          #6E7799 只剩"画线"的活儿（分镜箭头 / 分隔线，走非文字图形的 3:1）。
+          <b>深底上"用灰做层级"是最容易踩线的一招，这一版干脆不用</b> ——
+          于是"不达标就返工"这条在整份稿里没有触发点。</li>
+    </ol>
+  </div>
+
+  <div class="callout">
+    <h4>风险 ②：微信右上角胶囊压在瓦檐上 <span class="mid">（高风险，必须在设计里解决）</span></h4>
+    <p><b>这个风险是真实的</b>：微信小游戏的胶囊按钮由<b>系统绘制在最上层</b>，位置在右上角，
+    典型占位在设计分辨率下约 <b>248 × 88px（x 约 496~720、y 约 40~128）</b>。
+    任何横向贯穿顶部的线条（檐口、分隔线、装饰带）都会被它"从中间截断"，看上去就是一次渲染错误 ——
+    而这个页面本身就是"一条檐横贯顶部"的构图，正面撞上。</p>
+    <p><b>解法（不是妥协，是设计里主动用掉它）：</b></p>
+    <ol>
+      <li>先改变檐的"读法"：<b>檐从屏幕外压进来，玩家只看得到檐底</b>，檐面是
+          <b>x 0~720 / y 0~176 一整块实色</b>、<b>没有"屋顶的顶边"</b>。这一刀同时办两件事 ——
+          （a）不存在"被胶囊从中间截断"的那条顶边，因为<b>本来就没有顶边</b>；
+          （b）也不会读成"一级级往上的楼梯"（第一版画成台阶就是这个毛病）。</li>
+      <li>唯一的<b>横向装饰线</b>是瓦垄（y = 60 / 110）。其中 <b>y = 60 落在胶囊带内</b>，
+          于是它 <b>从 x = 496 就收笔</b>（正好是胶囊左边界）—— 玩家看到的是"瓦垄画到右边就没了"，
+          而不会有东西被胶囊<b>拦腰切断</b>。</li>
+      <li>檐口双线（y = 176 / 185）与椽头 27 条（y 178~186）<b>都比胶囊底边低 48px 以上</b>，可<b>放心走全宽</b> ——
+          这是"檐横贯顶部"的构图能保住的原因。</li>
+      <li><b>重檐右端在 x = 472 立下去收口</b>（<code class="tok">M0 136 H472 V176</code>，这一竖笔就是檐的"侧面"），
+          顺手把"右上这块被让出来"解释成了<b>檐的侧脸</b>而不是留白。
+          两枚小印章于是 <b>x = ±298 等高对称</b>（CFG +96）分列左右、把灯罩框在中间 ——
+          既各自落进"檐的侧脸"让出的那块空档里，也顺手把首页的左右配重拉平，右侧不至于空成一片。</li>
+    </ol>
+    <p><b>兜底</b>：真机上胶囊的实际尺寸随机型 / 系统版本变化（iOS、Android、开发者工具预览三处都不一样）。
+    落地时按 <code class="tok">CFG.SCREEN.TOP_SAFE = 100</code> 的口径再校一次：
+    <b>若实测胶囊底边低于 y = 118，就把重檐那一笔的整体 y 从 136 等量下移</b>（重檐高度本来就是自由量），
+    并把 y = 60 那条瓦垄整条删掉（只剩 y = 110，檐面就不需要开这个口了）。</p>
+  </div>
+
+  <div class="callout">
+    <h4>风险 ③：与「休闲益智」类目的契合度 <span class="mid">（这是本方案最大的收益点）</span></h4>
+    <p><b>去掉的东西：</b>朱红 #C4362B、金 #C9A227、木纹、棋牌语义文案（含上表点名的「碰 / 吃 / 杠」那一行），
+    以及参考图1 里"称号 + 战绩 + 榜单"这一整类<b>竞技与炫耀语义</b>。<b>词和概念一个都没抄。</b></p>
+    <p><b>剩下的语义：</b>灯笼、夜色、关卡进度、闯关。这是一个<b>场景</b>，不是一张<b>牌桌</b>。
+    深靛 + 暖灯黄 + 竹青，与"棋牌红金"没有任何一色重叠。</p>
+    <p><b>唯一残留的红在牌面上</b>（万子的「萬」、筒族红、牌角花），这是<b>刻意的保留</b>：
+    牌面 27 张是已定稿资产，不得重新设计；而且界面一旦不再是红的，
+    牌面上那点红反而成了全页唯一的红 —— <b>三族的区分度（蓝 / 红 / 绿）因此比现在更强</b>，
+    而全页也不再读作"红底红牌"。</p>
+    <p><b>须知的风险点：</b>若审核员把"牌面图案本身"读作麻将，那是<b>牌面资产</b>的问题，与本次界面改版无关，
+    按 <code class="tok">README §7</code> 的约定提审前用 <code class="tok">minigame-publish-compliance</code> 单独复核。
+    <b>本次改版把"界面层"这一半的合规风险清掉了（三个方案里唯一直面的一个）。</b></p>
+  </div>
+
+  <h3>4 · 成本等级与改动面</h3>
+  <p class="wide"><b>成本等级：中</b>（低于方案 A 的"低"，高于方案 C —— 因为多了一个灯串组件与四段动效编排）。
+  零贴图、零新依赖、零字体；新增绘制原语 5 个（都是 10 行级别的纯几何）。
+  预计改动面 <b>6 个文件</b>、约 <b>1.5 ~ 2 人日</b>。</p>
+  <table class="kv">
+    <thead><tr><th>文件</th><th>改什么</th><th>量级</th></tr></thead>
+    <tbody>
+      <tr><td><code class="tok">CFG.ts</code></td>
+          <td>① §三 <code class="tok">COLOR</code> 整段替换：新增 11 个令牌（NIGHT / SHADE / INDIGO_LINE / RIB / LANTERN / LANTERN_HI / LANTERN_RIBS / BAMBOO_DEEP / TEXT_MUTED / TEXT_FAINT / INDIGO），
+              淘汰 4 个（VERMILION / GOLD / PAPER_DARK / FACE_DIM 的界面引用），PAPER 改值；<br>
+              ② §七 <code class="tok">MENU_LAYOUT</code> 换成 §①-b 那一列 y（13 个值全换）；<br>
+              ③ 新增 <code class="tok">LANTERN</code> / <code class="tok">EAVE</code> 两组动效常量（约 26 个数字，全部集中、业务代码零裸数字）；<br>
+              ④ 新增 <code class="tok">MENU_LAYOUT.KEEP_PRESS_MS = 1200</code>（长按门限，不散落在业务里）</td>
+          <td>中</td></tr>
+      <tr><td><code class="tok">ui/UIFactory.ts</code></td>
+          <td>① 新增 <code class="tok">fillPoly</code> / <code class="tok">strokePoly</code> / <code class="tok">drawHex</code> / <code class="tok">drawEave</code> / <code class="tok">drawLantern</code>；<br>
+              ② <code class="tok">createPaperBackground</code> → <code class="tok">createNightBackground</code>（两段纯色带 + 台基线）；<br>
+              ③ <code class="tok">createPageFrame</code> → <code class="tok">createEaveBar</code>（檐面 + 檐口双线 + 椽头）；<br>
+              ④ <code class="tok">createButton</code> 增加"亮面 + 暗字"分支（主按钮）与"仅描边"分支（次按钮）；
+              <b>角花 <code class="tok">drawCorners</code> 保留但不再被首页调用</b>（牌面上的角花仍由牌面资产自己画）</td>
+          <td>中</td></tr>
+      <tr><td><code class="tok">ui/MenuPage.ts</code></td>
+          <td>整页重排：檐 + 灯串 + 灯罩 + 罩内牌阵 + 关卡名/最佳 + 主次按钮 + 长按清空 + 两侧各一枚印章。
+              旧的标题/分隔线/三张展示牌/朱红方印全部撤掉（三张展示牌的信息由罩内 5 张牌阵承担，且更充分）</td>
+          <td>大</td></tr>
+      <tr><td><b>新增</b> <code class="tok">ui/LanternStrip.ts</code></td>
+          <td>灯串组件（4 盏 × 亮/灭两层节点的创建、<code class="tok">lightUp()</code> / <code class="tok">burst()</code> / <code class="tok">extinguish()</code> / <code class="tok">smoke()</code> 四个动作）。
+              <b>首页、局内开场、结算三处共用同一个组件</b> —— 不做三份，否则改一次颜色要改三处</td>
+          <td>中</td></tr>
+      <tr><td><code class="tok">ui/GamePage.ts</code></td>
+          <td>① <code class="tok">playSproutMotion</code> 前置掌灯段 + 改写并改写涌现的三个起点参数（1.2→0.9 牌高 / 0.45→0.48 / 1600→1000ms）+ 错峰粒度改为按层；<br>
+              ② <code class="tok">finish()</code>：<code class="tok">goto('levelSelect')</code> → 结算条 + 「下一关」/「回首页」；通关动效接在主按钮位置；<br>
+              ③ 失败面板第三枚按钮「返回」→「回首页」，配色跟随新令牌</td>
+          <td>大</td></tr>
+      <tr><td><code class="tok">ui/LevelSelectPage.ts</code></td>
+          <td><b>删除</b>。连带清理：<code class="tok">PageManager</code> 的路由表、<code class="tok">MenuPage</code> / <code class="tok">GamePage</code> 里 4 处
+              <code class="tok">goto('levelSelect')</code> 调用（MenuPage:92、GamePage:514 / 3448 / 3550）、
+              以及 <code class="tok">CFG.LEVEL_LAYOUT</code> 整段（约 30 行的布局常量）</td>
+          <td>小（删）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout" style="border-left:3px solid #1F1D1A;">
+    <h4>落地顺序建议（每步都能单独跑起来、单独看效果）</h4>
+    <ol style="font-size:12px;line-height:1.55;color:var(--ink-2);padding-left:18px;margin:0">
+      <li><b>色层</b>（1h）：只换 <code class="tok">CFG.COLOR</code> + 加 <code class="tok">createNightBackground</code>。
+          此时整页是"深靛底 + 原来的朱红/金元素"—— <b>最难看的一版，但也是最能看清"红金该不该留"的一版</b>，建议就在这里截一张图给用户看。</li>
+      <li><b>形层</b>（2h）：加 <code class="tok">fillPoly/strokePoly/drawHex/drawEave</code> + <code class="tok">createEaveBar</code>。
+          页面变成"深靛底 + 檐 + 六边形空罩"，配色与骨架的账就算结清。</li>
+      <li><b>首页层</b>（3~4h）：灯串组件 + <code class="tok">MenuPage</code> 重排 + 长按清空。到这里首页可独立验收（含胶囊净空）。</li>
+      <li><b>动效层</b>（4~6h）：开场掌灯（改 <code class="tok">playSproutMotion</code>）→ 通关 → 失败，<b>一段一段接、每接完一段就真机看一眼</b> ——
+          三段共用同一批节点，混在一起调会互相影响。</li>
+      <li><b>删页层</b>（1h）：最后才删 <code class="tok">LevelSelectPage</code>。前三步的验收都还需要它当"兜底出口"，
+          提前删会让中途每次真机测试都变成"进了游戏就出不来"。</li>
+    </ol>
+  </div>
+
+  <div class="warn">
+    <p><b>一句话成本结论：</b>中成本、6 个文件、1.5~2 人日、零贴图；
+    技术风险几乎没有（全部落在 <code class="tok">Graphics</code> 现有能力内），
+    真正的风险只有两个 —— <b>右上胶囊的净空</b>（已用"檐从屏幕外压进来 + 瓦垄从 x=496 收笔 + 重檐右端收口"
+    三件事在造型里吃掉，不靠留白躲）与
+    <b>深色底与"休闲益智"类目的契合度</b>（本方案正是为解这条而做的）。
+    这次改版只动 UI，<code class="tok">game-4-mahjong/</code> 下一行代码都没有改动。</p>
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ============================================================
+   牌面渲染：数据与绘制函数**逐字移植**自 docs/design/guochao-tiles.html
+   （唯一权威设计稿）。本页只负责把已定稿的牌面嵌进灯罩，
+   没有重新设计任何一张牌 —— 坐标系仍是牌面内部 132×176。
+   ============================================================ */
+const PAL = { face: '#FBF6EA', ink: '#22201C', vermilion: '#C4362B' };
+const INK3 = { blue: '#2338A0', red: '#B02A1E', green: '#2E6B45' };
+
+function tint(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const m = v => Math.round(v + (255 - v) * k);
+  return '#' + [m(r), m(g), m(b)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+function deep(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const m = v => Math.round(v * (1 - k));
+  return '#' + [m(r), m(g), m(b)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+const LIGHT = { blue: tint(INK3.blue, 0.50), red: tint(INK3.red, 0.50), green: tint(INK3.green, 0.50) };
+const DEEP  = { blue: deep(INK3.blue, 0.30), red: deep(INK3.red, 0.30), green: deep(INK3.green, 0.30) };
+
+const WAN_NUM = ['一', '二', '三', '四', '伍', '六', '七', '八', '九'];
+
+const P_SOU = {
+  1: null,
+  3: [[66, 48, 22, 44, 0, 'green'], [36, 126, 22, 44, 0, 'green'], [96, 126, 22, 44, 0, 'green']],
+};
+const P_TON = {
+  1: [[66, 88, 42, 'special']],
+  9: [[30, 35, 18, 'green'], [66, 35, 18, 'green'], [102, 35, 18, 'green'],
+      [30, 88, 18, 'red'],   [66, 88, 18, 'red'],   [102, 88, 18, 'red'],
+      [30, 141, 18, 'blue'], [66, 141, 18, 'blue'], [102, 141, 18, 'blue']],
+};
+
+function bamboo(x, y, w, h, rot, colKey, face) {
+  const col = INK3[colKey];
+  const light = tint(INK3[colKey], 0.38);
+  const r = w / 2;
+  const hw = w * 0.26, hl = h * 0.66, nx = w * 0.22;
+  const nh = Math.max(1.6, h * 0.05);
+  const ny1 = y - h * 0.22, ny2 = y + h * 0.22;
+  let s = '<rect x="' + (x - w / 2) + '" y="' + (y - h / 2) + '" width="' + w + '" height="' + h + '" rx="' + r + '" fill="' + col + '"/>';
+  s += '<rect x="' + (x - hw / 2) + '" y="' + (y - hl / 2) + '" width="' + hw + '" height="' + hl + '" rx="' + (hw / 2) + '" fill="' + light + '"/>';
+  [ny1, ny2].forEach(function (yy0) {
+    const yy = yy0 - nh / 2;
+    s += '<rect x="' + (x - w / 2) + '" y="' + yy + '" width="' + nx + '" height="' + nh + '" fill="' + face + '"/>';
+    s += '<rect x="' + (x + w / 2 - nx) + '" y="' + yy + '" width="' + nx + '" height="' + nh + '" fill="' + face + '"/>';
+  });
+  if (rot) s = '<g transform="rotate(' + rot + ' ' + x + ' ' + y + ')">' + s + '</g>';
+  return s;
+}
+function disc(x, y, r, colKey, face) {
+  const col = INK3[colKey], lit = LIGHT[colKey], dp = DEEP[colKey];
+  return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + dp + '"/>'
+       + '<circle cx="' + x + '" cy="' + y + '" r="' + (r * 0.80) + '" fill="' + lit + '"/>'
+       + '<circle cx="' + x + '" cy="' + y + '" r="' + (r * 0.54) + '" fill="' + col + '"/>'
+       + '<circle cx="' + x + '" cy="' + y + '" r="' + (r * 0.28) + '" fill="' + lit + '"/>';
+}
+function discOne(face) {
+  return '<circle cx="66" cy="88" r="42" fill="' + DEEP.blue + '"/>'
+       + '<circle cx="66" cy="88" r="36" fill="' + INK3.blue + '"/>'
+       + '<circle cx="66" cy="88" r="26.5" fill="' + INK3.green + '"/>'
+       + '<circle cx="66" cy="88" r="18" fill="' + INK3.red + '"/>'
+       + '<circle cx="66" cy="88" r="10.5" fill="' + face + '"/>';
+}
+/* 1 条（幺鸡）：红棕羽冠 / 白脸 / 深蓝大眼 / 蓝喙 / 蓝翅 / 绿身 / 红棕长尾 / 蓝爪 */
+function bird(face) {
+  const RB = '#8E3A2A', BL = INK3.blue, GR = INK3.green, WH = face;
+  return '<g>'
+    + '<path d="M70 108 Q44 126 18 152 Q44 138 78 114 Z" fill="' + RB + '"/>'
+    + '<path d="M76 112 Q58 138 40 160 Q62 148 86 118 Z" fill="' + RB + '"/>'
+    + '<path d="M88 112 Q86 138 78 161 Q94 142 98 116 Z" fill="' + RB + '"/>'
+    + '<path d="M80 70 C96 84 97 108 81 122 C65 134 45 128 39 110 C33 89 49 69 66 65 Z" fill="' + GR + '"/>'
+    + '<path d="M83 74 C99 82 107 100 104 118 C98 102 90 92 80 86 Z" fill="' + BL + '"/>'
+    + '<ellipse cx="74" cy="56" rx="16" ry="17" fill="' + WH + '" stroke="' + BL + '" stroke-width="1.4"/>'
+    + '<circle cx="78" cy="54" r="7" fill="' + BL + '"/>'
+    + '<circle cx="80.5" cy="51.5" r="2.4" fill="' + WH + '"/>'
+    + '<path d="M88 52 L107 59 L88 67 Z" fill="' + BL + '"/>'
+    + '<path d="M63 45 Q57 28 62 12 Q71 28 73 45 Z" fill="' + RB + '"/>'
+    + '<path d="M76 42 Q80 26 90 12 Q88 30 82 44 Z" fill="' + RB + '"/>'
+    + '<path d="M86 46 Q96 36 108 30 Q99 42 90 52 Z" fill="' + RB + '"/>'
+    + '<path d="M63 118 L58 137" stroke="' + BL + '" stroke-width="4" stroke-linecap="round" fill="none"/>'
+    + '<path d="M80 116 L85 135" stroke="' + BL + '" stroke-width="4" stroke-linecap="round" fill="none"/>'
+    + '<path d="M49 139 L67 139" stroke="' + BL + '" stroke-width="3.6" stroke-linecap="round"/>'
+    + '<path d="M77 137 L95 137" stroke="' + BL + '" stroke-width="3.6" stroke-linecap="round"/>'
+    + '</g>';
+}
+function glyphWan(n) {
+  const f = 'font-family="\'Songti SC\',\'STSong\',\'SimSun\',serif"';
+  return '<text x="66" y="72" text-anchor="middle" font-size="64" font-weight="800" fill="' + INK3.blue + '" ' + f + '>' + WAN_NUM[n - 1] + '</text>'
+       + '<text x="66" y="144" text-anchor="middle" font-size="58" font-weight="800" fill="' + INK3.red + '" ' + f + '>萬</text>';
+}
+function glyphSou(n, face) {
+  if (n === 1) return bird(face);
+  let s = '';
+  for (const p of P_SOU[n]) s += bamboo(p[0], p[1], p[2], p[3], p[4], p[5], face);
+  return s;
+}
+function glyphTon(n, face) {
+  if (n === 1) return discOne(face);
+  let s = '';
+  for (const p of P_TON[n]) s += disc(p[0], p[1], p[2], p[3], face);
+  return s;
+}
+/* 牌面组装（照 guochao-tiles.html 的 tileInner，state = normal） */
+function tileInner(fam, n) {
+  const face = PAL.face;
+  let s = '';
+  s += '<rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="' + face + '" stroke="' + PAL.ink + '" stroke-width="3.2"/>';
+  s += '<rect x="8.5" y="8.5" width="115" height="159" rx="3.5" fill="none" stroke="' + PAL.ink + '" stroke-width="1.1" opacity="0.62"/>';
+  s += '<g stroke="' + PAL.vermilion + '" stroke-width="2.2" fill="none" stroke-linecap="square">'
+     + '<path d="M8.5 20.5 L8.5 8.5 L20.5 8.5"/>'
+     + '<path d="M111.5 8.5 L123.5 8.5 L123.5 20.5"/>'
+     + '<path d="M123.5 155.5 L123.5 167.5 L111.5 167.5"/>'
+     + '<path d="M20.5 167.5 L8.5 167.5 L8.5 155.5"/>'
+     + '</g>';
+  if (fam === 'wan') s += glyphWan(n);
+  else if (fam === 'sou') s += glyphSou(n, face);
+  else s += glyphTon(n, face);
+  return s;
+}
+
+document.querySelectorAll('svg[data-tile]').forEach(function (el) {
+  const parts = el.getAttribute('data-tile').split('-');
+  el.innerHTML = tileInner(parts[0], Number(parts[1]));
+});
+</script>
+</body>
+</html>

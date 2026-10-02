@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S18 · 「玩法」规则浮层稿（方案 A 体系）</title>
+<style>
+  :root{--paper:#F2EADA;--paper2:#FBF6EA;--ink:#22201C;--ink2:#57503F;--ink3:#8E8571;
+        --line:#DFD3B8;--red:#C4362B;--gold:#C9A227;--indigo:#31506E;
+        --blue:#2338A0;--redink:#B02A1E;--green:#2E6B45;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;
+       font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;}
+  .wrap{max-width:1120px;margin:0 auto;padding:44px 28px 72px;}
+  header.top{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:34px}
+  .eyebrow{font-size:12px;letter-spacing:.18em;color:var(--red);font-weight:600;margin:0 0 10px}
+  h1{font-size:27px;font-weight:700;margin:0 0 12px;letter-spacing:-.01em}
+  .lede{font-size:14px;line-height:1.85;color:var(--ink2);max-width:840px;margin:0}
+  .lede b{color:var(--ink)}
+  h2.sec{font-size:19px;font-weight:600;margin:46px 0 6px;padding-top:22px;border-top:1px solid var(--line)}
+  h2.sec span{font-size:12.5px;font-weight:400;color:var(--ink3);margin-left:10px}
+  h3{font-size:14px;font-weight:700;margin:26px 0 10px}
+  p{font-size:13.5px;line-height:1.85;color:var(--ink2);margin:0 0 12px}
+  p b,li b{color:var(--ink)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:#EFEBE2;
+       border-radius:4px;padding:1px 5px;color:#3A352D}
+  .two{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+  .col{flex:1 1 300px;min-width:280px}
+  .note{background:#FBF6EA;border:1px solid var(--line);border-left:3px solid var(--ink);border-radius:0 8px 8px 0;
+        padding:13px 16px;font-size:13px;line-height:1.8;color:var(--ink2);margin:14px 0}
+  .note.red{border-left-color:var(--red)}
+  .note.indigo{border-left-color:var(--indigo)}
+  .note b{color:var(--ink)}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top;line-height:1.7}
+  th{background:#F0ECE3;font-weight:600;font-size:12.5px;white-space:nowrap}
+  td:first-child{font-weight:600;color:var(--ink);white-space:nowrap;background:#FAF8F3}
+  .shot{border:1px solid var(--line);border-radius:12px;background:#FBF6EA;padding:0;overflow:hidden}
+  .cap{font-size:11.5px;color:var(--ink3);margin:9px 0 0;line-height:1.7}
+  .sw{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+  .sw div{width:104px;font-size:11px;color:var(--ink3);line-height:1.55}
+  .sw i{display:block;height:40px;border-radius:6px;border:1px solid rgba(34,32,28,.18);margin-bottom:5px}
+  .pill{display:inline-block;font-size:11.5px;background:#FBF6EA;border:1px solid var(--line);
+        border-radius:999px;padding:4px 11px;margin:0 6px 6px 0;color:var(--ink2)}
+  .pill.bad{background:#FBEEEC;border-color:#E7C9C4;color:#8E2A20}
+  .pill.ok{background:#EDF3EE;border-color:#C9DCCF;color:#255C3A}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">S18 · 方案 A 体系 · 新增元素稿</p>
+  <h1>「玩法」按钮 + 规则浮层</h1>
+  <p class="lede">
+    这是 S18 里<b>唯一一个方案 A 原稿没有覆盖的新增界面</b>（来自你的拍板第 5 条）。
+    规格见 <code>04-拍板结论与实施规格.md</code> §三，本页是它的画面稿。
+    <b>这一页只为"看得见" — 它不引入任何新的色值、新的圆角、新的字体</b>：
+    卡片用的是 `createPanel` 已有形制（宣纸底 + 双墨框 + 朱红角花 + 硬直角），
+    牌是<b>一模一样的真牌面</b>（同一套 132×176 内部坐标，等比缩到 80 / 64 宽）。
+  </p>
+  <div style="margin-top:16px">
+    <span class="pill">新增贴图 <b>0 张</b></span>
+    <span class="pill">新增色值 <b>0 个</b></span>
+    <span class="pill ok">零棋牌语义</span>
+    <span class="pill">复用 <code>createPanel</code> / <code>TileRenderer</code></span>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<h2 class="sec">一、浮层精绘稿 <span>620 × 900 · 内部坐标与游戏页同一口径（原点＝中心、y 向上）</span></h2>
+
+<div class="two">
+  <figure style="margin:0;flex:0 0 620px;max-width:100%">
+    <div class="shot">
+      <svg id="sheet" viewBox="0 0 620 900" width="620" height="900"
+           role="img" aria-label="规则浮层精绘稿 620x900"></svg>
+    </div>
+    <figcaption class="cap">
+      <b>图上的三条说明就是全部规则</b>，与 <code>MatchRule.findMatch()</code> 的判定一一对应，不多不少。<br>
+      底下那行脚注是<b>必须有的</b>：<code>findChi()</code> 按族分组扫连号，
+      所以「一萬 · 二条 · 三筒」永远消不掉 —— 不写清楚玩家一定会试。
+    </figcaption>
+  </figure>
+
+  <div class="col">
+    <h3 style="margin-top:0">坐标表（CFG 口径，可直接抄进 <code>CFG.RULE_LAYOUT</code>）</h3>
+    <table style="font-size:12.5px">
+      <thead><tr><th style="width:74px">元素</th><th style="width:62px">CFG y</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>卡片</td><td>0</td><td>620 × 900，居中；遮罩＝全屏墨 α0.35</td></tr>
+        <tr><td>标题</td><td>+366</td><td>「怎 么 消」· 宋体加粗 · 字距 8</td></tr>
+        <tr><td>副题</td><td>+318</td><td>字号小一档 · <code>INK_MID</code></td></tr>
+        <tr><td>细线</td><td>+294</td><td>宽 496 · 墨 α0.25</td></tr>
+        <tr><td>案例① 牌行</td><td>+214</td><td>三张 · 牌宽 80 · 中心间距 94</td></tr>
+        <tr><td>案例① 说明</td><td>+114</td><td>行居中 · 单行</td></tr>
+        <tr><td>案例② 牌行</td><td>+8</td><td>三张（万·连号）</td></tr>
+        <tr><td>案例② 说明</td><td>−92</td><td>行居中</td></tr>
+        <tr><td>案例③ 牌行</td><td>−198</td><td>四张 · 牌宽 72 · 中心间距 86</td></tr>
+        <tr><td>案例③ 说明</td><td>−284</td><td>行居中</td></tr>
+        <tr><td>案例③ 小字</td><td>−316</td><td>「第 3 关开始」</td></tr>
+        <tr><td>脚注细线</td><td>−352</td><td>宽 360 · 墨 α0.20（与上方三组隔开）</td></tr>
+        <tr><td>脚注</td><td>−380</td><td><code>INK_MID</code>（不是 <code>INK_SOFT</code>）</td></tr>
+        <tr><td>关闭 ×</td><td>+386</td><td>x = +262 · 热区 56 × 56</td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <b>为什么说明文字在牌的下方，而不是右侧。</b>
+      左右分栏时文字区只剩约 220px —— 「同一族里号码连着三张，一起消掉」排不下，
+      只能砍文案或缩字号。上下分栏后文字有 540px 可用，<b>文案一个字都不用砍</b>，
+      而且三条案例形成"牌 → 说明 / 牌 → 说明"的整齐节拍，更像一张说明卡。<br>
+      <b>卡片为什么是 900 高。</b>牌的<b>视觉</b>高度不是牌体高度 ——
+      立体厚牌要算上侧壁与投影（<code>tileVisualBox()</code> 那套口径），
+      80 宽的牌视觉高约 <b>121px</b>。三组「牌 121 + 说明 34 + 间隙 55」＝ 630，
+      加上标题区（约 150）与脚注（约 60），<b>720 那版实测就是牌和下一行说明叠在一起</b>；
+      820 / 880 也紧。定 <b>900</b>：1280 的屏幕上上下各留 190，是最宽松的一档。
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec">二、两处入口 <span>同一枚形制：墨线圆 + 「?」—— 硬直角体系里唯一的圆形</span></h2>
+
+<div class="two">
+  <figure style="margin:0;flex:1 1 480px;min-width:320px">
+    <div class="shot">
+      <svg id="entry-menu" viewBox="0 0 588 220" style="display:block;width:100%;height:auto"
+           role="img" aria-label="首页底部行入口示意"></svg>
+    </div>
+    <figcaption class="cap">
+      <b>首页</b>：提示行右端 + 一枚 40×40 墨线圆「?」。<b>提示行整行也是热区</b>（460 × 64 隐形），
+      不必精确点中那个小圆 —— 它会自己长大（按下时 1.12 倍）。
+    </figcaption>
+  </figure>
+
+  <figure style="margin:0;flex:1 1 480px;min-width:320px">
+    <div class="shot">
+      <svg id="entry-game" viewBox="0 0 588 160" style="display:block;width:100%;height:auto"
+           role="img" aria-label="游戏页顶部行入口示意"></svg>
+    </div>
+    <figcaption class="cap">
+      <b>游戏页</b>：顶部信息条的中轴 <code>(0, 531)</code> —— 关卡名在左、计时在右，
+      中间本来就是空的。这枚 48×48 把这一行变成「关卡名 / ? / 计时」的三段式，
+      <b>不占新行、不挤压任何现有元素</b>。
+    </figcaption>
+  </figure>
+</div>
+
+<div class="note indigo">
+  <b>为什么游戏页也要有。</b>规则浮层解决的典型场景是"打到一半忘了能不能消" ——
+  如果只有首页有入口，玩家得先退出这一关才能查规则。<b>入口在局内才有用。</b>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec">三、文案全文 <span>逐条可审 · 零术语</span></h2>
+
+<div class="two">
+  <div class="col">
+    <h3 style="margin-top:0">浮层里出现的字（一共 8 条）</h3>
+    <table>
+      <thead><tr><th style="width:88px">位置</th><th>文案</th></tr></thead>
+      <tbody>
+        <tr><td>标题</td><td><code>怎 么 消</code></td></tr>
+        <tr><td>副题</td><td><code>点牌进槽，凑齐就能消掉</code></td></tr>
+        <tr><td>案例①</td><td><code>三张一模一样的牌，一起消掉</code></td></tr>
+        <tr><td>案例②</td><td><code>同一族里号码连着三张，一起消掉</code></td></tr>
+        <tr><td>案例③</td><td><code>四张一模一样的牌，一起消掉</code> ＋ 小字 <code>第 3 关开始</code></td></tr>
+        <tr><td>脚注</td><td><code>万 · 条 · 筒　三族各自成串 · 不跨族</code></td></tr>
+        <tr><td>按钮</td><td><code>?</code>（入口）/ <code>×</code>（关闭）</td></tr>
+        <tr><td>案例牌</td><td>五筒 ×3　一萬 · 二萬 · 三萬　六筒 ×4（<b>真牌面，不是示意图</b>）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <h3 style="margin-top:0">用词红线（一个都不能出现）</h3>
+    <div style="margin:6px 0 14px">
+      <span class="pill bad">碰</span><span class="pill bad">吃</span><span class="pill bad">杠</span>
+      <span class="pill bad">刻子</span><span class="pill bad">顺子</span><span class="pill bad">对子</span>
+      <span class="pill bad">胡</span><span class="pill bad">番</span><span class="pill bad">筹码</span>
+      <span class="pill bad">得分</span><span class="pill bad">连击</span><span class="pill bad">对局</span>
+    </div>
+    <h3>允许的表达（一律用属性语言）</h3>
+    <div style="margin:6px 0 14px">
+      <span class="pill ok">一模一样</span><span class="pill ok">号码连着</span><span class="pill ok">同一族</span>
+      <span class="pill ok">三张 / 四张</span><span class="pill ok">凑齐</span><span class="pill ok">消掉</span>
+      <span class="pill ok">送走</span>
+    </div>
+    <div class="note red" style="margin-top:0">
+      <b>「消」字是安全的。</b>法院已认定「消除」属于通用名称（见记忆里的命名雷区词表）。
+      而「碰 / 吃 / 杠」是麻将的**专有动作名**，与"申报休闲益智类目"直接冲突 ——
+      这也是本次要清掉它的原因。
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="sec">四、这张稿同时定了三件事 <span>都是你拍板里"顺手要改"的</span></h2>
+
+<div class="two">
+  <div class="col">
+    <h3 style="margin-top:0">① 消除飘字的去处</h3>
+    <p>
+      现在消除时会飘 <b>96px 金色大字「碰」/「吃」/「杠」</b>，是全局最醒目的一处棋牌语义。
+      S18 起它飘 <b>「消 除」</b> —— <b>字号、金色、墨描边、上浮动效、620ms 时长全部不动，只换字符串</b>。
+      S12 做的"撞击 / 咀嚼"两套动效语汇因此完整保留。
+    </p>
+    <p style="margin-bottom:0">
+      顺带把音效也换掉：`peng.m4a`（人声"碰"）停用、改播已有的 `clear.m4a`；
+      `eat.m4a`（人声"吃"）需要新做一个非语义音。
+      <b>否则玩家照旧听得见「碰！」「吃！」—— 那是比文案更直接的棋牌语义。</b>
+    </p>
+  </div>
+  <div class="col">
+    <h3 style="margin-top:0">② 首页提示行换成零术语的一句</h3>
+    <svg viewBox="0 0 540 92" width="540" height="92" style="display:block;border:1px solid var(--line);border-radius:10px;background:#FBF6EA" role="img" aria-label="提示行改前改后对照">
+      <text x="24" y="28" font-size="13" fill="#8E8571">改前（棋牌专有动作词）</text>
+      <text x="24" y="56" font-size="19" fill="#8E8571" text-decoration="line-through">点击牌 → 进槽位 → 凑齐「碰 / 吃 / 杠」</text>
+      <line x1="24" y1="66" x2="516" y2="66" stroke="#DFD3B8" stroke-width="1"/>
+      <text x="24" y="86" font-size="13" fill="#31506E">改后（属性语言，零术语）</text>
+    </svg>
+    <p style="margin-top:10px">
+      <code>点三张相同的牌，把它们送走</code> —— 后半句是<b>承诺</b>（送走 = 从场上消失），
+      比"凑齐 XXX"更像人话。
+    </p>
+    <h3>③ 规则按钮的"按钮性"</h3>
+    <p style="margin-bottom:0">
+      它同时是<b>按钮</b>（独立可点，有按下反馈）和<b>一句话的注脚</b>（贴着提示行）。
+      不做成一个大按钮，是因为方案 A 的自律规则之一是"视觉重心只允许 3 级、一级只允许 1 个" ——
+      首页那个唯一的一级重心是中央主牌，任何新按钮都不许跟它争。
+    </p>
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ============================================================
+   牌面绘制 —— 与 guochao-tiles.html / 游戏内 TileRenderer 同一套数据
+   （牌面内部坐标固定 132×176，绘制时按 实际牌宽 / 132 等比缩放）
+   ============================================================ */
+var P = {
+  paper:'#F2EADA', face:'#FBF6EA', faceDim:'#EDE6D4',
+  ink:'#22201C', ink2:'#57503F', ink3:'#8E8571',
+  red:'#C4362B', gold:'#C9A227',
+  blue:'#2338A0', redInk:'#B02A1E', green:'#2E6B45',
+  side:'#E1D5B9', sideEdge:'#A69A7F'
+};
+var SERIF = "'Songti SC','STSong','SimSun',serif";
+
+function nAttrAttr(v){ return Math.round(v * 1000) / 1000; }
+
+/* 与白混合 k（guochao-tiles.html 的 tint） */
+function tint(hex, k) {
+  var v = parseInt(hex.slice(1), 16), r = (v >> 16) & 255, g = (v >> 8) & 255, b = v & 255;
+  var m = function (x) { return Math.round(x + (255 - x) * k); };
+  return '#' + [m(r), m(g), m(b)].map(function (x) { return x.toString(16).padStart(2, '0'); }).join('');
+}
+/* 变深 k（guochao-tiles.html 的 deep） */
+function deep(hex, k) {
+  var v = parseInt(hex.slice(1), 16), r = (v >> 16) & 255, g = (v >> 8) & 255, b = v & 255;
+  var m = function (x) { return Math.round(x * (1 - k)); };
+  return '#' + [m(r), m(g), m(b)].map(function (x) { return x.toString(16).padStart(2, '0'); }).join('');
+}
+var LIGHT = { blue: tint(P.blue, 0.50), red: tint(P.redInk, 0.50), green: tint(P.green, 0.50) };
+var DEEP  = { blue: deep(P.blue, 0.30), red: deep(P.redInk, 0.30), green: deep(P.green, 0.30) };
+var COL   = { blue: P.blue, red: P.redInk, green: P.green };
+
+/* ---------- 牌体：投影 3 层 + 厚度壁 + 顶面 + 内墨线 + 四角朱红角花 ---------- */
+function tileBody() {
+  var s = '';
+  [[0.6, 4.6, 144.8, 188.8, 15], [4.6, 8.6, 136.8, 180.8, 11], [8.6, 12.6, 128.8, 172.8, 7]]
+    .forEach(function (r) {
+      s += '<rect x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] +
+           '" rx="' + r[4] + '" fill="' + P.ink + '" opacity="0.204"/>';
+    });
+  s += '<rect x="7.6" y="28.6" width="128.8" height="172.8" rx="7" fill="' + P.side +
+       '" stroke="' + P.sideEdge + '" stroke-width="2.24"/>';
+  s += '<rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="' + P.face +
+       '" stroke="' + P.ink + '" stroke-width="3.2"/>';
+  s += '<rect x="8.5" y="8.5" width="115" height="159" rx="3.5" fill="none" stroke="' + P.ink +
+       '" stroke-width="1.1" opacity="0.62"/>';
+  s += '<g stroke="' + P.red + '" stroke-width="2.2" fill="none" stroke-linecap="square">'
+     + '<path d="M8.5 20.5 L8.5 8.5 L20.5 8.5"/><path d="M111.5 8.5 L123.5 8.5 L123.5 20.5"/>'
+     + '<path d="M123.5 155.5 L123.5 167.5 L111.5 167.5"/><path d="M20.5 167.5 L8.5 167.5 L8.5 155.5"/>'
+     + '</g>';
+  return s;
+}
+
+/* ---------- 竹节（条族） ---------- */
+function bamboo(x, y, w, h, rot, colKey) {
+  var col = COL[colKey], lt = LIGHT[colKey];
+  var r = w / 2, hw = w * 0.26, hl = h * 0.66, nx = w * 0.22, nh = Math.max(1.6, h * 0.05);
+  var s = '<rect x="' + nAttrAttr(x - w / 2) + '" y="' + nAttrAttr(y - h / 2) + '" width="' + w + '" height="' + h +
+          '" rx="' + r + '" fill="' + col + '"/>';
+  s += '<rect x="' + nAttrAttr(x - hw / 2) + '" y="' + nAttrAttr(y - hl / 2) + '" width="' + nAttrAttr(hw) + '" height="' + nAttrAttr(hl) +
+       '" rx="' + nAttrAttr(hw / 2) + '" fill="' + lt + '"/>';
+  [y - h * 0.22, y + h * 0.22].forEach(function (yy0) {
+    var yy = yy0 - nh / 2;
+    s += '<rect x="' + nAttrAttr(x - w / 2) + '" y="' + nAttrAttr(yy) + '" width="' + nAttrAttr(nx) + '" height="' + nAttrAttr(nh) + '" fill="' + P.face + '"/>';
+    s += '<rect x="' + nAttrAttr(x + w / 2 - nx) + '" y="' + nAttrAttr(yy) + '" width="' + nAttrAttr(nx) + '" height="' + nAttrAttr(nh) + '" fill="' + P.face + '"/>';
+  });
+  return rot ? '<g transform="rotate(' + rot + ' ' + x + ' ' + y + ')">' + s + '</g>' : s;
+}
+
+/* ---------- 圆饼（筒族）：深外环 → 同色浅调 → 族色 → 浅心 ---------- */
+function disc(x, y, r, colKey) {
+  return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '"            fill="' + DEEP[colKey] + '"/>'
+       + '<circle cx="' + x + '" cy="' + y + '" r="' + (r * 0.80) + '" fill="' + LIGHT[colKey] + '"/>'
+       + '<circle cx="' + x + '" cy="' + y + '" r="' + (r * 0.54) + '" fill="' + COL[colKey] + '"/>'
+       + '<circle cx="' + x + '" cy="' + y + '" r="' + (r * 0.28) + '" fill="' + LIGHT[colKey] + '"/>';
+}
+
+/* ---------- 牌面排布数据（照真牌，与 guochao-tiles.html §5 §6 同一份） ---------- */
+var WAN_NUM = ['一', '二', '三', '四', '伍', '六', '七', '八', '九'];
+var P_TON = {
+  5: [[44, 49, 20, 'blue'], [88, 49, 20, 'green'], [66, 88, 20, 'red'], [44, 127, 20, 'green'], [88, 127, 20, 'blue']],
+  6: [[47, 48, 20, 'green'], [85, 48, 20, 'green'],
+      [47, 88, 20, 'red'],   [85, 88, 20, 'red'],
+      [47, 128, 20, 'red'],  [85, 128, 20, 'red']]
+};
+
+function glyph(fam, num) {
+  var s = '';
+  if (fam === 'wan') {
+    s += '<text x="66" y="72" text-anchor="middle" font-size="64" font-weight="800" fill="' + P.blue +
+         '" font-family="' + SERIF + '">' + WAN_NUM[num - 1] + '</text>'
+       + '<text x="66" y="144" text-anchor="middle" font-size="58" font-weight="800" fill="' + P.redInk +
+         '" font-family="' + SERIF + '">萬</text>';
+  } else if (fam === 'ton') {
+    (P_TON[num] || []).forEach(function (d) { s += disc(d[0], d[1], d[2], d[3]); });
+  } else if (fam === 'sou') {
+    s += bamboo(66, 52, 22, 62, 0, 'green') + bamboo(66, 124, 22, 62, 0, 'green');
+  }
+  return s;
+}
+
+/** 把一张牌放在 (cx, cy)、宽 w —— cx/cy 是**牌体**中心 */
+function tile(fam, num, cx, cy, w) {
+  var k = Math.round((w / 132) * 1e5) / 1e5;
+  return '<g transform="translate(' + nAttrAttr(cx - 66 * k) + ',' + nAttrAttr(cy - 88 * k) + ') scale(' + k + ')">'
+       + tileBody() + glyph(fam, num) + '</g>';
+}
+
+function put(id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; }
+
+/* ============================================================
+   ① 浮层 620 × 720
+   ============================================================ */
+(function () {
+  var W = 620, H = 900, CX = W / 2, CY = H / 2;
+  var s = '';
+
+  function Y(cfy) { return CY - cfy; }   // CFG 口径（y 向上）→ SVG（y 向下）
+
+  // 遮罩（示意：只画卡片周围一圈，真实实现是全屏色块）
+  s += '<rect width="' + W + '" height="' + H + '" fill="' + P.ink + '" opacity="0.15"/>';
+
+  // 卡片：外墨框（粗） + 内墨框（细）—— createPanel 的形制
+  s += '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="7" fill="' + P.face +
+       '" stroke="' + P.ink + '" stroke-width="3.2"/>';
+  s += '<rect x="10" y="10" width="' + (W - 20) + '" height="' + (H - 20) +
+       '" rx="3.5" fill="none" stroke="' + P.ink + '" stroke-width="1.1" opacity="0.62"/>';
+  // 四角朱红角花
+  s += '<g stroke="' + P.red + '" stroke-width="2.4" fill="none" stroke-linecap="square">'
+     + '<path d="M10 30 L10 10 L30 10"/><path d="M' + (W - 30) + ' 10 L' + (W - 10) + ' 10 L' + (W - 10) + ' 30"/>'
+     + '<path d="M' + (W - 10) + ' ' + (H - 30) + ' L' + (W - 10) + ' ' + (H - 10) + ' L' + (W - 30) + ' ' + (H - 10) + '"/>'
+     + '<path d="M30 ' + (H - 10) + ' L10 ' + (H - 10) + ' L10 ' + (H - 30) + '"/></g>';
+
+  // 关闭 ×
+  s += '<circle cx="' + (CX + 262) + '" cy="' + Y(386) + '" r="20" fill="none" stroke="' + P.ink +
+       '" stroke-width="2" opacity="0.55"/>';
+  s += '<g stroke="' + P.ink + '" stroke-width="2.6" stroke-linecap="square" opacity="0.75">'
+     + '<path d="M' + (CX + 262 - 7) + ' ' + (Y(386) - 7) + ' L' + (CX + 262 + 7) + ' ' + (Y(386) + 7) + '"/>'
+     + '<path d="M' + (CX + 262 + 7) + ' ' + (Y(386) - 7) + ' L' + (CX + 262 - 7) + ' ' + (Y(386) + 7) + '"/></g>';
+
+  // 标题 / 副题 / 细线
+  s += '<text x="' + CX + '" y="' + (Y(366) + 12) + '" text-anchor="middle" font-size="40" font-weight="800"'
+     + ' letter-spacing="8" font-family="' + SERIF + '" fill="' + P.ink + '">怎 么 消</text>';
+  s += '<text x="' + CX + '" y="' + (Y(318) + 8) + '" text-anchor="middle" font-size="24"'
+     + ' fill="' + P.ink2 + '">点牌进槽，凑齐就能消掉</text>';
+  s += '<line x1="' + (CX - 248) + '" y1="' + Y(294) + '" x2="' + (CX + 248) + '" y2="' + Y(294) +
+       '" stroke="' + P.ink + '" stroke-width="1.4" opacity="0.25"/>';
+
+  // ---- 案例① 三张一模一样的牌 ----
+  var w1 = 80, gap1 = 94;
+  s += tile('ton', 5, CX - gap1, Y(214), w1) + tile('ton', 5, CX, Y(214), w1) + tile('ton', 5, CX + gap1, Y(214), w1);
+  s += '<text x="' + CX + '" y="' + (Y(114) + 11) + '" text-anchor="middle" font-size="26" font-weight="700"'
+     + ' fill="' + P.ink + '">三张一模一样的牌，一起消掉</text>';
+
+  // ---- 案例② 同一族里号码连着三张 ----
+  s += tile('wan', 1, CX - gap1, Y(8), w1) + tile('wan', 2, CX, Y(8), w1) + tile('wan', 3, CX + gap1, Y(8), w1);
+  s += '<text x="' + CX + '" y="' + (Y(-92) + 11) + '" text-anchor="middle" font-size="26" font-weight="700"'
+     + ' fill="' + P.ink + '">同一族里号码连着三张，一起消掉</text>';
+
+  // ---- 案例③ 四张一模一样的牌 ----
+  var w3 = 72, gap3 = 86;
+  s += tile('ton', 6, CX - gap3 * 1.5, Y(-198), w3) + tile('ton', 6, CX - gap3 * 0.5, Y(-198), w3)
+     + tile('ton', 6, CX + gap3 * 0.5, Y(-198), w3) + tile('ton', 6, CX + gap3 * 1.5, Y(-198), w3);
+  s += '<text x="' + CX + '" y="' + (Y(-284) + 11) + '" text-anchor="middle" font-size="26" font-weight="700"'
+     + ' fill="' + P.ink + '">四张一模一样的牌，一起消掉</text>'
+     + '<text x="' + CX + '" y="' + (Y(-316) + 8) + '" text-anchor="middle" font-size="21"'
+     + ' fill="' + P.ink2 + '">第 3 关开始</text>';
+
+  // ---- 脚注（以小字挂一条细线，与上方三组隔开）----
+  s += '<line x1="' + (CX - 180) + '" y1="' + Y(-352) + '" x2="' + (CX + 180) + '" y2="' + Y(-352) +
+       '" stroke="' + P.ink + '" stroke-width="1.2" opacity="0.2"/>';
+  s += '<text x="' + CX + '" y="' + (Y(-380) + 8) + '" text-anchor="middle" font-size="21"'
+     + ' fill="' + P.ink2 + '">万 · 条 · 筒　三族各自成串 · 不跨族</text>';
+
+  put('sheet', s);
+})();
+
+/* ============================================================
+   ② 首页底部行入口（588 宽条带 = 页面内框宽）
+   ============================================================ */
+(function () {
+  var s = '';
+  s += '<rect width="588" height="220" fill="' + P.face + '"/>';
+  // 主按钮 + 重玩小方（简化示意）
+  s += '<rect x="81" y="31" width="380" height="118" rx="6" fill="' + P.ink + '" opacity="0.9"/>';
+  s += '<rect x="76" y="26" width="380" height="118" rx="6" fill="' + P.red + '" stroke="' + P.ink + '" stroke-width="3"/>';
+  s += '<text x="266" y="86" text-anchor="middle" dominant-baseline="central" font-size="40" font-weight="700"'
+     + ' letter-spacing="9" fill="' + P.face + '">继 续 · 第 3 关</text>';
+  s += '<rect x="474" y="45" width="80" height="80" rx="6" fill="' + P.face + '" stroke="' + P.ink + '" stroke-width="3"/>';
+  s += '<text x="514" y="86" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700"'
+     + ' letter-spacing="2" fill="' + P.ink + '">重玩</text>';
+  // 提示行 + 入口小圆（两者合起来居中：文字 ≈273 + 间距 24 + 圆 38 = 335）
+  s += '<text x="263" y="196" text-anchor="middle" font-size="21" fill="' + P.ink2 + '">点三张相同的牌，把它们送走</text>';
+  s += '<circle cx="442" cy="188" r="19" fill="' + P.face + '" stroke="' + P.ink + '" stroke-width="2.2"/>';
+  s += '<text x="442" y="189" text-anchor="middle" dominant-baseline="central" font-size="24" font-weight="700"'
+     + ' font-family="' + SERIF + '" fill="' + P.ink + '">?</text>';
+  s += '<text x="470" y="196" font-size="12" fill="' + P.ink3 + '">← 玩法</text>';
+  put('entry-menu', s);
+})();
+
+/* ============================================================
+   ③ 游戏页顶部行入口
+   ============================================================ */
+(function () {
+  var s = '';
+  s += '<rect width="588" height="160" fill="' + P.face + '"/>';
+  s += '<text x="16" y="60" font-size="26" font-weight="600" fill="' + P.ink + '">第 3 关 · 三族混合</text>';
+  s += '<text x="572" y="60" text-anchor="end" font-size="26" fill="' + P.ink + '">01:24</text>';
+  s += '<circle cx="294" cy="52" r="23" fill="none" stroke="' + P.ink + '" stroke-width="2.2"/>';
+  s += '<text x="294" y="53" text-anchor="middle" dominant-baseline="central" font-size="28" font-weight="700"'
+     + ' font-family="' + SERIF + '" fill="' + P.ink + '">?</text>';
+  s += '<line x1="16" y1="82" x2="572" y2="82" stroke="' + P.ink + '" stroke-width="1.2" opacity="0.35"/>';
+  s += '<text x="294" y="112" text-anchor="middle" font-size="12" fill="' + P.ink3 + '">关卡名 / ? / 计时 —— 三段式，中间本来是空的</text>';
+  s += '<rect x="16" y="128" width="556" height="12" rx="6" fill="' + P.ink + '" opacity="0.12"/>';
+  s += '<rect x="16" y="128" width="220" height="12" rx="6" fill="' + P.gold + '"/>';
+  put('entry-game', s);
+})();
+</script>
+</body>
+</html>

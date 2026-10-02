@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>《麻麻大消除》界面改版 · 方案 A「宣纸墨戏」</title>
+<style>
+  :root {
+    --paper: #F5F3EF;
+    --ink: #1F1D1A;
+    --ink-2: #5C574F;
+    --ink-3: #8C857A;
+    --line: #DED8CD;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 28px 64px; }
+
+  header.top { border-bottom: 1px solid var(--line); padding-bottom: 24px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .18em; color: var(--ink-3); text-transform: uppercase; margin: 0 0 10px; }
+  h1 { font-size: 27px; font-weight: 600; letter-spacing: -.01em; margin: 0 0 12px; }
+  .lede { font-size: 14px; line-height: 1.75; color: var(--ink-2); max-width: 760px; margin: 0; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  .facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .fact { font-size: 12px; line-height: 1.5; color: var(--ink-2); background: var(--card);
+          border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; }
+  .fact b { color: var(--ink); font-weight: 600; }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+
+  .col { flex: 1 1 340px; min-width: 320px; background: var(--card); border: 1px solid var(--line);
+         border-radius: 14px; padding: 20px 20px 24px; }
+  .col.pick { border-color: #1F1D1A; box-shadow: 0 0 0 1px #1F1D1A inset; }
+
+  .col-head { display: flex; align-items: baseline; gap: 9px; margin-bottom: 3px; }
+  .tag { font-size: 11px; font-weight: 600; letter-spacing: .06em; color: #FFFFFF; background: var(--ink);
+         border-radius: 5px; padding: 3px 7px; }
+  .col-head h2 { font-size: 17px; font-weight: 600; margin: 0; }
+  .sub { font-size: 12.5px; color: var(--ink-3); margin: 0 0 16px; line-height: 1.6; }
+
+  .phone { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
+  .strip { display: block; width: 100%; height: auto; margin-top: 10px; border-radius: 10px; border: 1px solid var(--line); }
+  .cap { font-size: 11.5px; color: var(--ink-3); margin: 7px 0 0; }
+
+  h3 { font-size: 12px; font-weight: 600; letter-spacing: .08em; color: var(--ink-3);
+       text-transform: uppercase; margin: 22px 0 10px; }
+
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 44px; }
+  .sw i { display: block; height: 34px; border-radius: 7px; border: 1px solid rgba(0,0,0,.10); }
+  .sw span { display: block; font-size: 9.5px; color: var(--ink-3); margin-top: 4px;
+             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  ul.pro, ul.con { margin: 0; padding-left: 0; list-style: none; }
+  ul.pro li, ul.con li { font-size: 13px; line-height: 1.65; padding-left: 16px; position: relative; margin-bottom: 5px; }
+  ul.pro li::before { content: "＋"; position: absolute; left: 0; color: #1D9E75; font-weight: 600; }
+  ul.con li::before { content: "−"; position: absolute; left: 0; color: #C4362B; font-weight: 600; }
+
+  .verdict { margin-top: 40px; background: var(--card); border: 1px solid var(--line);
+             border-radius: 14px; padding: 26px 26px 28px; }
+  .verdict h2 { font-size: 18px; font-weight: 600; margin: 0 0 14px; }
+  .verdict p { font-size: 14px; line-height: 1.8; color: var(--ink-2); margin: 0 0 12px; max-width: 860px; }
+  .verdict p b { color: var(--ink); font-weight: 600; }
+  .verdict ol { font-size: 13.5px; line-height: 1.9; color: var(--ink-2); padding-left: 20px; margin: 0; max-width: 860px; }
+  .warn { border-left: 3px solid #C4362B; padding-left: 14px; margin: 18px 0 4px; }
+  .warn p { margin: 0; }
+
+  /* =====================  S18 追加：方案 A 专用  ===================== */
+  section { margin-bottom: 52px; }
+  h2.sec { font-size: 15px; font-weight: 600; letter-spacing: .1em; color: #C4362B;
+           margin: 0 0 14px; padding-bottom: 9px; border-bottom: 2px solid var(--ink); }
+  h2.sec span { color: var(--ink-3); font-weight: 400; letter-spacing: 0; font-size: 12.5px; margin-left: 10px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; font-weight: 600; color: var(--ink-3); font-size: 10.5px; letter-spacing: .08em;
+       padding: 0 10px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); color: var(--ink-2); vertical-align: top; }
+  td b { color: var(--ink); font-weight: 600; }
+  td code, p code, li code, .cap code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px; background: #EFEBE3; padding: 1px 5px; border-radius: 3px; color: var(--ink); }
+  table.tight td, table.tight th { padding-top: 6px; padding-bottom: 6px; }
+  tbody tr.r1 td { background: #FBEDEA; }
+  tbody tr.r2 td { background: #EDF1F6; }
+  tbody tr.r3 td { background: #F4F2EC; }
+
+  pre { background: #221F1A; color: #E8DFC8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11.5px; line-height: 1.7; padding: 16px 18px; border-radius: 6px; overflow-x: auto; margin: 0; }
+
+  .pages { display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-start; }
+  .pages figure { margin: 0; }
+  .pages svg.big { display: block; border: 1px solid var(--line); border-radius: 14px; }
+  .pages figcaption { font-size: 11.5px; color: var(--ink-3); margin-top: 9px; line-height: 1.6; max-width: 348px; }
+  .pages figcaption b { color: var(--ink); }
+
+  .striprow { display: flex; gap: 10px; flex-wrap: wrap; }
+  .striprow figure { margin: 0; }
+  .striprow svg { display: block; border: 1px solid var(--line); border-radius: 8px; }
+  .striprow figcaption { font-size: 10.5px; color: var(--ink-3); margin-top: 6px; text-align: center; }
+
+  .frames { display: flex; flex-wrap: wrap; gap: 12px; }
+  .frames figure { margin: 0; width: 172px; }
+  .frames svg { display: block; width: 100%; height: auto; border: 1px solid var(--line);
+                border-radius: 8px; background: #F2EADA; }
+  .frames figcaption { font-size: 10.5px; color: var(--ink-3); margin-top: 6px; line-height: 1.55; }
+  .frames figcaption b { color: var(--ink); display: block; font-size: 11px; margin-bottom: 2px; }
+  .frames figcaption em { font-style: normal; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                          color: #C4362B; }
+
+  .note { border-left: 3px solid #C9A227; background: #F7EFD8; padding: 13px 16px;
+          font-size: 12.5px; line-height: 1.75; color: var(--ink-2); margin: 18px 0 0; border-radius: 0 6px 6px 0; }
+  .note b { color: var(--ink); }
+  .note.red { border-left-color: #C4362B; background: #F8E7E2; }
+  .note.indigo { border-left-color: #31506E; background: #E7EBF1; }
+  .note.plain { border-left-color: #1F1D1A; background: #F1EFEA; }
+
+  .law { background: var(--card); border: 1px solid var(--line); border-left: 4px solid #1F1D1A;
+         border-radius: 10px; padding: 18px 20px 20px; }
+  .law h3 { margin: 0 0 12px; font-size: 11.5px; color: var(--ink); letter-spacing: .1em; }
+  .law ol { font-size: 13px; line-height: 1.85; color: var(--ink-2); padding-left: 20px; margin: 0; }
+  .law ol b { color: var(--ink); }
+  .law .lgd { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 0; font-size: 11.5px; color: var(--ink-2); }
+  .law .lgd i { display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+                vertical-align: -2px; margin-right: 5px; border: 1px solid rgba(0,0,0,.12); }
+
+  .two { display: flex; gap: 26px; flex-wrap: wrap; }
+  .two > div { flex: 1 1 380px; min-width: 320px; }
+  .kv { font-size: 12.5px; line-height: 1.75; color: var(--ink-2); }
+  .kv b { color: var(--ink); }
+  ul.plain { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: var(--ink-2); }
+  ul.plain b { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">麻麻大消除 · 界面改版 S18 · 提案 A</p>
+  <h1>方案 A ·「宣纸墨戏」—— 不加元素，把这一页做高级</h1>
+  <p class="lede">
+    三份提案里的<b>最低成本、最静</b>的一份。它不换体系、不加题材元素、不碰 27 张牌面，
+    回答的是一个问题：<b>不靠加东西、不靠换皮，这页能不能做高级？</b>
+    具体动作是三件 —— 顶部换成一条<b>极细的进度刻度状态条</b>取代选关页、中央把三张小牌换成<b>一枚 440px 的主牌稳坐在墨色圆台上</b>、
+    底部一枚朱红大主按钮 + 一颗小「重玩」；色调上<b>把金从环境色降为事件色</b>，并引入一个<b>本项目从未出现过的冷色 · 靛青</b>，
+    用在「已过的刻度」与「中轴竖缝」两处结构位上 —— 这就是本方案「色调变了」的全部抓手。
+  </p>
+  <div class="facts">
+    <span class="fact">技术前提：<b>Cocos Graphics + Label，零贴图</b></span>
+    <span class="fact">色彩基底：<b>沿用现有 CFG.COLOR</b>（纸 #F2EADA / 墨 #22201C / 朱红 #C4362B）</span>
+    <span class="fact">新增冷色：<b>靛青 #31506E</b>（仅 2 处结构位）</span>
+    <span class="fact">金：<b>从常驻标题描边 → 一次性通关印</b></span>
+    <span class="fact">成本等级：<b>低</b></span>
+    <span class="fact">体积增量：<b>0 KB（零贴图）</b></span>
+  </div>
+</header>
+
+<!-- ============================================================
+     §1 首页精绘稿
+     ============================================================ -->
+<section id="page">
+  <h2 class="sec">§1 首页精绘稿 <span>720 × 1280 等比例矢量 · 内部坐标与设计分辨率严格一致</span></h2>
+
+  <p class="sub" style="max-width:900px;">
+    下面的稿子是 <code>viewBox="0 0 720 1280"</code>，<b>与 CFG.SCREEN 一一对应</b> ——
+    页面里 y 向下，下面那张表给的是 <b>CFG 口径</b>（原点＝屏幕中心、y 向上），换算关系就是
+    <code>页面 y = 640 − CFG y</code>。右侧是现有首页的实跑截图（S16.1），可以对着看改了什么。
+  </p>
+
+  <div class="pages">
+    <figure>
+      <svg class="big" viewBox="0 0 720 1280" width="392" height="697" id="menu-page"
+           role="img" aria-label="方案 A 首页精绘稿 720x1280"></svg>
+      <figcaption>
+        <b>方案 A 首页 · 精绘稿</b><br>
+        全页只有 <b>1 个一级视觉重心</b>（中央主牌）。顶部是「书名 + 已过 N/4 + 4 枚刻度」的极细状态条；
+        中轴一条靛青细缝把书名、当前刻度、主牌、圆台、主按钮串成一根线；
+        底部 420×132 朱红主按钮 + 88×88「重玩」小方。
+      </figcaption>
+    </figure>
+
+    <figure style="flex:1 1 300px;min-width:280px;">
+      <svg viewBox="0 0 720 1280" width="300" height="533" style="display:block;border:1px solid var(--line);border-radius:12px;background:#F2EADA;"
+           role="img" aria-label="改前：现有首页结构示意">
+        <rect width="720" height="1280" fill="#F2EADA"/>
+        <rect x="46" y="66" width="628" height="1148" rx="10" fill="#FBF6EA" stroke="#C4362B" stroke-width="3"/>
+        <rect x="66" y="86" width="588" height="1108" rx="4" fill="none" stroke="#22201C" stroke-width="1.5" opacity="0.4"/>
+        <g stroke="#C4362B" stroke-width="2.4" fill="none" stroke-linecap="square">
+          <path d="M66 106 L66 86 L86 86"/><path d="M634 86 L654 86 L654 106"/>
+          <path d="M654 1174 L654 1194 L634 1194"/><path d="M86 1194 L66 1194 L66 1174"/>
+        </g>
+        <text x="360" y="300" text-anchor="middle" font-size="76" font-weight="800" letter-spacing="8"
+              font-family="'Songti SC','STSong','SimSun',serif" fill="#22201C" stroke="#C9A227" stroke-width="5" paint-order="stroke fill">麻麻大消除</text>
+        <text x="360" y="374" text-anchor="middle" font-size="30" letter-spacing="5" fill="#57503F">点牌 · 凑型 · 一路清</text>
+        <g stroke="#22201C" stroke-width="1.2" opacity="0.30"><line x1="120" y1="424" x2="330" y2="424"/><line x1="390" y1="424" x2="600" y2="424"/></g>
+        <path d="M360 416 L368 424 L360 432 L352 424 Z" fill="#C4362B"/>
+        <rect x="188" y="482" width="104" height="138" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+        <rect x="308" y="482" width="104" height="138" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+        <rect x="428" y="482" width="104" height="138" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="3"/>
+        <text x="360" y="647" text-anchor="middle" font-size="24" fill="#8E8571">万 · 条 · 筒　三族各有各的图案</text>
+        <rect x="150" y="696" width="420" height="140" rx="6" fill="#22201C"/>
+        <rect x="150" y="688" width="420" height="140" rx="6" fill="#C4362B" stroke="#22201C" stroke-width="3"/>
+        <text x="360" y="758" text-anchor="middle" dominant-baseline="central" font-size="44" font-weight="700" letter-spacing="10" fill="#FBF6EA">开 始 游 戏</text>
+        <rect x="188" y="913" width="344" height="158" rx="6" fill="none" stroke="#B9B09A" stroke-width="1.5" stroke-dasharray="7 7"/>
+        <text x="360" y="982" text-anchor="middle" font-size="22" fill="#B9B09A">↓ 约 330 × 300 px 没有任何安排 ↓</text>
+        <text x="360" y="1014" text-anchor="middle" font-size="19" fill="#B9B09A">（S16.1 实跑截图里，这一块纯粹是空的）</text>
+        <text x="360" y="1086" text-anchor="middle" font-size="24" fill="#57503F">点击牌 → 进槽位 → 凑齐「碰 / 吃 / 杠」</text>
+        <text x="80" y="1168" font-size="22" fill="#8E8571">v0.4.0 · 内部开发版</text>
+        <rect x="586" y="1116" width="52" height="52" rx="4" fill="#C4362B"/>
+        <text x="612" y="1145" text-anchor="middle" dominant-baseline="central" font-size="24" font-weight="700"
+              font-family="'Songti SC','STSong','SimSun',serif" fill="#FBF6EA">麻</text>
+      </svg>
+      <figcaption style="font-size:11.5px;color:var(--ink-3);margin-top:9px;line-height:1.6;max-width:300px;">
+        <b style="color:var(--ink);">改前（按 S16.1 实跑截图重绘的结构示意）</b><br>
+        三张小展示牌挤在中上，按钮之下有一块<b>约 330×300px 的纯空区</b>。
+        空不是留白，是<b>没安排</b>。方案 A 要做的不是把三张牌变成十张，
+        而是把同一件事<b>撑到正确的比例上</b>。
+      </figcaption>
+    </figure>
+  </div>
+
+  <div class="note plain" style="margin-top:22px;">
+    <b>「一枚主牌」画的是哪张牌？</b> 是本关的代表牌 —— 从 <code>LEVELS</code> 里按当前关取值
+    （L1 一萬 / L2 四条 / L3 六筒 / L4 九萬，与设计稿 §9 关卡页数据同一份）。
+    所以它不是装饰：<b>玩家在点「开始」之前，已经看见了这一关的主角</b>。
+    本例画的是「已在第 2 关」的状态，因此中央是 <b>四条</b>。
+  </div>
+
+  <h3 style="margin-top:34px;">①-a · 关键元素坐标表（CFG 口径 · 原点＝屏幕中心、y 向上）</h3>
+  <p class="sub" style="margin:0 0 12px;max-width:900px;">
+    下表每一个数都能<b>直接抄进 <code>CFG.MENU_LAYOUT</code></b>。
+    「页面 y」是设计稿 <code>viewBox</code> 里的 y，换算式固定为 <code>页面 y = 640 − CFG y</code>。
+    行底色代表视觉重量分级（见 §5 自律规则）。
+  </p>
+
+  <table class="tight">
+    <thead>
+      <tr>
+        <th style="width:26px;">级</th><th>元素</th>
+        <th style="width:78px;">CFG x</th><th style="width:78px;">CFG y</th>
+        <th style="width:72px;">页面 y</th><th style="width:112px;">尺寸</th><th>备注</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="r3"><td>3</td><td>外框上边</td><td>—</td><td><b>+554</b></td><td>86</td><td>—</td><td><code>SCREEN.FRAME_TOP</code>，沿用</td></tr>
+      <tr class="r3"><td>3</td><td>书名「麻麻大消除」基线</td><td>−294（左对齐）</td><td><b>+500</b></td><td>140</td><td>字号 22 · 字距 6</td><td>左对齐贴内框左边</td></tr>
+      <tr class="r3"><td>3</td><td>「已过 1 / 4」基线</td><td>+294（右对齐）</td><td><b>+500</b></td><td>140</td><td>字号 22 · 字距 2</td><td>右对齐贴内框右边</td></tr>
+      <tr class="r3"><td>3</td><td>刻度槽中心</td><td>0</td><td><b>+464</b></td><td>176</td><td>252 × 3</td><td>墨 α 0.13</td></tr>
+      <tr class="r2"><td>2</td><td>刻度「当前关」中心</td><td>+31</td><td><b>+464</b></td><td>176</td><td>3 × 22</td><td><b>朱红实心</b>，比其余高 8px</td></tr>
+      <tr class="r3"><td>3</td><td>刻度「当前关」小三角</td><td>+31</td><td><b>+470</b>（顶）</td><td>170</td><td>10 × 6</td><td>全条唯一的三角形（见 §5 第 4 条）</td></tr>
+      <tr class="r2"><td>3</td><td>刻度「已过」中心</td><td>−93</td><td><b>+464</b></td><td>176</td><td>3 × 14</td><td><b>靛青</b> #31506E — 冷色抓手 ①</td></tr>
+      <tr class="r3"><td>3</td><td>刻度「未到」中心</td><td>−31 / +93</td><td><b>+464</b></td><td>176</td><td>2 × 14</td><td>墨 α 0.20，不承担区分职责</td></tr>
+      <tr class="r3"><td>3</td><td>中轴竖缝（顶）</td><td>0</td><td><b>+452</b></td><td>188</td><td>2.4 × 662（分 6 段）</td><td><b>靛青</b>，分段 α 255→40 — 冷色抓手 ②</td></tr>
+      <tr class="r1"><td>1</td><td><b>主牌 · 牌体中心</b></td><td>0</td><td><b>+120</b></td><td>520</td><td><b>440 × 587</b></td><td>牌体；<code>132×176</code> 内部坐标 × <code>3.3333</code></td></tr>
+      <tr class="r1"><td>1</td><td>主牌 · 视觉顶</td><td>0</td><td>+413</td><td>227</td><td>—</td><td>＝ 牌体高 / 2</td></tr>
+      <tr class="r1"><td>1</td><td>主牌 · 视觉底</td><td>0</td><td>−260</td><td>900</td><td>下溢 90</td><td>＝ <code>SOLID.DEPTH</code> 27 × 3.3333</td></tr>
+      <tr class="r3"><td>3</td><td>圆台中心</td><td>0</td><td><b>−210</b></td><td>850</td><td>椭圆 rx 292 · ry 61</td><td>3 层墨 α 0.045 / 0.06 / 0.085 同心淡出</td></tr>
+      <tr class="r3"><td>3</td><td>圆台外环（靛青）</td><td>0</td><td><b>−210</b></td><td>850</td><td>rx 292 · ry 61 · 2.2</td><td>靛青 α 0.45；借参考图2 的「圆形取景框」，只留下半截</td></tr>
+      <tr class="r1"><td>2</td><td><b>主按钮中心</b></td><td>−56</td><td><b>−366</b></td><td>1006</td><td><b>420 × 132</b> ＋ 厚度 8</td><td>朱红实底 + 墨线 3 + 米色角花</td></tr>
+      <tr class="r3"><td>3</td><td>「重玩」小方中心</td><td>+222</td><td><b>−366</b></td><td>1006</td><td>88 × 88</td><td>宣纸底 + 墨线 3 + 朱红角花（＝次级形制）</td></tr>
+      <tr class="r3"><td>3</td><td>提示行基线</td><td>0</td><td><b>−464</b></td><td>1104</td><td>字号 20 · 字距 4</td><td>用 <code>INK_MID</code>（6.70:1），不用 <code>INK_SOFT</code></td></tr>
+      <tr class="r3"><td>3</td><td>页脚版本号基线</td><td>−294（左对齐）</td><td><b>−522</b></td><td>1162</td><td>字号 22</td><td>页脚属「非信息性」，可用 <code>INK_SOFT</code></td></tr>
+      <tr class="r3"><td>3</td><td>方印中心（＝清空进度入口）</td><td>+252</td><td><b>−522</b></td><td>1162</td><td>52 × 52</td><td><b>长按 1.5s</b> 清空存档；进度为 0 时锁死</td></tr>
+      <tr class="r3"><td>3</td><td>内框下边</td><td>—</td><td>−554</td><td>1194</td><td>—</td><td><code>SCREEN.FRAME_BOTTOM</code>，沿用</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>主牌为什么是 440 而不是「接近满屏宽」的 588 —— 这是量出来的，不是拍的。</b>
+    牌的<b>视觉</b>占位不是牌体本身，还要算上立体的那一圈（<code>drawSolid</code> 的投影 + 厚度壁）。
+    以牌宽 <i>w</i> 为基准，用现有 <code>CFG.TILE.SOLID</code> 的参数（<code>DEPTH</code> 27 / <code>SIDE_DX</code> 6 /
+    <code>SHADOW_DY</code> 11 / <code>SHADOW_SPREAD</code> 4 × 3 层）折算：
+    <b>视觉宽 ≈ 1.10 <i>w</i></b>、<b>视觉高 ≈ 1.534 <i>w</i></b>（已在稿子里用 <code>getBoundingClientRect</code> 实测复核：
+    <i>w</i>＝440 时视觉框 484 × 675，与算式一致）。
+    内框可用的纵向预算只有 <code>+453 → −300</code> ＝ <b>753px</b>（顶部要给刻度条留呼吸、底部要给按钮留呼吸），
+    于是 <b><i>w</i><sub>max</sub> ＝ 753 / 1.534 ≈ 491</b>。取 <b>440</b> 是给四周各留出至少 40px 呼吸 ——
+    440 时视觉高 675，<b>上留 40（刻度条下沿 → 牌顶）、下留 40（牌底 → 主按钮上沿）</b>。
+    <b>若真做到 588 宽</b>：视觉高 902，超出预算 149px，牌底<b>必然被主按钮压住</b>。
+    所以「接近满屏宽」在本页的正确解法是<b>把横向留白压到 52 单位／边</b>（视觉宽 484 ＝ 内框宽 588 的 <b>81.6%</b>），
+    而不是把牌撑满 —— 留白是这张牌显大的原因，一点都不能再让。
+  </div>
+
+  <h3 style="margin-top:34px;">①-b · 选关页删掉之后：三个问题的三个答案</h3>
+  <p class="sub" style="margin:0 0 14px;max-width:900px;">
+    选关页一删，首页就同时承担了「继续」「重玩」「清空」三件事。下面是<b>单一主张</b>，不是选项清单 ——
+    三条都落在<b>已经存在的元素</b>上，不新增任何页面、不新增任何浮层。
+  </p>
+
+  <div class="two">
+    <div>
+      <div class="law">
+        <h3>主张 · 三条</h3>
+        <ol>
+          <li><b>从哪继续 → 底部 420×132 朱红主按钮。</b>文案随存档自动三态：<br>
+              全新存档 → <code>开 始 · 第 1 关</code>；<br>
+              已过 N 关（N&lt;4）→ <code>继 续 · 第 N+1 关</code>；<br>
+              4 关全通 → <code>再 战 · 第 4 关</code>（提示行同时换成「已全部通关 · 最佳 02:14」）。<br>
+              「当前关」＝ <code>clearedCount + 1</code>，<b>直接由现有 <code>SaveService</code> 算得出，不需要改存档结构。</b></li>
+          <li><b>怎么重玩 → 主按钮右侧那颗 88×88「重玩」小方，点一下原地换装。</b>
+              不跳页、不弹层：主按钮文案变成 <code>重 玩 · 第 k 关</code>，主按钮<b>左右内侧</b>各出现一枚 44×44 的
+              「‹ ›」小箭头（贴在按钮内部、宽度上不占新空间），只在<b>已通关的关</b>之间循环；
+              同时「重玩」小方翻面成「继续」，点它退回继续态；<b>4 秒无操作自动退回</b>。
+              这样重玩不产生任何新的纵向占用，也不会退化成第二张选关页。</li>
+          <li><b>怎么清空 → 长按右下角朱红方印 1.5 秒。</b>
+              进度为 0 时此入口<b>锁死且不给任何提示</b>（没东西可清就不该有入口）。
+              长按期间方印四周长出一圈<b>四段折线</b>做进度反馈（<b>不用圆弧</b> —— 硬直角体系里不该出现圆弧），
+              松手即取消。成功时方印缩到 0.7 再弹回 1.0（240ms <code>backOut</code>），
+              同时顶部 4 枚刻度<b>从右到左依次褪回未过态</b>（每枚错峰 60ms）。
+              ——「印 ＝ 存档」是这个动作的语义锚点。</li>
+        </ol>
+        <div class="lgd">
+          <span><i style="background:#C4362B"></i>一级／二级重心（≤2 处）</span>
+          <span><i style="background:#EDE6D4"></i>三级：宣纸／灰米，不参与争注意力</span>
+          <span><i style="background:#31506E"></i>靛青：只出现在刻度与竖缝</span>
+        </div>
+      </div>
+
+      <div class="note red">
+        <b>为什么不是「长按重玩」也不是「独立清空按钮」。</b>
+        清空进度是<b>不可逆</b>的破坏性操作，它必须有一个「慢」的手势；而重玩是可逆的轻操作，它应该快。
+        所以：<b>轻操作用点（重玩小方），重操作用长按（方印）</b> —— 手势的时长差异本身就是一次防误触设计，
+        比弹一个「确定要清空吗？」的二次确认框更安静，也更符合这一页的气质。
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-top:0;">①-c · 顶部状态条 × 三种存档</h3>
+      <div class="striprow" style="flex-direction:column;">
+        <figure>
+          <svg viewBox="66 106 588 96" width="470" height="77" id="tick-new" role="img" aria-label="顶部状态条 · 全新存档"></svg>
+          <figcaption>全新存档 · 4 枚刻度全为未过态（墨 α0.20），当前关 ＝ 第 1 枚，朱红 + 小三角</figcaption>
+        </figure>
+        <figure>
+          <svg viewBox="66 106 588 96" width="470" height="77" id="tick-mid" role="img" aria-label="顶部状态条 · 已过两关"></svg>
+          <figcaption>已过两关 · 前 2 枚转<b>靛青</b>，第 3 枚为当前（朱红 + 小三角），第 4 枚未到 —— <b>这一段里冷色第一次出现</b></figcaption>
+        </figure>
+        <figure>
+          <svg viewBox="66 106 588 96" width="470" height="77" id="tick-all" role="img" aria-label="顶部状态条 · 四关全通"></svg>
+          <figcaption>四关全通 · 4 枚全为靛青，<b>全条唯一不见朱红的一态</b>；右侧计数变成「最佳 02:14」</figcaption>
+        </figure>
+      </div>
+
+      <h3 style="margin-top:26px;">①-d · 底部一行 × 三种状态</h3>
+      <div class="striprow" style="flex-direction:column;">
+        <figure>
+          <svg viewBox="66 930 588 272" width="470" height="217" id="bot-new" role="img" aria-label="底部行 · 全新存档"></svg>
+          <figcaption>全新存档 · <code>开 始 · 第 1 关</code>（提示行说玩法，<b>零术语</b>）</figcaption>
+        </figure>
+        <figure>
+          <svg viewBox="66 930 588 272" width="470" height="217" id="bot-mid" role="img" aria-label="底部行 · 进行中"></svg>
+          <figcaption>进行中（已过 2 关）· <code>继 续 · 第 3 关</code>；提示行此刻轮到<b>长按方印</b>的一句教学</figcaption>
+        </figure>
+        <figure>
+          <svg viewBox="66 930 588 272" width="470" height="217" id="bot-replay" role="img" aria-label="底部行 · 重玩态"></svg>
+          <figcaption>重玩态 · <b>同一行原地换装</b>：‹ › 贴在主按钮内侧、不占新空间；小方翻面成「继续」</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     §2 色板
+     ============================================================ -->
+<section id="palette">
+  <h2 class="sec">§2 色板 <span>每个颜色都给出 hex / 用途 / 与现有 CFG.COLOR 的映射关系</span></h2>
+
+  <p class="sub" style="max-width:900px;">
+    本方案的色彩动作只有两条，其余全部沿用：<b>① 新增一个冷色（靛青）</b>，用在两个结构位上；
+    <b>② 把金从「常驻环境色」降为「一次性事件色」</b>。<b>27 张牌面用的真牌三色一个都不动。</b>
+  </p>
+
+  <div class="two">
+    <div>
+      <h3 style="margin-top:0;">新增 / 用法变化（本次改版的三件事）</h3>
+      <div class="sw" style="gap:10px;">
+        <div style="width:96px;"><i style="background:#31506E;height:44px;"></i><span>#31506E<br>靛青 · 新增</span></div>
+        <div style="width:96px;"><i style="background:#1E3448;height:44px;"></i><span>#1E3448<br>靛青深 · 新增</span></div>
+        <div style="width:96px;"><i style="background:#C9A227;height:44px;"></i><span>#C9A227<br>金 · 用法收窄</span></div>
+      </div>
+      <div class="note indigo" style="margin-top:14px;">
+        <b>靛青只出现在三个地方，每一处都有语义，没有一处是装饰：</b>
+        <ol style="margin:8px 0 0;padding-left:18px;font-size:12.5px;line-height:1.8;">
+          <li><b>顶部刻度条的「已过」刻度</b> —— 冷 ＝ 已经过去、沉下去的时间；朱红 ＝ 正在燃烧的这一关。这是本方案唯一一处"用颜色讲进度"。</li>
+          <li><b>中轴竖缝</b>（借参考图2 那道光缝的构图，把<b>暖金发光的缝</b>换成<b>冷墨的缝</b>）—— 它是全页唯一的竖线，把「书名 → 当前刻度 → 主牌 → 圆台 → 主按钮」串成一根中轴。留白很多的一页，必须有一条线让眼睛有轨道。</li>
+          <li><b>圆台外环</b> —— 参考图2 的「圆形取景框」在这里只留下半截椭圆环，与墨色台面共心。</li>
+        </ol>
+      </div>
+    </div>
+    <div>
+      <h3 style="margin-top:0;">保留（值一个都不改）</h3>
+      <div class="sw" style="gap:10px;">
+        <div style="width:96px;"><i style="background:#F2EADA;height:44px;"></i><span>#F2EADA<br>PAPER</span></div>
+        <div style="width:96px;"><i style="background:#EFE6D2;height:44px;"></i><span>#EFE6D2<br>PAPER_DARK</span></div>
+        <div style="width:96px;"><i style="background:#FBF6EA;height:44px;"></i><span>#FBF6EA<br>FACE</span></div>
+        <div style="width:96px;"><i style="background:#EDE6D4;height:44px;"></i><span>#EDE6D4<br>FACE_DIM</span></div>
+        <div style="width:96px;"><i style="background:#22201C;height:44px;"></i><span>#22201C<br>INK</span></div>
+        <div style="width:96px;"><i style="background:#57503F;height:44px;"></i><span>#57503F<br>INK_MID</span></div>
+        <div style="width:96px;"><i style="background:#8E8571;height:44px;"></i><span>#8E8571<br>INK_SOFT</span></div>
+        <div style="width:96px;"><i style="background:#C4362B;height:44px;"></i><span>#C4362B<br>VERMILION</span></div>
+        <div style="width:96px;"><i style="background:#E1D5B9;height:44px;"></i><span>#E1D5B9<br>SIDE 牌侧壁</span></div>
+        <div style="width:96px;"><i style="background:#2338A0;height:44px;"></i><span>#2338A0<br>真牌蓝</span></div>
+        <div style="width:96px;"><i style="background:#B02A1E;height:44px;"></i><span>#B02A1E<br>真牌红</span></div>
+        <div style="width:96px;"><i style="background:#2E6B45;height:44px;"></i><span>#2E6B45<br>真牌绿</span></div>
+      </div>
+      <div class="note" style="margin-top:14px;">
+        <b>关于 INK_SOFT #8E8571：</b>它在纸底上的对比度只有 <b>3.06:1</b>，低于 AA 的 4.5:1。
+        本方案给它划一条线 —— <b>有信息量的字（提示行、按钮副文案、计数）全部提到 <code>INK_MID</code>（6.70:1），
+        <code>INK_SOFT</code> 只留给「非信息性页脚」（版本号、内测标识）</b>。这是一条改了以后各处都要跟着改的规则。
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:30px;">完整映射表</h3>
+  <table class="tight">
+    <thead>
+      <tr><th style="width:150px;">令牌</th><th style="width:82px;">hex</th><th style="width:230px;">本方案用在哪</th>
+          <th style="width:72px;">关系</th><th>说明</th></tr>
+    </thead>
+    <tbody>
+      <tr class="r3"><td><code>COLOR.PAPER</code></td><td>#F2EADA</td><td>整页纸底</td><td><b>保留</b></td><td>值不变</td></tr>
+      <tr class="r3"><td><code>COLOR.PAPER_DARK</code></td><td>#EFE6D2</td><td>刻度槽底</td><td><b>保留</b></td><td>值不变</td></tr>
+      <tr class="r3"><td><code>COLOR.FACE</code></td><td>#FBF6EA</td><td>外框底 / 主按钮文字 / 重玩小方底 / 牌面</td><td><b>保留</b></td><td>值不变</td></tr>
+      <tr class="r3"><td><code>COLOR.FACE_DIM</code></td><td>#EDE6D4</td><td>未通关关的代表牌（若需要）/ 被压住的牌</td><td><b>保留</b></td><td>值不变</td></tr>
+      <tr class="r3"><td><code>COLOR.INK</code></td><td>#22201C</td><td>字号 / 主描边 / 圆台 / 主按钮厚度层 / 墨晕 / 墨点</td><td><b>保留</b></td><td>值不变；圆台用它的低 alpha 叠层，不新增台面色令牌</td></tr>
+      <tr class="r3"><td><code>COLOR.INK_MID</code></td><td>#57503F</td><td>提示行 / 「已过 N / 4」</td><td><b>保留</b></td><td>使用范围<b>扩大</b>（从 INK_SOFT 提上来，换取 AA 对比度）</td></tr>
+      <tr class="r3"><td><code>COLOR.INK_SOFT</code></td><td>#8E8571</td><td>仅页脚版本号</td><td><b>收窄</b></td><td>3.06:1，不足以承担信息，只留非信息性文字</td></tr>
+      <tr class="r2"><td><code>COLOR.VERMILION</code></td><td>#C4362B</td><td>主按钮面 / 当前刻度 / 角花 / 方印 / 通关印 / 印泥颗粒</td><td><b>保留</b></td><td>值不变；但<b>总覆盖面积被预算锁死</b>（见 §5）</td></tr>
+      <tr class="r1"><td><b><code>COLOR.INDIGO</code></b></td><td><b>#31506E</b></td><td>已过刻度 / 中轴竖缝 / 圆台外环</td><td><b>新增</b></td><td><b>本方案"色调变了"的唯一抓手</b>；只用于形状，不用于任何文字</td></tr>
+      <tr class="r1"><td><b><code>COLOR.INDIGO_DEEP</code></b></td><td><b>#1E3448</b></td><td>竖缝最浓的顶部 2 段</td><td><b>新增</b></td><td>可选 —— 纯用 <code>INDIGO</code> + 分段 alpha 也能做到；加它只是让色板自解释</td></tr>
+      <tr class="r1"><td><code>COLOR.GOLD</code></td><td>#C9A227</td><td><b>只剩一处</b>：通关那枚 96×96「过」字印的 3px 描边</td><td><b>替换用法</b></td><td>见下方「必须换」说明</td></tr>
+      <tr class="r3"><td>真牌三色</td><td>蓝 #2338A0<br>红 #B02A1E<br>绿 #2E6B45</td><td>27 张牌面（不含 1 条的 5 色）</td><td><b>不动</b></td><td>已定稿资产，本方案<b>一个字都不改</b></td></tr>
+      <tr class="r3"><td><code>TILE.SOLID.SIDE</code></td><td>#E1D5B9</td><td>主牌的厚度壁</td><td><b>保留</b></td><td>值不变</td></tr>
+      <tr class="r3"><td><code>TILE.SOLID.SIDE_EDGE</code></td><td>#A69A7F</td><td>厚度壁与顶面的交界暗线</td><td><b>保留</b></td><td>值不变</td></tr>
+      <tr class="r3"><td><code>COLOR.SHADOW</code></td><td>#22201C</td><td>主牌投影（3 层同心，各 α 0.204）</td><td><b>保留</b></td><td>值不变</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note red">
+    <b>必须换的那一处，说清「原值 → 新值 + 为什么」：</b><br>
+    <b>原值</b>：<code>GOLD #C9A227</code> 用在<b>页面主标题</b>上 —— 76px 墨字 + 5px 金描边，<b>常驻</b>在首页最显眼的位置，
+    是整份视觉稿里金用量最大的一处（约 2.4 万 px² 的线性笔画）。<br>
+    <b>新值</b>：值不变（仍是 <code>#C9A227</code>），但<b>位置与生命周期全变</b> ——
+    只在<b>通关瞬间那枚 96×96「过」字印</b>上出现一道 3px 描边，<b>存在时长 ≤ 1.6 秒</b>，页面回到首页时已经消失。<br>
+    <b>为什么必须换</b>：金是「朱红 + 墨 + 金」这三根柱子中<b>唯一一根纯装饰</b>的柱子 ——
+    红承担"行动"语义、墨承担"结构"语义，金什么都不承担，只负责"贵气"。
+    而「墨字金边」在中文视觉里是<b>牌匾 / 招牌 / 彩头</b>的语言，正是 <code>docs/design/README.md</code> §7 记的那条未解除风险的直接来源。
+    把它从<b>常驻环境色</b>降级为<b>一次性事件色</b>，等于在画面上直接拆掉了三柱结构的一根 ——
+    这不需要改一个色值，只需要改它出现的<b>次数和时长</b>，是这套体系里性价比最高的一次合规动作。
+  </div>
+
+  <h3 style="margin-top:30px;">对比度实测（WCAG 2.1）</h3>
+  <table class="tight">
+    <thead><tr><th>前景 / 背景</th><th style="width:96px;">对比度</th><th style="width:96px;">AA 正文 4.5:1</th><th style="width:96px;">AA 大字 3:1</th><th>用在哪</th></tr></thead>
+    <tbody>
+      <tr><td>墨 #22201C / 纸 #F2EADA</td><td><b>13.9 : 1</b></td><td>✓</td><td>✓</td><td>书名、关卡名、印面字</td></tr>
+      <tr><td>靛青 #31506E / 纸 #F2EADA</td><td><b>7.03 : 1</b></td><td>✓</td><td>✓</td><td>刻度、竖缝、圆台环（本就只用于形状，这是余量）</td></tr>
+      <tr><td>INK_MID #57503F / 纸 #F2EADA</td><td><b>6.70 : 1</b></td><td>✓</td><td>✓</td><td>提示行、「已过 N / 4」</td></tr>
+      <tr><td>FACE #FBF6EA / 朱红 #C4362B</td><td><b>4.96 : 1</b></td><td>✓</td><td>✓</td><td>主按钮文字（44px 大字，双重达标）</td></tr>
+      <tr><td>INK_SOFT #8E8571 / 纸 #F2EADA</td><td><b>3.06 : 1</b></td><td><b style="color:#C4362B;">✗</b></td><td>✓</td><td>只允许页脚版本号</td></tr>
+      <tr><td>未到刻度（墨 α0.20 → ≈#C6C0B0）/ 纸</td><td><b>1.51 : 1</b></td><td>—</td><td><b style="color:#C4362B;">✗</b></td><td>图形元素，见下方两条替换手段</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>最后一行是本方案唯一的对比度短板，处理方式不是调深，是"不让颜色单独承担职责"：</b><br>
+    未到刻度与纸底的对比度只有 1.51:1，远低于图形元素要求的 3:1。硬把它调深会让顶部变重、破坏留白，
+    所以改用两条<b>非颜色</b>的区分手段（同时满足 WCAG 1.4.1「不以颜色为唯一信息载体」）：<br>
+    ① <b>高度差</b> —— 当前刻度 <b>3×22</b>，其余全是 <b>高 14</b>（当前那一枚上下各多出 4px）；<br>
+    ② <b>形状差</b> —— 全条 4 枚刻度里，只有当前那一枚头顶有一枚 <b>10×6 的朱红小三角</b>，是这一条里唯一的三角形。<br>
+    于是"我在第几关"这件事，即使把颜色全部去掉、只看几何，也能读出来。
+  </div>
+</section>
+
+<!-- ============================================================
+     §3 动效分镜
+     ============================================================ -->
+<section id="motion">
+  <h2 class="sec">§3 动效分镜 <span>三组关键帧 + 参数表 · 「魔性」必须落在具体数字上</span></h2>
+
+  <p class="sub" style="max-width:900px;">
+    三组动效全部落在引擎能动的边界内：<b>位置 / 缩放 / 旋转角 / 透明度</b>，加上<b>重绘 Graphics</b>。
+    粒子总计 <b>24 枚</b>（通关 16 + 失败 8），全部塞在<b>各 1 个 Graphics 节点</b>里逐帧 <code>clear() + 重绘</code> ——
+    对比参照物：现有工程最重的一帧是 96 张牌各一个 Graphics，这里 2 个 Graphics 画 24 个方块，<b>远低于那个量级</b>。
+    粒子数刻意停在 16 与 8，就是为了<b>一次都不要碰 40 的上限</b>。
+  </p>
+
+  <!-- ---------- 开场 ---------- -->
+  <h3 style="margin-top:30px;">③-A · 开场「一滴墨」 · 总时长 1500ms</h3>
+
+  <div class="note indigo" style="margin-top:0;margin-bottom:16px;">
+    <b>它和现有的「牌从下方涌现」是什么关系：取代，不是叠加。</b><br>
+    <b>现有实现</b>（<code>CFG.MOTION</code> 十六节，S17 方案 B）：每张牌起点在自己目标位置正下方 <b>1.2 个牌高</b>、
+    起始缩放 <b>0.45</b>、错峰成束、落位挤压回弹、整段 <b>1.6s</b>。<br>
+    <b>为什么取代</b>：新开场的第 ⑥ 帧本身就承担了「牌堆出现」这件事 —— 墨圆从中间裂开、露出棋盘的那一刻，
+    背后必须已经有东西。若在这之后接 1.6s 的涌现，玩家会看到<b>「棋盘已经在了，牌又冒出来一次」</b>，
+    同一件事讲两遍，且总等待变成 <b>2.5s+</b>，超出"小开场动画"的预算（本方案把整段压进 1.5s）。<br>
+    <b>SPROUT 的手感一条都不丢，只是搬了家</b>：它的三个要害 ——「由小变大」「落位过冲」「错峰」
+    —— 被迁进「墨圆裂开」那一拍：牌堆容器在 260ms 里从 <b>1.06 缩到 1.00</b>（复用 <code>PAGE.ENTER_SCALE_FROM</code> 的推镜语言），
+    并在落定时复用 <code>SPROUT_SQUASH</code> 的 <b>0.24s 挤压回弹</b>。
+    <b>即：把 1.6s 的表演，收进 260ms 的一拍里。</b><br>
+    <b>唯一要接受的变化</b>：涌现是"一撮一撮往上顶"的<b>过程感</b>，开裂是"一下子全亮"的<b>揭示感</b>。
+    这是本方案在叙事上的取舍，如果你更想保留过程感，可把第 ⑥ 帧的容器动画替换回 SPROUT —— 两者互不影响，是同一个接缝上的二选一。
+  </div>
+
+  <div class="frames">
+    <figure>
+      <svg viewBox="110 130 500 620" role="img" aria-label="开场第1帧">
+        <rect x="110" y="120" width="500" height="720" fill="#F2EADA"/>
+        <rect x="356" y="226" width="8" height="26" rx="2" fill="#22201C"/>
+        <line x1="360" y1="272" x2="360" y2="306" stroke="#22201C" stroke-width="1" opacity="0.16"/>
+        <text x="596" y="164" text-anchor="end" font-size="24" fill="#B9B09A">空纸 · 页框已就位</text>
+      </svg>
+      <figcaption><b>① t = 0</b><em>—</em><br>一滴墨刚触到纸面：一枚 8×26 的墨色竖条，带一条 34px 的浅拖尾（拖尾＝"正在落下"，不是"已经落了"）。其余一切不可见。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="110 130 500 620" role="img" aria-label="开场第2帧">
+        <rect x="110" y="120" width="500" height="720" fill="#F2EADA"/>
+        <ellipse cx="360" cy="380" rx="8.5" ry="5.5" fill="#22201C"/>
+        <line x1="360" y1="300" x2="360" y2="366" stroke="#22201C" stroke-width="1" opacity="0.16"/>
+        <line x1="300" y1="374" x2="292" y2="374" stroke="#22201C" stroke-width="1.4" opacity="0.30"/>
+        <line x1="420" y1="374" x2="428" y2="374" stroke="#22201C" stroke-width="1.4" opacity="0.30"/>
+      </svg>
+      <figcaption><b>② t = 140</b><em>quadIn</em><br>落定并<b>被压扁</b>：竖条 → 17×11 的扁块（scaleY 1.0→0.42、scaleX 1.0→2.1）。这是全段唯一的"重"，压扁才听得见"啪"。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="110 130 500 620" role="img" aria-label="开场第3帧">
+        <rect x="110" y="120" width="500" height="720" fill="#F2EADA"/>
+        <circle cx="360" cy="380" r="34" fill="#22201C" opacity="0.28"/>
+        <ellipse cx="360" cy="380" rx="9" ry="6" fill="#22201C"/>
+      </svg>
+      <figcaption><b>③ t = 320</b><em>quadOut</em><br>晕开第 1 层：实心墨圆 <b>r 0→34</b>、α 0→0.28，160ms。核心那枚扁块留着不消失 —— 它是"墨心"。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="110 130 500 620" role="img" aria-label="开场第4帧">
+        <rect x="110" y="120" width="500" height="720" fill="#F2EADA"/>
+        <circle cx="360" cy="380" r="200" fill="#22201C" opacity="0.045"/>
+        <circle cx="360" cy="380" r="126" fill="#22201C" opacity="0.07"/>
+        <circle cx="360" cy="380" r="76"  fill="#22201C" opacity="0.13"/>
+        <circle cx="360" cy="380" r="34"  fill="#22201C" opacity="0.22"/>
+        <circle cx="360" cy="380" r="200" fill="none" stroke="#22201C" stroke-width="2.6" opacity="0.55"/>
+        <ellipse cx="360" cy="380" rx="9" ry="6" fill="#22201C"/>
+      </svg>
+      <figcaption><b>④ t = 620</b><em>quadOut</em><br>晕到第 4 层，<b>每层 150ms、递增 150ms 起播</b>。四层全是<b>实心圆 + 不同透明度</b>，不是模糊 —— 这是 Graphics 里唯一能做出"晕"的守法。外侧补一道 <b>2.6px 墨环</b>（α0.55）。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="110 130 500 620" role="img" aria-label="开场第5帧">
+        <rect x="110" y="120" width="500" height="720" fill="#F2EADA"/>
+        <circle cx="360" cy="380" r="200" fill="#22201C" opacity="0.045"/>
+        <circle cx="360" cy="380" r="126" fill="#22201C" opacity="0.07"/>
+        <circle cx="360" cy="380" r="76"  fill="#22201C" opacity="0.13"/>
+        <circle cx="360" cy="380" r="34"  fill="#22201C" opacity="0.22"/>
+        <circle cx="360" cy="380" r="200" fill="none" stroke="#22201C" stroke-width="2.6" opacity="0.55"/>
+        <text x="360" y="392" text-anchor="middle" font-size="38" font-weight="800" font-family="'Songti SC','STSong','SimSun',serif" fill="#22201C">第 2 关 · 上道了</text>
+      </svg>
+      <figcaption><b>⑤ t = 900</b><em>backOut</em><br>关卡名从 α0 / scale 1.12 → α255 / scale 1.00，240ms。<b>名字比圆晚 280ms 起播</b> —— 先有墨，再有字，读起来才是"从墨里浮出来"。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="110 130 500 620" role="img" aria-label="开场第6帧">
+        <rect x="110" y="120" width="500" height="720" fill="#F2EADA"/>
+        <g opacity="0.55">
+          <rect x="302" y="556" width="34" height="45" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="1.4"/>
+          <rect x="342" y="556" width="34" height="45" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="1.4"/>
+          <rect x="382" y="556" width="34" height="45" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="1.4"/>
+          <rect x="322" y="506" width="34" height="45" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="1.4"/>
+          <rect x="362" y="506" width="34" height="45" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="1.4"/>
+          <rect x="342" y="456" width="34" height="45" rx="3" fill="#FBF6EA" stroke="#22201C" stroke-width="1.4"/>
+        </g>
+        <g transform="translate(-104,0)" opacity="0.34">
+          <path d="M360 180 A200 200 0 0 0 360 580 Z" fill="#22201C" opacity="0.25"/>
+          <path d="M360 180 A200 200 0 0 0 360 580" fill="none" stroke="#22201C" stroke-width="2.6" opacity="1"/>
+        </g>
+        <g transform="translate(104,0)" opacity="0.34">
+          <path d="M360 180 A200 200 0 0 1 360 580 Z" fill="#22201C" opacity="0.25"/>
+          <path d="M360 180 A200 200 0 0 1 360 580" fill="none" stroke="#22201C" stroke-width="2.6" opacity="1"/>
+        </g>
+        <line x1="256" y1="180" x2="256" y2="580" stroke="#22201C" stroke-width="1.2" opacity="0.30"/>
+        <line x1="464" y1="180" x2="464" y2="580" stroke="#22201C" stroke-width="1.2" opacity="0.30"/>
+      </svg>
+      <figcaption><b>⑥ t = 1240 → 1500</b><em>quadIn</em><br>圆从正中裂开：<b>左半 x 0→−420、右半 x 0→+420</b>，α 255→0，260ms。<b>与此同时</b>棋盘在圆后面 α0→255、scale 1.06→1.00（260ms）。</figcaption>
+    </figure>
+  </div>
+
+  <h3 style="margin-top:26px;">开场 · 参数表</h3>
+  <table class="tight">
+    <thead><tr><th style="width:44px;">格</th><th style="width:64px;">时刻</th><th style="width:60px;">时长</th>
+      <th style="width:84px;">缓动</th><th>位移 / 缩放 / 旋转 / 透明度 起止值</th></tr></thead>
+    <tbody>
+      <tr><td><b>①</b></td><td>0 ms</td><td>—</td><td>—</td><td>墨滴：position (0, +250)（页面 y 390），scale 1，α 255。棋盘容器 α 0，scale 1.06。</td></tr>
+      <tr><td><b>②</b></td><td>0 → 140</td><td>140</td><td><code>quadIn</code></td><td>墨滴 y <b>+250 → +260</b>（落到落点上方）；scaleY <b>1.00 → 0.42</b>；scaleX <b>1.00 → 2.10</b>；rotate 0。<br><span style="color:#8C857A;">落点固定在牌堆中心正上方，即 CFG y = +260（页面 380）。</span></td></tr>
+      <tr><td><b>③</b></td><td>320 → 480</td><td>160</td><td><code>quadOut</code></td><td>第 1 层晕：r <b>0 → 34</b>，α <b>0 → 0.28</b>。墨心保持不变。</td></tr>
+      <tr><td><b>④</b></td><td>470 / 620 / 770</td><td>各 150</td><td><code>quadOut</code></td><td>第 2/3/4 层：r <b>0 → 76 / 126 / 200</b>，α <b>0 → 0.13 / 0.07 / 0.045</b>。<br>同时第 1 层 α <b>0.28 → 0.22</b>（后层压上来时，芯稍微沉一点）。<br>墨环：r 200 固定，stroke 2.6，α <b>0 → 0.55</b>，出现在 t = 770，120ms。</td></tr>
+      <tr><td><b>⑤</b></td><td>1020 → 1260</td><td>240</td><td><code>backOut</code></td><td>关卡名：α <b>0 → 255</b>，scale <b>1.12 → 1.00</b>，y 前移 0。<br><span style="color:#8C857A;">起点比第 4 层晕完（920ms）晚 100ms，即 t = 1020。</span></td></tr>
+      <tr><td><b>⑥</b></td><td>1240 → 1500</td><td>260</td><td><code>quadIn</code></td><td>左半组 x <b>0 → −420</b>、右半组 x <b>0 → +420</b>，α <b>255 → 0</b>。<br>棋盘容器（同段）：α <b>0 → 255</b>、scale <b>1.06 → 1.00</b>；末段 240ms 串 <code>SPROUT_SQUASH</code> 的挤压 <b>0.84 / 1.16 → 1.00</b> 回弹（过冲到 <b>1.07</b>）。</td></tr>
+      <tr><td colspan="5" style="background:#F4F2EC;">        <b>总计 1500ms。</b>可跳过：任意点击 → 直接跳到 ⑥ 帧末（只跳时间轴，不跳状态）。<br>
+        <b>"魔性"落在哪：</b>① 落定压扁到 <b>scaleY 0.42 / scaleX 2.10</b>（不是 0.9 —— 要"啪"就得压狠）；
+        ② 四层晕<b>每层递增 150ms 起播</b>，不是同时放大（同时放大读成"光圈"，错峰才读成"墨在渗"）；
+        ③ 名字比墨晚 <b>280ms</b>；④ 开裂位移 <b>±420</b>（＝一个圆半径的两倍，确保 260ms 内一定推出画面）。</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ---------- 通关 ---------- -->
+  <h3 style="margin-top:44px;">③-B · 通关「朱砂印砸下来」 · 总时长 1600ms（含 700ms 读印停顿）</h3>
+
+  <p class="sub" style="margin:0 0 16px;max-width:900px;">
+    一枚 96×96 的朱砂大印，印面一个<b>「过」</b>字，从画面上方<b>砸</b>到纸面上。
+    整段的重量感来自三个数：<b>砸下来时过冲到 1.32</b>、<b>落点压扁到 scaleY 0.86</b>、<b>纸面震 3 次、幅度逐次衰减到 44%</b>。
+    印泥颗粒 <b>16 枚</b>，全程向上飞 —— 不对下、不对侧，因为"向上飞溅"才是<b>砸</b>出来的，向下飘是"掉"出来的。
+  </p>
+
+  <div class="frames" style="gap:10px;">
+    <figure>
+      <svg viewBox="150 200 420 620" role="img" aria-label="通关第1帧">
+        <rect x="150" y="200" width="420" height="620" fill="#F2EADA"/>
+        <line x1="150" y1="640" x2="570" y2="640" stroke="#22201C" stroke-width="1" opacity="0.14"/>
+        <g transform="translate(360,282) rotate(-14) scale(0.6)" opacity="0.25">
+          <rect x="-48" y="-48" width="96" height="96" rx="4" fill="#C4362B" stroke="#C9A227" stroke-width="3"/>
+        </g>
+        <line x1="340" y1="196" x2="340" y2="150" stroke="#22201C" stroke-width="3" opacity="0.22"/>
+        <line x1="360" y1="190" x2="360" y2="140" stroke="#22201C" stroke-width="3" opacity="0.30"/>
+        <line x1="380" y1="196" x2="380" y2="150" stroke="#22201C" stroke-width="3" opacity="0.22"/>
+        <text x="546" y="236" text-anchor="end" font-size="24" fill="#B9B09A">起手 · α 0.25</text>
+      </svg>
+      <figcaption><b>① t = 0</b><em>—</em><br>印在半空 (0, +358)：scale 0.6、rotate <b>−14°</b>、α 0.25（几乎透明 —— 它是"正在被抡起来"）。上方 3 条速度线。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="150 200 420 620" role="img" aria-label="通关第2帧">
+        <rect x="150" y="200" width="420" height="620" fill="#F2EADA"/>
+        <line x1="150" y1="640" x2="570" y2="640" stroke="#22201C" stroke-width="1" opacity="0.14"/>
+        <g transform="translate(360,500) rotate(3) scale(1.32)">
+          <rect x="-48" y="-48" width="96" height="96" rx="4" fill="#C4362B" stroke="#C9A227" stroke-width="3"/>
+        </g>
+        <line x1="300" y1="440" x2="288" y2="418" stroke="#C4362B" stroke-width="2.5" opacity="0.45"/>
+        <line x1="420" y1="440" x2="432" y2="418" stroke="#C4362B" stroke-width="2.5" opacity="0.45"/>
+        <text x="546" y="236" text-anchor="end" font-size="24" fill="#B9B09A">砸到 · 过冲 1.32</text>
+      </svg>
+      <figcaption><b>② t = 90 → 200</b><em>quadIn</em><br>110ms 内从 (0,+358) 砸到落点 (+140)，scale <b>0.6 → 1.32</b>（过冲 32%）、rotate <b>−14° → +3°</b>、α <b>0.25 → 1.0</b>。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="150 200 420 620" role="img" aria-label="通关第3帧">
+        <rect x="150" y="200" width="420" height="620" fill="#F2EADA"/>
+        <rect x="154" y="204" width="412" height="612" fill="none" stroke="#22201C" stroke-width="1.4" opacity="0.20"/>
+        <line x1="150" y1="640" x2="570" y2="640" stroke="#22201C" stroke-width="1" opacity="0.14"/>
+        <g transform="translate(360,500) rotate(1) scale(1.32,1.13)">
+          <rect x="-48" y="-48" width="96" height="96" rx="4" fill="#C4362B" stroke="#C9A227" stroke-width="3"/>
+        </g>
+        <path d="M262 560 L234 560" stroke="#22201C" stroke-width="3" opacity="0.40"/>
+        <path d="M262 520 L226 520" stroke="#22201C" stroke-width="3" opacity="0.28"/>
+        <path d="M458 560 L486 560" stroke="#22201C" stroke-width="3" opacity="0.40"/>
+        <path d="M458 520 L494 520" stroke="#22201C" stroke-width="3" opacity="0.28"/>
+        <text x="546" y="236" text-anchor="end" font-size="24" fill="#B9B09A">命中 · 压扁 + 震</text>
+      </svg>
+      <figcaption><b>③ t = 200 → 290</b><em>quadOut</em><br>scale <b>1.32 → (1.32, 1.13)</b>（纵向压到 86%，横向不动 —— 横向收会读成"变小"而不是"压住"）。<b>同时纸面震</b>：内框 x 走 0 → +9 → −7 → +4 → 0（3 次往返，幅度 ×0.44 递减），90ms。两侧是震动的示意线。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="150 200 420 620" role="img" aria-label="通关第4帧">
+        <rect x="150" y="200" width="420" height="620" fill="#F2EADA"/>
+        <line x1="150" y1="640" x2="570" y2="640" stroke="#22201C" stroke-width="1" opacity="0.14"/>
+        <g transform="translate(360,494) scale(1.0,1.07)">
+          <rect x="-48" y="-48" width="96" height="96" rx="4" fill="#C4362B" stroke="#C9A227" stroke-width="3"/>
+        </g>
+        <text x="360" y="508" text-anchor="middle" font-size="56" font-weight="800"
+              font-family="'Songti SC','STSong','SimSun',serif" fill="#FBF6EA" opacity="0.55">过</text>
+        <line x1="300" y1="446" x2="292" y2="432" stroke="#22201C" stroke-width="2" opacity="0.22"/>
+        <line x1="360" y1="440" x2="360" y2="424" stroke="#22201C" stroke-width="2" opacity="0.22"/>
+        <line x1="420" y1="446" x2="428" y2="432" stroke="#22201C" stroke-width="2" opacity="0.22"/>
+        <text x="546" y="236" text-anchor="end" font-size="24" fill="#B9B09A">回弹 1.0 → 1.07</text>
+      </svg>
+      <figcaption><b>④ t = 290 → 410</b><em>backOut</em><br>纵向回弹：scaleY <b>1.13 → 1.07 → 1.00</b>（过冲 7% 再收），y 上浮 6px 落定。<b>「过」字此刻才开始显</b>（α 0 → 255，但只走到 55%）。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="150 200 420 620" role="img" aria-label="通关第5帧">
+        <rect x="150" y="200" width="420" height="620" fill="#F2EADA"/>
+        <line x1="150" y1="640" x2="570" y2="640" stroke="#22201C" stroke-width="1" opacity="0.14"/>
+        <circle cx="360" cy="494" r="118" fill="none" stroke="#C4362B" stroke-width="3" opacity="0.28"/>
+        <circle cx="360" cy="494" r="92" fill="none" stroke="#C4362B" stroke-width="3" opacity="0.48"/>
+        <g fill="#C4362B">
+          <rect x="211" y="296" width="7" height="7" rx="1" transform="rotate(24 214.5 299.5)"/>
+          <rect x="243" y="254" width="6" height="6" rx="1" transform="rotate(-38 246 257)"/>
+          <rect x="273" y="222" width="8" height="8" rx="1" transform="rotate(51 277 226)"/>
+          <rect x="299" y="196" width="5" height="5" rx="1" transform="rotate(-14 301.5 198.5)"/>
+          <rect x="327" y="180" width="7" height="7" rx="1" transform="rotate(66 330.5 183.5)"/>
+          <rect x="353" y="172" width="6" height="6" rx="1" transform="rotate(8 356 175)"/>
+          <rect x="381" y="176" width="8" height="8" rx="1" transform="rotate(-52 385 180)"/>
+          <rect x="407" y="192" width="5" height="5" rx="1" transform="rotate(33 409.5 194.5)"/>
+          <rect x="433" y="218" width="7" height="7" rx="1" transform="rotate(-21 436.5 221.5)"/>
+          <rect x="457" y="252" width="6" height="6" rx="1" transform="rotate(44 460 255)"/>
+          <rect x="481" y="296" width="8" height="8" rx="1" transform="rotate(-7 485 300)"/>
+          <rect x="209" y="388" width="6" height="6" rx="1" transform="rotate(18 212 391)"/>
+          <rect x="247" y="368" width="7" height="7" rx="1" transform="rotate(-63 250.5 371.5)"/>
+          <rect x="297" y="358" width="5" height="5" rx="1" transform="rotate(27 299.5 360.5)"/>
+          <rect x="417" y="366" width="7" height="7" rx="1" transform="rotate(-33 420.5 369.5)"/>
+          <rect x="475" y="388" width="6" height="6" rx="1" transform="rotate(58 478 391)"/>
+        </g>
+        <rect x="312" y="446" width="96" height="96" rx="4" fill="#C4362B" stroke="#C9A227" stroke-width="3"/>
+        <text x="360" y="508" text-anchor="middle" font-size="56" font-weight="800"
+              font-family="'Songti SC','STSong','SimSun',serif" fill="#FBF6EA">过</text>
+        <text x="546" y="236" text-anchor="end" font-size="24" fill="#B9B09A">颗粒 16 枚 · 环外扩</text>
+      </svg>
+      <figcaption><b>⑤ t = 410 → 900</b><em>—</em><br><b>16 枚</b>印泥颗粒向上抛出（全部用纯色方块，旋转角各不相同）；「过」字走完 α 0→255（比印晚 <b>320ms</b>）；外扩环 r <b>78 → 132</b>、α <b>0.5 → 0</b>，240ms。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="150 200 420 620" role="img" aria-label="通关第6帧">
+        <rect x="150" y="200" width="420" height="620" fill="#F2EADA"/>
+        <line x1="150" y1="640" x2="570" y2="640" stroke="#22201C" stroke-width="1" opacity="0.14"/>
+        <rect x="312" y="446" width="96" height="96" rx="4" fill="#C4362B" stroke="#C9A227" stroke-width="3"/>
+        <text x="360" y="508" text-anchor="middle" font-size="56" font-weight="800"
+              font-family="'Songti SC','STSong','SimSun',serif" fill="#FBF6EA">过</text>
+        <rect x="196" y="726" width="328" height="92" rx="6" fill="#22201C" opacity="0.10" transform="translate(6,6)"/>
+        <rect x="196" y="726" width="328" height="92" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="2.6"/>
+        <g stroke="#C4362B" stroke-width="2" fill="none" stroke-linecap="square">
+          <path d="M196 742 L196 726 L212 726"/><path d="M508 726 L524 726 L524 742"/>
+          <path d="M524 802 L524 818 L508 818"/><path d="M212 818 L196 818 L196 802"/>
+        </g>
+        <text x="360" y="772" text-anchor="middle" dominant-baseline="central" font-size="30"
+              font-weight="800" font-family="'Songti SC','STSong','SimSun',serif" fill="#22201C">用时 02:14 · 最佳纪录</text>
+        <text x="546" y="236" text-anchor="end" font-size="24" fill="#B9B09A">面板推入</text>
+      </svg>
+      <figcaption><b>⑥ t = 900 → 1600</b><em>backOut</em><br>印<b>静止 700ms</b>（这段时间是给玩家读那个「过」字的，不是浪费）；随后结算面板 y <b>−820 → −120</b>（页面 y 1460 → 760），340ms 推入。</figcaption>
+    </figure>
+  </div>
+
+  <h3 style="margin-top:26px;">通关 · 参数表</h3>
+  <table class="tight">
+    <thead><tr><th style="width:44px;">格</th><th style="width:74px;">时刻</th><th style="width:58px;">时长</th>
+      <th style="width:80px;">缓动</th><th>位移 / 缩放 / 旋转 / 透明度 起止值</th></tr></thead>
+    <tbody>
+      <tr><td><b>①</b></td><td>0 ms</td><td>—</td><td>—</td><td>印 position <b>(0, +358)</b>（页面 282）；scale <b>0.6</b>；rotate <b>−14°</b>；α <b>0.25</b>。</td></tr>
+      <tr><td><b>②</b></td><td>90 → 200</td><td>110</td><td><code>EASE_DROP</code><br><span style="color:#8C857A;">quadIn</span></td><td>y <b>+358 → +140</b>；scale <b>0.6 → 1.32</b>（<b>过冲 32%</b>）；rotate <b>−14° → +3°</b>；α <b>0.25 → 1.0</b>。<br><span style="color:#8C857A;">用 quadIn 而不是 quadOut：砸下来必须"越落越快"，用缓出会读成"飘下来"。</span></td></tr>
+      <tr><td><b>③</b></td><td>200 → 290</td><td>90</td><td><code>quadOut</code></td><td>印 scaleX <b>1.32 → 1.32</b>（不动）；scaleY <b>1.32 → 1.13</b>（<b>压到 86%</b>）。<br><b>纸面震</b>（整页 root 节点）：position.x <b>0 → +9 → −7 → +4 → 0</b>，四拍等距，幅度比 <b>1 : 0.78 : 0.44 : 0</b>。</td></tr>
+      <tr><td><b>④</b></td><td>290 → 410</td><td>120</td><td><code>EASE_POP</code><br><span style="color:#8C857A;">backOut</span></td><td>印 scaleY <b>1.13 → 1.07 → 1.00</b>（过冲 7%）；position.y <b>+140 → +146</b>（上浮 6px 落定）；rotate <b>+3° → 0°</b>。<br>「过」字 Label：α <b>0 → 140</b>（走到 55%，剩下交给第 ⑤ 格）。</td></tr>
+      <tr><td><b>⑤</b></td><td>410 → 900</td><td>490</td><td><code>quadOut</code></td><td>「过」字 α <b>140 → 255</b>，240ms（<b>比印晚 320ms 起播</b>，是"印泥洇开"的时间差）。<br>外扩环：r <b>78 → 132</b>，stroke <b>4 → 1.6</b>，α <b>0.5 → 0</b>，240ms。<br><b>印泥颗粒 16 枚</b>（见下方粒子表），起播 t = 410。<br>印本体做一次极轻的余震：scale <b>1.00 → 1.015 → 1.00</b>，两拍各 90ms。</td></tr>
+      <tr><td><b>⑥</b></td><td>900 → 1600</td><td>700</td><td><code>EASE_POP</code></td><td>印静止不动 700ms（读印时间）。<br>结算面板（<b>所有格都在 t = 1600 才开始</b>）：position.y <b>−820 → −120</b>，340ms，<code>backOut</code>；面板内三行文字依次 α 0→255，错峰 <b>70ms</b>。</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:20px;">通关 · 粒子表（16 枚，1 个 Graphics 节点，逐帧重绘）</h3>
+  <table class="tight">
+    <thead><tr><th style="width:130px;">参数</th><th style="width:150px;">取值</th><th>为什么是这个数</th></tr></thead>
+    <tbody>
+      <tr><td>数量</td><td><b>16</b></td><td>砸印的两侧各 8 枚视觉最匀。刻意停在 16 —— 上限是 40，本方案一次都不碰。</td></tr>
+      <tr><td>形状</td><td>纯色方块 5–8px，rx 1</td><td>不用圆点。印泥是压出来的<b>颗粒</b>，方块 + 随机旋转角才有"碎屑"的读法；圆点是"气泡"。</td></tr>
+      <tr><td>起始位置</td><td>印的四边（96×96 的边框上），随机取点</td><td>不是从印心发射 —— 从<b>边缘</b>飞才像被"挤"出来的。</td></tr>
+      <tr><td>方向</td><td>相对「竖直向上」，角度 <b>−52° ~ +52°</b>（随机均匀），再叠 <b>±12°</b> 二次随机</td><td>扇形向上。二次随机是"不整齐"的来源，少了它 16 枚会排成一条漂亮的弧 —— 漂亮就是假的。</td></tr>
+      <tr><td>初速</td><td><b>340 ~ 520 px/s</b>（随机）</td><td>跨度 1.53 倍。速度全同会读成"一次爆炸"；有跨度才读成"抛洒"。</td></tr>
+      <tr><td>重力</td><td><b>1400 px/s²</b></td><td>比真实重力(≈980)重 —— 手绘感的抛物线应该更"塌"一点，否则颗粒飞得太久、太远。</td></tr>
+      <tr><td>自转</td><td>角速度 <b>−220 ~ +220 °/s</b>（随机，含符号）</td><td>方块必须自转。不自转的方块看起来像像素噪点，自转起来才像"碎屑"。</td></tr>
+      <tr><td>寿命</td><td><b>380 ~ 520 ms</b>（随机）</td><td>短的先消失，颗粒群自然收窄 —— 不需要额外做"收缩"逻辑。</td></tr>
+      <tr><td>透明度</td><td>前 60% 保持 255，后 40% 线性到 0</td><td>不做淡入（一出生就是实的），只做淡出。淡入会让 16 枚看起来"慢慢长出来"。</td></tr>
+      <tr><td colspan="3" style="background:#F4F2EC;"><b>实现：</b>1 个 Graphics 节点，每帧 <code>g.clear()</code> → 遍历 16 个粒子 → <code>g.roundRect(...)</code> + <code>g.fill()</code>。
+        <b>16 次 roundRect / 帧</b>。参照：现有工程正常一帧要画 96 张牌（每张 15+ 个图元），这里的开销不到它的 <b>1.2%</b>。</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ---------- 失败 ---------- -->
+  <h3 style="margin-top:44px;">③-C · 失败「纸被揉皱 + 溅墨」 · 总时长 1140ms</h3>
+
+  <p class="sub" style="margin:0 0 16px;max-width:900px;">
+    失败<b>不能炸</b> —— 炸是通关的情绪。失败要"闷"：<b>纸被揉了一下</b>，然后<b>溅几滴墨</b>，就这样。
+    关键的一笔是：<b>皱不是整页缩放，是 6 段横带各自乱动</b>。
+    整页缩放读起来是"镜头在抖"（摄像机问题），分段抖动才读起来是"这张纸被弯了"（纸的问题）。
+  </p>
+
+  <div class="frames" style="gap:10px;">
+    <figure>
+      <svg viewBox="60 380 600 680" role="img" aria-label="失败第1帧">
+        <rect x="60" y="380" width="600" height="680" fill="#F2EADA"/>
+        <g stroke="#22201C" stroke-width="1.3" fill="none" opacity="0.35">
+          <line x1="66" y1="380" x2="66" y2="1060"/><line x1="654" y1="380" x2="654" y2="1060"/>
+        </g>
+        <g stroke="#22201C" stroke-width="1" stroke-dasharray="8 8" opacity="0.22">
+          <line x1="66" y1="455" x2="654" y2="455"/><line x1="66" y1="640" x2="654" y2="640"/>
+          <line x1="66" y1="825" x2="654" y2="825"/><line x1="66" y1="1009" x2="654" y2="1009"/>
+        </g>
+        <rect x="180" y="700" width="120" height="120" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="2"/>
+        <rect x="310" y="700" width="120" height="120" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="2"/>
+        <rect x="440" y="700" width="120" height="120" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="2"/>
+        <text x="360" y="418" text-anchor="middle" font-size="24" fill="#B9B09A">6 段横带 · 各段相位随机</text>
+      </svg>
+      <figcaption><b>① t = 0</b><em>—</em><br>把内框竖切成 <b>6 段横带</b>（每段高 184.67），每段是一个独立节点。虚线是"切缝"的示意，实机上并不画出来。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="60 380 600 680" role="img" aria-label="失败第2帧">
+        <rect x="60" y="380" width="600" height="680" fill="#F2EADA"/>
+        <g transform="translate(-6,0)">
+          <rect x="66" y="380" width="588" height="185" fill="#FBF6EA" stroke="#22201C" stroke-width="1.6" opacity="0.75"/>
+        </g>
+        <g transform="translate(7,0) rotate(0.6,360,547)">
+          <rect x="66" y="455" width="588" height="185" fill="#FBF6EA" stroke="#22201C" stroke-width="1.6" opacity="0.75"/>
+          <rect x="310" y="490" width="100" height="110" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="2"/>
+        </g>
+        <g transform="translate(-5,0) rotate(-0.6,360,732)">
+          <rect x="66" y="640" width="588" height="185" fill="#FBF6EA" stroke="#22201C" stroke-width="1.6" opacity="0.75"/>
+          <rect x="300" y="680" width="110" height="110" rx="6" fill="#FBF6EA" stroke="#22201C" stroke-width="2"/>
+        </g>
+        <g transform="translate(4,0)">
+          <rect x="66" y="825" width="588" height="184" fill="#FBF6EA" stroke="#22201C" stroke-width="1.6" opacity="0.75"/>
+        </g>
+        <text x="360" y="418" text-anchor="middle" font-size="24" fill="#B9B09A">第 1 轮 · 幅度满格</text>
+      </svg>
+      <figcaption><b>② t = 0 → 90</b><em>—</em><br>6 段各自乱动：x 偏移 <b>±6</b>、scaleX <b>0.985~1.015</b>、rotate <b>±0.6°</b>。周期 90ms。<b>相位由 i×61.8% 生成，6 段互不相同</b>（不做随机数 —— 要可复现）。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="60 380 600 680" role="img" aria-label="失败第3帧">
+        <rect x="60" y="380" width="600" height="680" fill="#F2EADA"/>
+        <g transform="translate(-3,0)"><rect x="66" y="380" width="588" height="185" fill="#FBF6EA" stroke="#22201C" stroke-width="1.6" opacity="0.6"/></g>
+        <g transform="translate(4,0) rotate(0.3,360,547)"><rect x="66" y="455" width="588" height="185" fill="#FBF6EA" stroke="#22201C" stroke-width="1.6" opacity="0.6"/></g>
+        <g transform="translate(-2,0) rotate(-0.3,360,732)"><rect x="66" y="640" width="588" height="185" fill="#FBF6EA" stroke="#22201C" stroke-width="1.6" opacity="0.6"/></g>
+        <g transform="translate(2,0)"><rect x="66" y="825" width="588" height="184" fill="#FBF6EA" stroke="#22201C" stroke-width="1.6" opacity="0.6"/></g>
+        <line x1="60" y1="455" x2="660" y2="455" stroke="#22201C" stroke-width="1" opacity="0.10"/>
+        <line x1="60" y1="640" x2="660" y2="640" stroke="#22201C" stroke-width="1" opacity="0.10"/>
+        <text x="360" y="418" text-anchor="middle" font-size="24" fill="#B9B09A">第 3 轮 · 只剩 52%</text>
+      </svg>
+      <figcaption><b>③ t = 90 → 270</b><em>—</em><br>再来 2 轮，<b>每轮幅度 ×0.72</b>（1 → 0.72 → 0.52）。共 <b>4 轮 / 360ms</b>。衰减是"停得住"的关键 —— 等幅抖动会被看成"卡帧"而不是"抖动"。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="60 380 600 680" role="img" aria-label="失败第4帧">
+        <rect x="60" y="380" width="600" height="680" fill="#F2EADA"/>
+        <rect x="66" y="380" width="588" height="680" fill="#22201C" opacity="0.10"/>
+        <g stroke="#22201C" stroke-width="1.3" fill="none" opacity="0.30">
+          <line x1="66" y1="380" x2="66" y2="1060"/><line x1="654" y1="380" x2="654" y2="1060"/>
+        </g>
+        <circle cx="360" cy="610" r="9" fill="#22201C"/>
+        <text x="360" y="418" text-anchor="middle" font-size="24" fill="#B9B09A">复位 + 压暗 α0.10 · 起溅</text>
+      </svg>
+      <figcaption><b>④ t = 270 → 420</b><em>quadOut</em><br>6 段<b>全部归位</b>（x→0 / rotate→0），同时整页叠一层薄墨 α <b>0 → 0.10</b>（180ms）——
+    "纸被压暗了"，不是黑屏。t = 420 冒出第一滴墨。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="60 380 600 680" role="img" aria-label="失败第5帧">
+        <rect x="60" y="380" width="600" height="680" fill="#F2EADA"/>
+        <rect x="66" y="380" width="588" height="680" fill="#22201C" opacity="0.10"/>
+        <g fill="#22201C">
+          <circle cx="122" cy="700" r="9"/><circle cx="205" cy="466" r="8"/>
+          <circle cx="300" cy="882" r="10"/><circle cx="418" cy="900" r="9"/>
+          <circle cx="512" cy="470" r="8"/><circle cx="596" cy="702" r="10"/>
+          <circle cx="248" cy="560" r="7"/><circle cx="474" cy="562" r="7"/>
+        </g>
+        <circle cx="360" cy="610" r="9" fill="#22201C"/>
+        <text x="360" y="418" text-anchor="middle" font-size="24" fill="#B9B09A">8 滴 · 匀速 · 方向均分 ±22°</text>
+      </svg>
+      <figcaption><b>⑤ t = 420 → 760</b><em>—</em><br><b>8 滴</b>墨点从 (0, +30) 向四周甩出。<b>只有 8 滴</b> —— 通关是 16，失败减半：数量本身就是情绪的音量旋钮。</figcaption>
+    </figure>
+    <figure>
+      <svg viewBox="60 380 600 680" role="img" aria-label="失败第6帧">
+        <rect x="60" y="380" width="600" height="680" fill="#F2EADA"/>
+        <rect x="66" y="380" width="588" height="680" fill="#22201C" opacity="0.10"/>
+        <g fill="#22201C">
+          <circle cx="122" cy="700" r="9"/><circle cx="205" cy="466" r="8"/>
+          <circle cx="300" cy="882" r="10"/><circle cx="418" cy="900" r="9"/>
+          <circle cx="512" cy="470" r="8"/><circle cx="596" cy="702" r="10"/>
+          <circle cx="248" cy="560" r="7"/><circle cx="474" cy="562" r="7"/>
+        </g>
+        <g stroke="#22201C" stroke-width="2.5" stroke-linecap="round" opacity="0.85">
+          <line x1="122" y1="700" x2="70" y2="712"/><line x1="205" y1="466" x2="176" y2="434"/>
+          <line x1="300" y1="882" x2="278" y2="928"/><line x1="418" y1="900" x2="440" y2="946"/>
+          <line x1="512" y1="470" x2="541" y2="438"/><line x1="596" y1="702" x2="648" y2="714"/>
+          <line x1="248" y1="560" x2="216" y2="544"/><line x1="474" y1="562" x2="506" y2="546"/>
+        </g>
+        <text x="360" y="418" text-anchor="middle" font-size="24" fill="#B9B09A">每滴长出 22~46px 的溅痕</text>
+      </svg>
+      <figcaption><b>⑥ t = 520 → 760</b><em>quadOut</em><br>每滴从圆里<b>拉出一条 2.5px 宽的尾巴</b>，长 0→(22~46)，200ms，方向与飞行方向相反。
+    <b>没有这条尾巴，8 个圆点只会像"飘落的灰"，不像"溅"。</b>t = 800 失败面板推入。</figcaption>
+    </figure>
+  </div>
+
+  <h3 style="margin-top:26px;">失败 · 参数表</h3>
+  <table class="tight">
+    <thead><tr><th style="width:44px;">格</th><th style="width:74px;">时刻</th><th style="width:58px;">时长</th>
+      <th style="width:80px;">缓动</th><th>位移 / 缩放 / 旋转 / 透明度 起止值</th></tr></thead>
+    <tbody>
+      <tr><td><b>①②③</b></td><td>0 → 360</td><td>360（4 轮 × 90）</td><td>无<br><span style="color:#8C857A;">纯周期抖动</span></td>
+        <td>6 段各自独立，段 i 的相位 = <b>i × 61.8%</b>（黄金分割错相，保证 6 段两两不同、且可复现、不用随机数）：<br>
+        · position.x：<b>A·sin(2π·(t/90ms + 相位))</b>，A 初始 <b>6px</b>，每轮 <b>×0.72</b>（6 → 4.3 → 3.1 → 2.2）<br>
+        · scaleX：<b>1 ± 0.015</b>，同相位<br>
+        · rotate：<b>±0.6°</b>，绕该段自身中心，<b>与 x 反相</b>（这样读起来像"纸被扭"而不是"纸在平移"）<br>
+        <span style="color:#8C857A;">⛔ 不要给整页 root 做这个抖动 —— 整页抖是"镜头在抖"，分段抖才是"纸被揉"。</span></td></tr>
+      <tr><td><b>④</b></td><td>270 → 420</td><td>150<br><span style="color:#8C857A;">压暗 180</span></td><td><code>quadOut</code></td>
+        <td>6 段：x → <b>0</b>、rotate → <b>0°</b>、scaleX → <b>1.000</b>（各段时长不同，<b>60~110ms 随机</b>一个值夹住 —— 齐刷刷一起停会像"暂停键"）。<br>
+        全屏薄墨层：α <b>0 → 0.10</b>，180ms，<code>quadOut</code>。</td></tr>
+      <tr><td><b>⑤</b></td><td>420 → 760</td><td>340</td><td>—<br><span style="color:#8C857A;">匀速（无缓动）</span></td>
+        <td>8 滴墨点，起始 r <b>9</b>（核心那滴 9，其余 7~10 随机），从 (0, +30) 出发：<br>
+        · 方向：<b>360° 均分 8 份</b>（每 45°）再叠 <b>±22°</b> 随机<br>
+        · 速度：<b>210 ~ 330 px/s</b>（随机）<b>全程不变</b> —— 溅墨是惯性运动，减速会读成"飘"<br>
+        · 寿命：<b>300 ~ 420 ms</b>（随机）<br>
+        · α：前 55% 保持 255，后 45% 线性到 0<br>
+        <span style="color:#8C857A;">重力 = 0：墨点在平面上溅开，不下坠。</span></td></tr>
+      <tr><td><b>⑥</b></td><td>520 → 760</td><td>200</td><td><code>quadOut</code></td>
+        <td>每滴的<b>溅痕</b>（同一 Graphics 里一条 <code>lineTo</code> 线段，<code>lineWidth 2.5</code>，<code>lineCap ROUND</code>）：<br>
+        长度 <b>0 → (22 ~ 46) px</b>（随机），方向 = 飞行的反方向 + <b>±10°</b> 随机。</td></tr>
+      <tr><td><b>⑦</b></td><td>800 → 1140</td><td>340</td><td><code>EASE_POP</code></td>
+        <td>失败面板：position.y <b>−820 → −120</b>，340ms，<code>backOut</code>。<b>面板形制与现有 <code>REWARD.FAIL</code> 一致</b>（520×420），只加进场动效，不改布局。</td></tr>
+      <tr><td colspan="5" style="background:#F4F2EC;"><b>总计 1140ms。</b>
+        <b>"魔性"落在哪：</b>① 6 段<b>错相抖动</b>（相位 i×61.8%，不用随机数）；
+        ② 幅度<b>4 轮 ×0.72 衰减</b>；③ 各段<b>停止时长 60~110ms 随机</b>（不齐刷刷）；
+        ④ 墨点<b>匀速</b>不减速；⑤ 每滴一条<b>随机长度 22~46px 的尾巴</b>；⑥ 只 8 滴（是通关的一半）。</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================
+     §4 实现成本与风险
+     ============================================================ -->
+<section id="cost">
+  <h2 class="sec">§4 实现成本与风险 <span>新增原语 / 贴图体积 / 适配与无障碍 / 改动面</span></h2>
+
+  <h3 style="margin-top:0;">④-a · 需要新增的绘制原语（全部可用纯色块画出）</h3>
+  <p class="sub" style="margin:0 0 12px;max-width:900px;">
+    现有 <code>UIFactory</code> 只暴露了 <b>圆角矩形（填充 / 描边）、折线、文字</b> 三类。
+    本方案需要补 7 个基元 —— 每一个都是 <code>Graphics</code> 已经有的能力，只是没被包出来。
+    <b>没有一个是"必须靠贴图才能做"的。</b>
+  </p>
+  <table class="tight">
+    <thead><tr><th style="width:118px;">原语</th><th style="width:250px;">纯色块怎么画（Cocos Graphics 调用）</th><th style="width:70px;">行数</th><th>本方案用在哪</th></tr></thead>
+    <tbody>
+      <tr><td><code>fillCircle</code></td><td><code>g.circle(cx,cy,r); g.fill()</code> —— Graphics <b>本来就有</b> <code>circle()</code>，只是 <code>UIFactory</code> 没包</td><td>~4</td><td>开场墨晕 4 层、失败墨点 8 枚</td></tr>
+      <tr><td><code>fillHalfDisc</code></td><td><code>g.arc(cx,cy,r,−90°,+90°); g.lineTo(cx,cy); g.close(); g.fill()</code> —— 半圆盘</td><td>~8</td><td>开场「墨圆从中间裂开」的左 / 右两半<br><span style="color:#8C857A;">⚠️ <code>lineCap = BUTT</code>：两半拼合时接缝才看不出</span></td></tr>
+      <tr><td><code>strokeHalfRing</code></td><td>同上但不 <code>close()</code>，改 <code>g.stroke()</code></td><td>~6</td><td>墨圆最外那道 2.6px 环的两半</td></tr>
+      <tr><td><code>fillEllipse</code></td><td><code>g.ellipse(cx,cy,rx,ry); g.fill()</code></td><td>~4</td><td>圆台 3 层同心淡出</td></tr>
+      <tr><td><code>strokeEllipse</code></td><td><code>g.ellipse(...); g.lineWidth=…; g.stroke()</code></td><td>~5</td><td>圆台外圈的靛青环</td></tr>
+      <tr><td><code>fillPoly</code></td><td><code>moveTo/lineTo/close + fill()</code></td><td>~6</td><td>当前刻度头顶那枚 10×6 小三角</td></tr>
+      <tr><td><code>drawSlit</code></td><td>循环 <code>segs</code> 次 <code>fillBox</code>，每段一个线性插值的 alpha —— <b>用"分段 + 各自的透明度"做出"渐变"</b></td><td>~12</td><td>中轴竖缝（6 段 α 255→40）<br><span style="color:#8C857A;">这是全稿唯一的"伪渐变"，靠 6 个纯色块叠出来</span></td></tr>
+      <tr><td colspan="4" style="background:#F4F2EC;"><b>合计约 45 行，全部是新增函数，不修改任何现有函数的签名</b> ——
+        <code>createButton</code> 连改都不用改：重玩小方直接传 <code>fill: CFG.COLOR.FACE, stroke: CFG.COLOR.INK</code>，
+        就得到了「宣纸底 + 墨线」的次级形制（角花会自动画成米色，正好对）。</td></tr>
+    </tbody>
+  </table>
+
+  <div class="two" style="margin-top:26px;">
+    <div>
+      <h3 style="margin-top:0;">④-b · 贴图需求与体积</h3>
+      <div class="note indigo" style="margin-top:0;">
+        <b>贴图增量 = 0 KB。包体从 2.15MB → 2.15MB，红线 4MB 的余量 1.85MB 一 KB 都没动。</b>
+      </div>
+      <table class="tight" style="margin-top:14px;">
+        <thead><tr><th>效果</th><th style="width:120px;">纯色块画法</th><th style="width:64px;">贴图</th></tr></thead>
+        <tbody>
+          <tr><td>墨晕（"模糊"感）</td><td><b>4 层实心圆 + 4 个不同 alpha</b></td><td>0</td></tr>
+          <tr><td>圆台边缘柔化</td><td><b>3 层同心椭圆 + alpha 0.045/0.06/0.085</b></td><td>0</td></tr>
+          <tr><td>竖缝渐隐</td><td><b>6 段纯色块 + α 255→40</b></td><td>0</td></tr>
+          <tr><td>印泥颗粒 16 枚</td><td><b>方块 roundRect rx1 + 随机旋转</b></td><td>0</td></tr>
+          <tr><td>溅墨 8 滴 + 尾巴</td><td><b>实心圆 + 一条 round-cap 线段</b></td><td>0</td></tr>
+          <tr><td>纸面压暗</td><td><b>全屏纯色 rect + UIOpacity</b></td><td>0</td></tr>
+          <tr><td>牌面立体厚度</td><td>已有 <code>drawSolid</code>（投影 3 层 + 厚度壁）</td><td>0</td></tr>
+        </tbody>
+      </table>
+      <div class="note red">
+        <b>唯一会诱使人加贴图的地方是「纸被揉皱」，本方案主动放弃了它的一半：</b><br>
+        真实的褶皱需要<b>法线 / 置换贴图</b>（用灰度图偏移 UV），<code>Graphics</code> 根本做不到，
+        而且一张 720×1280 的灰度图约 <b>180~400KB</b>，会吃掉红线的 10~20%。
+        <b>本方案只保留"分段错位"这个几何信息，不做褶皱明暗。</b>
+        理由：这是一段 1.1 秒的小动效，玩家读到的是<b>"纸抖了一下"</b>，不是"纸上有几道褶" ——
+        几何错位已经把这个意思说完了，再补明暗是拿 400KB 换一个没人会看的细节。
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-top:0;">④-c · 适配 / 无障碍风险</h3>
+      <table class="tight">
+        <thead><tr><th style="width:104px;">风险</th><th style="width:60px;">等级</th><th>处理</th></tr></thead>
+        <tbody>
+          <tr><td><b>对比度</b></td><td>低</td><td>§2 已逐项实测。唯一不达标的两处：<code>INK_SOFT</code> 只留页脚；未到刻度<b>用高度差 + 独有三角形</b>替代颜色区分。</td></tr>
+          <tr><td><b>暗光可读性</b></td><td>低</td><td>浅底深字，与现有稿同级，<b>无新增风险</b>。新加的靛青相对亮度只有 0.075，暗光下会向黑靠 —— 所以<b>定死：靛青不用于任何文字</b>。</td></tr>
+          <tr><td><b>减少动态效果</b></td><td>中</td><td>见下方专段。<b>这是本方案唯一需要写代码分支的无障碍项。</b></td></tr>
+          <tr><td><b>触控目标</b></td><td>低</td><td>主按钮 420×132、重玩 88×88 均 ≥44px；方印 52×52 但它是<b>长按</b>不是点，热区可外扩到 88×88（隐形）。</td></tr>
+          <tr><td><b>长按可发现性</b></td><td><b>中</b></td><td>长按是"藏起来的手势"。处理：<b>存档非空时的第一次进首页，提示行停 6 秒 → 换成「长按右下角方印可清空进度」 → 4 秒后换回玩法提示</b>。一次性教学，不弹窗，不写入任何"已教学"标记（每次启动教一次，成本为零）。</td></tr>
+          <tr><td><b>超长屏适配</b></td><td>低</td><td>整页元素全部围绕屏幕中心对称布局（沿用现有坐标系），20:9 上多出来的高度落在页框外，<b>不会露白边也不会挤到中轴</b>。</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note" style="margin-top:16px;">
+        <b>「减少动态效果」的具体分支（不是"全关掉"）：</b>
+        <b>信息性的动效必须留，装饰性的才该收。</b>
+        <table class="tight" style="margin-top:10px;font-size:12px;">
+          <tbody>
+            <tr><td style="width:56px;"><b>开场</b></td><td>1500ms → <b>300ms</b>：只留 墨滴落定 + 一轮晕 + 直接露出棋盘，<b>不做 4 层晕、不做开裂</b></td></tr>
+            <tr><td><b>通关</b></td><td>纸面震 3 次 → <b>1 次、幅度 6→4px</b>；颗粒 16 → <b>6</b>；<b>印砸下来保留</b>（它是信息："你通过了"）</td></tr>
+            <tr><td><b>失败</b></td><td>分段抖动 → <b>整页 α 到 0.10 的压暗</b>；墨点 8 → <b>4</b>，去掉尾巴</td></tr>
+            <tr><td><b>首页呼吸</b></td><td><b>整段关掉</b>（它是纯装饰，且是常驻的）</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:30px;">④-d · 与「休闲益智」类目的契合度</h3>
+  <div class="two">
+    <div>
+      <div class="kv">
+        <b>本方案全部文案清单（一共 10 条，逐条可审）：</b><br>
+        <code>麻麻大消除</code> · <code>已过 N / 4</code> · <code>开始 · 第 1 关</code> ·
+        <code>继续 · 第 N 关</code> · <code>再战 · 第 4 关</code> · <code>重玩</code> ·
+        <code>重玩 · 第 k 关</code> · <code>麻</code> · <code>过</code> ·
+        <code>用时 mm:ss · 最佳纪录</code> · <code>长按右下角方印可清空进度</code> · <code>v0.4.0 · 内部开发版</code><br><br>
+        <b>零棋牌语义</b>：无 胡 / 番 / 筹码 / 对战 / 连胜 / 排行 / 挑战 / 段位。
+        连现有的「点击牌 → 进槽位 → 凑齐「碰 / 吃 / 杠」」这句也在这版里<b>被替换掉了</b> ——
+        「碰 / 吃 / 杠」是麻将的三个动作名，它是现有首页里<b>最重的一句棋牌语义</b>。
+        新版提示行改说玩法本身：<b>「点三张相同的牌，把它们送走」</b>（零术语）。
+      </div>
+    </div>
+    <div>
+      <div class="note red" style="margin-top:0;">
+        <b>本方案的合规边界，必须说清楚 —— 它不能单独解除 README §7 记的那条风险。</b><br>
+        牌面 27 张真麻将图案是<b>已定稿资产、不得重新设计</b>，而它本身就是这幅画面里<b>最大的"棋牌读法"来源</b>。
+        本方案只改<b>它周围</b>的那一圈界面。所以：
+        <ul class="plain" style="margin-top:8px;">
+          <li><b>本方案做到的</b>（"降低环境暗示"这一半）：拆掉金柱（金从常驻 → 一次性）、引入一个棋牌色板里没有的冷色相、清掉全部棋牌词汇、把大标题从"牌匾感"改成"书名感"。</li>
+          <li><b>本方案做不到的</b>（另一半）：牌面本身。要真正解除，得回到牌面 / 题材层面 —— 例如把三族的识别依据从"麻将花色"改成<b>「图案 / 颜色 / 数量」三属性</b>，或直接换一套图案题材。那是另一轮的事，需要单开一稿。</li>
+        </ul>
+        <b>建议：提审前按 <code>minigame-publish-compliance</code> 技能复核，并把上面这两条一起交给它。</b>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:30px;">④-e · 成本与改动面</h3>
+  <div class="verdict" style="margin-top:0;">
+    <p style="font-size:16px;color:var(--ink);"><b>一句话成本等级：低。</b>
+      <span style="color:var(--ink-2);font-size:14px;">—— 没有换体系、没有换牌面、没有加贴图、没有加新页面；改的是"排布 + 比例 + 三段动效"。</span></p>
+    <table class="tight">
+      <thead><tr><th style="width:190px;">文件</th><th style="width:96px;">动作</th><th style="width:110px;">量</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>assets/scripts/CFG.ts</code></td><td>增 + 删</td><td>+120 / −30 行<br><span style="color:#8C857A;">纯数据</span></td>
+          <td>新增 <code>COLOR.INDIGO / INDIGO_DEEP</code>；<code>MENU_LAYOUT</code> 整段重写（删掉不再使用的 <code>SUBTITLE_Y / DIVIDER_Y / SHOWCASE_* / CAPTION_*</code>，加约 15 个新 y/x）；新增 <code>MOTION.INTRO_* / STAMP_* / CREASE_*</code> 与 <code>MOTION.REDUCED</code>。业务代码仍然零硬编码。</td></tr>
+        <tr><td><code>assets/scripts/ui/UIFactory.ts</code></td><td>增</td><td>+45 行</td>
+          <td>7 个绘制基元（见 ④-a）。<b>不修改任何现有函数签名</b>，纯追加。</td></tr>
+        <tr><td><code>assets/scripts/ui/MenuPage.ts</code></td><td>重写</td><td>−60 / +110 行</td>
+          <td>删三张展示牌 + 分隔线；加刻度状态条、中轴竖缝、圆台、440 主牌、重玩小方、方印长按、提示行三态文案。onEnter 改为「刻度从左到右依次点亮（每枚错峰 90ms）」+ 主牌呼吸。</td></tr>
+        <tr><td><b>新增</b> <code>ui/IntroAnim.ts</code></td><td>新增</td><td>~150 行</td>
+          <td>开场墨滴。含 5 层 × 2 半 ＝ 10 个 Graphics 节点的管理 + 点击跳过。建议<b>独立成文件</b>。</td></tr>
+        <tr><td><b>新增</b> <code>ui/ResultFx.ts</code></td><td>新增</td><td>~220 行</td>
+          <td>通关「过」印 + 失败揉皱。含 2 个粒子 Graphics 节点（16 枚 / 8 枚）。同样建议独立成文件。</td></tr>
+        <tr><td><code>assets/scripts/core/SaveService.ts</code></td><td>加 getter</td><td><b>+3 行</b></td>
+          <td>只加 <code>get clearedIds(): readonly number[]</code>（返回只读副本）。<b>存档结构一个字不改、不做迁移、不做版本升级</b> —— <code>cleared[]</code> / <code>bestTime</code> 已经够用。</td></tr>
+        <tr><td><code>assets/scripts/ui/LevelSelectPage.ts</code></td><td><b>删除</b></td><td>−240 行</td>
+          <td>连同路由一起删。它的内容（关卡名 / 张数 / 层数 / 限时 / 锁态）全部可以由首页的刻度条 + 代表牌 + 开场的关卡名承接。</td></tr>
+        <tr><td><code>ui/PageBase.ts</code> / 路由</td><td>增</td><td>+8 行</td>
+          <td>加一个 <code>intro</code> 转场入口（或直接把开场挂在 GamePage 的 <code>onEnter</code> 之前）。</td></tr>
+        <tr><td colspan="4" style="background:#F4F2EC;"><b>净变化约 +250 行 / 0 KB 包体。</b>
+          <b>不做的事：</b>不新增页面（除了一个动画覆盖层）、不新增贴图、不改牌面、不改存档结构、不动游戏页与结算页布局（只给它们接上动效）。</td></tr>
+      </tbody>
+    </table>
+    <div class="note red" style="margin-top:16px;">
+      <b>不建议把 <code>IntroAnim</code> / <code>ResultFx</code> 塞进 <code>MotionFx.ts</code>。</b>
+      它已经有 <b>48KB / 1400+ 行</b>，再塞两段会让"手感参数在 CFG、播放逻辑在 MotionFx"这条本来很干净的边界糊掉。
+      本次三组动效<b>都有"节点生命周期"</b>（粒子池、半圆节点、可跳过），和 <code>MotionFx</code> 里那些"改一个属性就完事"的 tween 不是同一类东西，分开更省心。
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     §5 自律规则
+     ============================================================ -->
+<section id="law">
+  <h2 class="sec">§5 本方案的自律规则 <span>留白多但不能空 —— 靠比例撑住，不靠加元素</span></h2>
+
+  <p class="sub" style="max-width:900px;">
+    首页是这一页最危险的地方：元素一少，就容易从"高级"掉进"空"。
+    防掉下去的办法不是再塞点东西，而是<b>给这页立几条能被检查的硬指标</b> ——
+    下面每一条都是"可以拿去反驳设计师"的那种，不是"要有呼吸感"这种空话。
+  </p>
+
+  <div class="two">
+    <div>
+      <div class="law">
+        <h3>规则一 · 视觉重心只允许 3 级、一级只允许 1 个</h3>
+        <ol>
+          <li><b>一级 · 1 个</b>：中央主牌。允许对比度 ≥ 4.5:1、覆盖面积 ≥ 60000px²、<b>允许使用饱和色</b>。
+              全页任意时刻<b>只允许有 1 个一级</b> —— 这条是"主牌能大"的前提：如果同时还有第二个大块面，牌就必须缩小。</li>
+          <li><b>二级 · 2 个</b>：主按钮、顶部「当前关」那一枚刻度。允许 ≥4.5:1、<b>面积上限 60000px²</b>、允许朱红实心。</li>
+          <li><b>三级 · 其余全部</b>（书名、已过计数、重玩小方、圆台、竖缝、提示行、页脚）：对比 ≤3:1 <b>或</b> 面积 ≤3000px²，
+              且<b>不得出现朱红或靛青的纯色</b>。<br>
+              <span style="color:#8C857A;">唯一豁免：右下角方印用朱红，但面积锁死 ≤2704px² 且<b>必须贴页框角</b> —— 靠位置把它从"重心"降级为"印记"。</span></li>
+        </ol>
+        <div class="lgd">
+          <span><i style="background:#C4362B"></i>一级 1 个</span>
+          <span><i style="background:#C4362B;opacity:.55"></i>二级 2 个</span>
+          <span><i style="background:#EDE6D4"></i>三级 其余</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="law">
+        <h3>规则二 · 朱红总覆盖面积 ≤ 72000 px²（≈ 屏幕 7.8%）</h3>
+        <ol>
+          <li>这条比"红色别太多"可执行得多 —— 它是一个<b>数</b>，画完能算。</li>
+          <li><b>本方案现值：58210 px²</b><br>
+              主按钮面 420×132 ＝ 55440 ／ 当前刻度 3×22 ＝ 66 ／ 方印 52×52 ＝ 2704。<br>
+              剩余预算 <b>13790 px²</b>。</li>
+          <li>通关那枚「过」印是 96×96 ＝ <b>9216</b>，进入后总额 <b>67500</b> —— <b>仍然在预算内</b>。
+              这一个数就是"通关印可以做多大"的天花板：<b>最大 111×111</b>（再大就越预算）。</li>
+          <li>反过来说：<b>任何新增的朱红元素，都必须先从这里扣</b>。想加一枚红角标？先把主按钮缩到 400 宽（省 2640px²）。</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="two" style="margin-top:18px;">
+    <div>
+      <div class="law">
+        <h3>规则三 · 线的配额</h3>
+        <ol>
+          <li><b>竖线全页只允许 1 条</b>（中轴竖缝）。它是眼睛的轨道，同时也是"参考图2 那道缝"的唯一继承者。</li>
+          <li><b>横线组全页只允许 1 组</b>（刻度槽 + 4 枚刻度）。除它以外，页面上<b>不允许出现任何横线</b> —— 包括分隔线（旧版的 <code>DIVIDER_Y</code> 在本方案里被删掉了）。</li>
+          <li><b>椭圆只允许 4 个</b>（圆台 3 层同心淡出 + 1 道靛青环，环与最外层共参数）。</li>
+          <li><b>加一条线，先删一条线。</b>这条是这一页不崩的唯一保险。</li>
+        </ol>
+      </div>
+    </div>
+    <div>
+      <div class="law">
+        <h3>规则四 · 呼吸的下限（任一被压破，优先删元素，不要压间距）</h3>
+        <ol>
+          <li><b>主牌四周 ≥ 36px</b>。这是它"大"的必要条件 —— <b>撑满就等于没有留白</b>，而留白正是这张牌显大的原因。</li>
+          <li>书名行 → 刻度条：<b>28px</b>；刻度条 → 主牌顶：<b>57px</b>。</li>
+          <li>圆台底 → 主按钮顶：<b>36px</b>；主按钮底 → 提示行：<b>32px</b>；提示行 → 页脚：<b>19px</b>。</li>
+          <li>以上任何一条不足时：<b>先删三级元素（页脚、提示行都可以整行删）</b>，绝不压缩主牌的四周留白。</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="note red" style="margin-top:18px;">
+    <b>禁止清单（本方案一条都不许破）：</b>
+    ① 描边叠 3 层以上（会立刻读成"厚描边"而不是"结构"）；
+    ② 纯黑 <code>#000000</code>（墨是 <code>#22201C</code>，带一点暖）；
+    ③ 任何渐变 / 模糊 / 阴影 / 图层混合（<code>Graphics</code> 本来也不支持）；
+    ④ 装饰性文字 —— <b>任何一个字都必须有信息量</b>；
+    ⑤ 第三个饱和色相（现有 朱红 + 靛青 + 真牌三色（牌面内）已经是上限，页面里只许前两个）；
+    ⑥ 在牌面上加任何东西（27 张牌是已定稿资产）；
+    ⑦ 圆形以外的"软"形状 —— 圆台是椭圆、墨晕是圆，除此之外全部是硬直角圆角矩形（3–7px）。
+  </div>
+</section>
+
+<div class="verdict" style="margin-top:0;">
+  <h2>一句话总结</h2>
+  <p>
+    <b>关键词：留白 · 一枚主牌 · 靛青点睛。</b>
+    方案 A 不换体系、不加题材元素、不碰 27 张牌面，只做三件事 ——
+    <b>① 顶部用一条 252px 的极细刻度状态条取代整个选关页</b>（4 枚刻度，已过＝靛青 / 当前＝朱红高 8px + 全条唯一的小三角 / 未到＝墨 α0.20）；
+    <b>② 中央把三张 104px 的小牌换成一枚 440px 的主牌坐在墨色圆台上</b>（它是本关的代表牌，点开始之前就把主角交代完）；
+    <b>③ 底部一枚 420×132 朱红主按钮 + 一颗 88×88「重玩」小方，三个问题（继续 / 重玩 / 清空）全部落在已有的元素上，不新增任何页面</b>。
+  </p>
+  <p>
+    <b>色调上真正"变了"的只有两个动作</b>：把金从<b>常驻环境色</b>（76px 标题的 5px 金描边，约 2.4 万 px²）降级为<b>一次性事件色</b>
+    （通关那枚 96×96「过」印上的 3px 描边，存在 ≤1.6 秒）；引入一个<b>棋牌色板里没有的冷色相 · 靛青 #31506E</b>，
+    只用在「已过的刻度」与「中轴竖缝」两个<b>结构位</b>上 —— 它不出现在任何文字里（暗光下会向黑靠），
+    也不参与任何语义判断（不承担"这是第几关"的唯一信息）。
+    <b>这一冷一热的对位，就是本方案"不抄参考图1、但用了它的布局骨架"的全部交代。</b>
+  </p>
+  <p style="margin-bottom:0;">
+    <b>成本等级：低。</b>净变化约 +250 行 / 0 KB 包体 / 7 个新绘制基元 / 删掉一个页面（选关页 −240 行）/
+    存档结构一个字不改（只加一个 3 行的只读 getter）。
+    <b>本方案不解除 README §7 记的那条合规风险</b> —— 它只做完了"降低环境暗示"这一半，
+    另一半在牌面与题材层面，需要单开一稿。
+  </p>
+</div>
+
+</div>
+
+<script>
+/* ============================================================
+   方案 A 渲染器（本页自用）
+   所有坐标都是「页面坐标」：viewBox 0 0 720 1280，
+   与设计稿一致；换算到 CFG 口径：CFG y = 640 − 页面 y。
+   ============================================================ */
+(function () {
+  'use strict';
+
+  var P = {
+    paper:'#F2EADA', paperDark:'#EFE6D2', face:'#FBF6EA', faceDim:'#EDE6D4',
+    ink:'#22201C', inkMid:'#57503F', inkSoft:'#8E8571',
+    red:'#C4362B', gold:'#C9A227', indigo:'#31506E',
+    side:'#E1D5B9', sideEdge:'#A69A7F',
+    blue:'#2338A0', redInk:'#B02A1E', green:'#2E6B45'
+  };
+  var SERIF = "'Songti SC','STSong','SimSun',serif";
+
+  function put(id, html) { var el = document.getElementById(id); if (el) { el.innerHTML = html; } }
+  function n(v) { return Math.round(v * 1000) / 1000; }
+
+  /* ---------- 牌体：投影 3 层 + 厚度壁 + 顶面 + 内墨线 + 角花 ---------- */
+  function tileBody() {
+    var s = '';
+    // ① 投影：从最大最外开始画，逐层收小（三层同 alpha，叠加处自然最浓）
+    [[0.6, 4.6, 144.8, 188.8, 15], [4.6, 8.6, 136.8, 180.8, 11], [8.6, 12.6, 128.8, 172.8, 7]]
+      .forEach(function (r) {
+        s += '<rect x="' + r[0] + '" y="' + r[1] + '" width="' + r[2] + '" height="' + r[3] +
+             '" rx="' + r[4] + '" fill="' + P.ink + '" opacity="0.204"/>';
+      });
+    // ② 厚度壁：牌体轮廓整体下移 DEPTH(27)、右移 SIDE_DX(6)
+    s += '<rect x="7.6" y="28.6" width="128.8" height="172.8" rx="7" fill="' + P.side +
+         '" stroke="' + P.sideEdge + '" stroke-width="2.24"/>';
+    // ③ 顶面
+    s += '<rect x="1.6" y="1.6" width="128.8" height="172.8" rx="7" fill="' + P.face +
+         '" stroke="' + P.ink + '" stroke-width="3.2"/>';
+    // ④ 内墨线
+    s += '<rect x="8.5" y="8.5" width="115" height="159" rx="3.5" fill="none" stroke="' + P.ink +
+         '" stroke-width="1.1" opacity="0.62"/>';
+    // ⑤ 四角朱红角花
+    s += '<g stroke="' + P.red + '" stroke-width="2.2" fill="none" stroke-linecap="square">'
+       + '<path d="M8.5 20.5 L8.5 8.5 L20.5 8.5"/><path d="M111.5 8.5 L123.5 8.5 L123.5 20.5"/>'
+       + '<path d="M123.5 155.5 L123.5 167.5 L111.5 167.5"/><path d="M20.5 167.5 L8.5 167.5 L8.5 155.5"/>'
+       + '</g>';
+    return s;
+  }
+
+  /* ---------- 竹节：胶囊 + 贯通竖高光 + 上下两组侧缺口 ---------- */
+  function bamboo(x, y, w, h, rot, colKey) {
+    var col = { green: P.green, red: P.redInk, blue: P.blue }[colKey];
+    var lt  = { green: '#7DA38C', red: '#D7948E', blue: '#919BCF' }[colKey];
+    var r = w / 2, hw = w * 0.26, hl = h * 0.66, nx = w * 0.22, nh = Math.max(1.6, h * 0.05);
+    var s = '<rect x="' + n(x - w / 2) + '" y="' + n(y - h / 2) + '" width="' + w + '" height="' + h +
+            '" rx="' + r + '" fill="' + col + '"/>';
+    s += '<rect x="' + n(x - hw / 2) + '" y="' + n(y - hl / 2) + '" width="' + n(hw) + '" height="' + n(hl) +
+         '" rx="' + n(hw / 2) + '" fill="' + lt + '"/>';
+    [y - h * 0.22, y + h * 0.22].forEach(function (yy0) {
+      var yy = yy0 - nh / 2;
+      s += '<rect x="' + n(x - w / 2) + '" y="' + n(yy) + '" width="' + n(nx) + '" height="' + n(nh) + '" fill="' + P.face + '"/>';
+      s += '<rect x="' + n(x + w / 2 - nx) + '" y="' + n(yy) + '" width="' + n(nx) + '" height="' + n(nh) + '" fill="' + P.face + '"/>';
+    });
+    return rot ? '<g transform="rotate(' + rot + ' ' + x + ' ' + y + ')">' + s + '</g>' : s;
+  }
+
+  var WAN_NUM = ['一', '二', '三', '四', '伍', '六', '七', '八', '九'];
+  // 四条：2×2 绿竹节
+  var SOU4 = [[45, 56, 22, 56], [87, 56, 22, 56], [45, 120, 22, 56], [87, 120, 22, 56]];
+
+  function glyph(fam, num) {
+    var s = '';
+    if (fam === 'wan') {
+      s += '<text x="66" y="72" text-anchor="middle" font-size="64" font-weight="800" fill="' + P.blue +
+           '" font-family="' + SERIF + '">' + WAN_NUM[num - 1] + '</text>'
+         + '<text x="66" y="144" text-anchor="middle" font-size="58" font-weight="800" fill="' + P.redInk +
+           '" font-family="' + SERIF + '">萬</text>';
+    } else if (fam === 'sou') {
+      SOU4.forEach(function (p) { s += bamboo(p[0], p[1], p[2], p[3], 0, 'green'); });
+    }
+    return s;
+  }
+
+  /** 把一张牌放在页面坐标 (cx, cy) 上，宽 w */
+  function tile(fam, num, cx, cy, w) {
+    var k = w / 132;
+    return '<g transform="translate(' + n(cx - 66 * k) + ',' + n(cy - 88 * k) + ') scale(' + (Math.round(k * 1e5) / 1e5) + ')">'
+         + tileBody() + glyph(fam, num) + '</g>';
+  }
+
+  /* ---------- 页面骨架：宣纸底 + 墨线双框 + 朱红角花 ---------- */
+  function chrome() {
+    return '<rect width="720" height="1280" fill="' + P.paper + '"/>'
+      + '<rect x="46" y="66" width="628" height="1148" rx="10" fill="' + P.face + '" stroke="' + P.red + '" stroke-width="3"/>'
+      + '<rect x="66" y="86" width="588" height="1108" rx="4" fill="none" stroke="' + P.ink + '" stroke-width="1.5" opacity="0.4"/>'
+      + '<g stroke="' + P.red + '" stroke-width="2.4" fill="none" stroke-linecap="square">'
+      + '<path d="M66 106 L66 86 L86 86"/><path d="M634 86 L654 86 L654 106"/>'
+      + '<path d="M654 1174 L654 1194 L634 1194"/><path d="M86 1194 L66 1194 L66 1174"/></g>';
+  }
+
+  /* ---------- 顶部状态条：书名 + 已过计数 + 4 枚刻度 ---------- */
+  function tickBar(cleared, cur) {
+    var s = '<rect x="234" y="168.5" width="252" height="3" fill="' + P.ink + '" opacity="0.13"/>';
+    [-93, -31, 31, 93].forEach(function (dx, i) {
+      var cx = 360 + dx, k = i + 1;
+      if (k === cur) {
+        s += '<path d="M' + (cx - 6) + ' 158 L' + (cx + 6) + ' 158 L' + cx + ' 150 Z" fill="' + P.red + '"/>';
+        s += '<rect x="' + n(cx - 1.5) + '" y="159" width="3" height="22" fill="' + P.red + '"/>';
+      } else if (k < cur) {
+        s += '<rect x="' + n(cx - 1.5) + '" y="163" width="3" height="14" fill="' + P.indigo + '"/>';
+      } else {
+        s += '<rect x="' + n(cx - 1) + '" y="163" width="2" height="14" fill="' + P.ink + '" opacity="0.20"/>';
+      }
+    });
+    return s;
+  }
+
+  function topLabels(right) {
+    return '<text x="66" y="140" font-size="22" letter-spacing="6" fill="' + P.inkMid + '">麻麻大消除</text>'
+         + '<text x="654" y="140" text-anchor="end" font-size="22" letter-spacing="2" fill="' + P.inkMid + '">' + right + '</text>';
+  }
+
+  /* ---------- 中轴竖缝：6 段纯色块 + 各自透明度（不是渐变） ---------- */
+  function slit() {
+    var y0 = 188, y1 = 910, segs = 6, h = (y1 - y0) / segs;
+    var a = [0.95, 0.78, 0.60, 0.43, 0.28, 0.16];
+    var s = '';
+    for (var i = 0; i < segs; i++) {
+      s += '<rect x="358.8" y="' + n(y0 + i * h) + '" width="2.4" height="' + n(h + 0.6) +
+           '" fill="' + P.indigo + '" opacity="' + a[i] + '"/>';
+    }
+    return s;
+  }
+
+  /* ---------- 圆台：3 层同心椭圆淡出 + 1 道靛青环 ---------- */
+  function pedestal() {
+    return '<ellipse cx="360" cy="850" rx="292" ry="61" fill="' + P.ink + '" opacity="0.045"/>'
+         + '<ellipse cx="360" cy="850" rx="268" ry="55" fill="' + P.ink + '" opacity="0.060"/>'
+         + '<ellipse cx="360" cy="850" rx="240" ry="48" fill="' + P.ink + '" opacity="0.085"/>'
+         + '<ellipse cx="360" cy="850" rx="292" ry="61" fill="none" stroke="' + P.indigo +
+           '" stroke-width="2.2" opacity="0.45"/>';
+  }
+
+  /* ---------- 角花（小尺寸件用） ---------- */
+  function corners(x, y, w, h, len, col, lw) {
+    return '<g stroke="' + col + '" stroke-width="' + lw + '" fill="none" stroke-linecap="square">'
+      + '<path d="M' + x + ' ' + (y + len) + ' L' + x + ' ' + y + ' L' + (x + len) + ' ' + y + '"/>'
+      + '<path d="M' + (x + w - len) + ' ' + y + ' L' + (x + w) + ' ' + y + ' L' + (x + w) + ' ' + (y + len) + '"/>'
+      + '<path d="M' + (x + w) + ' ' + (y + h - len) + ' L' + (x + w) + ' ' + (y + h) + ' L' + (x + w - len) + ' ' + (y + h) + '"/>'
+      + '<path d="M' + (x + len) + ' ' + (y + h) + ' L' + x + ' ' + (y + h) + ' L' + x + ' ' + (y + h - len) + '"/>'
+      + '</g>';
+  }
+
+  /* ---------- 底部一行：主按钮 + 小方 + 提示 + 页脚 ---------- */
+  function buttonRow(state, tip) {
+    var replay = state === 'replay';
+    var LAB = { main: '继 续 · 第 2 关', new: '开 始 · 第 1 关', mid: '继 续 · 第 3 关',
+                all: '再 战 · 第 4 关', replay: '重 玩 · 第 2 关' };
+    var label = LAB[state] || LAB.mid;
+    var fs = replay ? '38' : '44', ls = replay ? '4' : '8';
+    var s = '';
+    // 立体厚度层 + 面层
+    s += '<rect x="94" y="948" width="420" height="132" rx="6" fill="' + P.ink + '"/>';
+    s += '<rect x="94" y="940" width="420" height="132" rx="6" fill="' + P.red + '" stroke="' + P.ink + '" stroke-width="3"/>';
+    s += corners(94, 940, 420, 132, 14, P.face, 1.8);
+    // 重玩态：‹ › 贴在主按钮内侧
+    if (replay) {
+      s += '<g stroke="' + P.ink + '" stroke-width="4.5" fill="none" stroke-linecap="square" opacity="0.78">'
+         + '<path d="M134 980 L112 1006 L134 1032"/><path d="M478 980 L500 1006 L478 1032"/></g>';
+    }
+    s += '<text x="304" y="1006" text-anchor="middle" dominant-baseline="central" font-size="' + fs +
+         '" font-weight="700" letter-spacing="' + ls + '" font-family="' + SERIF + '" fill="' + P.face + '">' + label + '</text>';
+    // 小方：宣纸底 + 墨线（次级形制），重玩态翻面成「继续」
+    s += '<rect x="538" y="962" width="88" height="88" rx="6" fill="' + P.face + '" stroke="' + P.ink + '" stroke-width="3"/>';
+    s += corners(538, 962, 88, 88, 12, P.red, 1.8);
+    s += '<text x="582" y="1006" text-anchor="middle" dominant-baseline="central" font-size="26" font-weight="700" ' +
+         (replay ? '' : 'letter-spacing="2" ') + 'font-family="' + SERIF + '" fill="' + P.ink + '">' +
+         (replay ? '继续' : '重玩') + '</text>';
+    // 提示行
+    s += '<text x="360" y="1104" text-anchor="middle" font-size="20" letter-spacing="3" fill="' + P.inkMid + '">' + tip + '</text>';
+    // 页脚
+    s += '<text x="66" y="1162" font-size="22" fill="' + P.inkSoft + '">v0.4.0 · 内部开发版</text>';
+    s += '<rect x="586" y="1136" width="52" height="52" rx="4" fill="' + P.red + '"/>';
+    s += '<text x="612" y="1162" text-anchor="middle" dominant-baseline="central" font-size="24" font-weight="700" ' +
+         'font-family="' + SERIF + '" fill="' + P.face + '">麻</text>';
+    return s;
+  }
+
+  /* ============ 渲染：首页精绘稿 ============ */
+  (function () {
+    var s = chrome();
+    s += topLabels('已过 1 / 4');
+    s += tickBar(1, 2);
+    s += slit();
+    s += pedestal();
+    s += tile('sou', 4, 360, 520, 440);          // 第 2 关代表牌 · 四条
+    s += buttonRow('main', '点三张相同的牌，把它们送走');
+    put('menu-page', s);
+  })();
+
+  /* ============ 渲染：顶部状态条 × 3 ============ */
+  put('tick-new', topLabels('已过 0 / 4') + tickBar(0, 1));
+  put('tick-mid', topLabels('已过 2 / 4') + tickBar(2, 3));
+  put('tick-all', topLabels('最佳 02:14') + tickBar(4, 9));
+
+  /* ============ 渲染：底部一行 × 3 ============ */
+  var pageFrameSide = '<g stroke="' + P.ink + '" stroke-width="1.5" fill="none" opacity="0.4">'
+    + '<line x1="66" y1="930" x2="66" y2="1194"/><line x1="654" y1="930" x2="654" y2="1194"/></g>'
+    + '<g stroke="' + P.red + '" stroke-width="2.4" fill="none" stroke-linecap="square">'
+    + '<path d="M654 1174 L654 1194 L634 1194"/><path d="M86 1194 L66 1194 L66 1174"/></g>';
+  var paperOnly = '<rect x="46" y="930" width="628" height="270" fill="' + P.face + '"/>';
+
+  put('bot-new', paperOnly + pageFrameSide + buttonRow('new', '点三张相同的牌，把它们送走'));
+  put('bot-mid', paperOnly + pageFrameSide + buttonRow('mid', '长按右下角方印可清空进度'));
+  put('bot-replay', paperOnly + pageFrameSide + buttonRow('replay', '左右箭头在已通关的关之间切换'));
+})();
+</script>
+
+</body>
+</html>
+
+
+
+
+
+

@@ -1,0 +1,62 @@
+{
+  "inner": [
+    720,
+    1280
+  ],
+  "canvas": {
+    "cssW": 720,
+    "cssH": 1280,
+    "left": 0,
+    "top": 0,
+    "attrW": 720,
+    "attrH": 1280
+  },
+  "visible": [
+    720,
+    1280
+  ],
+  "perf": {
+    "peakDrawCalls": 46,
+    "avgFrameMs": 16.48,
+    "fps": 61,
+    "note": "draw call 取 6 次采样峰值；FPS 由平均帧耗时反推（浏览器 vsync 上限 60）",
+    "samples": [
+      {
+        "fps": 60,
+        "frameMs": 16.7,
+        "dc": 46,
+        "inst": 0
+      },
+      {
+        "fps": 60,
+        "frameMs": 16.6,
+        "dc": 46,
+        "inst": 0
+      },
+      {
+        "fps": 62,
+        "frameMs": 16.1,
+        "dc": 46,
+        "inst": 0
+      },
+      {
+        "fps": 62,
+        "frameMs": 16.1,
+        "dc": 46,
+        "inst": 0
+      },
+      {
+        "fps": 60,
+        "frameMs": 16.7,
+        "dc": 46,
+        "inst": 0
+      },
+      {
+        "fps": 60,
+        "frameMs": 16.7,
+        "dc": 46,
+        "inst": 0
+      }
+    ]
+  }
+}
