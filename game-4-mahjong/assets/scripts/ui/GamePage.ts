@@ -45,17 +45,18 @@ import {
 
 import { CFG, LevelConfig } from '../CFG';
 import {
-    BlockGraph, Layout, ReshufflePlan, TileInst, boxOf, buildBlockGraph, generateLevel,
-    pickableIds, planReshuffle, tileSizeOf,
+    BlockGraph, Layout, ReshufflePlan, TileInst, buildBlockGraph, generateLevel,
+    pickableIds, planReshuffle, pointInRect, pointInTile, tileSizeOf,
 } from '../core/Generator';
-import { MATCH_LABEL, MATCH_SIZE, MatchResult, findMatch } from '../core/MatchRule';
+import { MATCH_LABEL, MATCH_SIZE, MATCH_WORD, MatchResult, findMatch } from '../core/MatchRule';
 import { SaveService } from '../core/SaveService';
 import { PatternKey } from '../TileData';
 import { PageBase } from './PageBase';
 import { TileView } from './TileRenderer';
 import {
-    createButton, createLabel, createNode, createPageFrame, createPaperBackground,
-    fillBox, frameRect, hex2color, strokeBox, toast,
+    createButton, createLabel, createNode, createPaperBackground,
+    createPanel, draw3dFace, drawProgressBar, estTextWidth, fillBox, frameRect,
+    hex2color, measureLabel, strokeBox, toast,
 } from './UIFactory';
 import { RewardGate } from './RewardGate';
 import { AudioService } from './AudioService';
@@ -63,6 +64,10 @@ import { Haptics } from './Haptics';
 import {
     EASE, FxPool, MotionFx, TAG, spawnDebris, spawnJaw, spawnPulse, spawnRectFlash,
 } from './MotionFx';
+// ---- S18 新增的三件：开场动画 / 结算动效 / 玩法浮层 ----
+import { IntroAnim } from './IntroAnim';
+import { ResultFx } from './ResultFx';
+import { RuleSheet } from './RuleSheet';
 
 const { ccclass } = _decorator;
 
@@ -156,9 +161,35 @@ export class GamePage extends PageBase {
     private _timeLeft = 0;
     private _usedTime = 0;
     private _timing = false;
+    /**
+     * 本局是否要播开场动画（★ S18.4）。
+     * `params.instant === true` 时跳过 —— 首页那颗「重玩」小方走的就是这条路：
+     * 它的语义是"原地立刻再开一局"，再让玩家等 1.5 秒开场就成了惩罚。
+     */
+    private _introOn = true;
 
     // ---- 节点引用 ----
     private _stackLayer!: Node;
+    /**
+     * HUD 组（＝顶部信息条 / 暂存架 / 槽位条 / 道具栏 / 返回 / 重玩）。
+     *
+     * ★ S18.4 起它有了新职责：**"舞台"与"演员"的分界线**。
+     * 开场动画负责"舞台"（页框 + 全部静态 HUD 淡入，牌堆区是空的），
+     * 涌现负责"演员"（牌堆从棋盘里成束升起）。两段串行，所以这两个组
+     * 在开场期间**必须能被分别控制显隐** —— 一句 `_hudLayer` 与
+     * `_stackLayer` 的透明度切换，就是"墨圆裂开时只亮 HUD、不亮牌堆"
+     * 这件事全部的实现。
+     */
+    private _hudLayer!: Node;
+    /**
+     * 页框节点（外框 + 内框 + 四角角花），★ S18.5 起承担新职责：
+     * **通关时"纸面震"的那个节点**。
+     *
+     * 【为什么震页框而不是震整页 root】震 root = 连背景纸一起平移，读起来是
+     * "镜头在抖"（而且边缘会露出底色）；震页框 = 只有那张"纸"在动，读起来才是
+     * "印砸在纸上把纸震了一下"。这与失败动效的分段抖动是同一个判断。
+     */
+    private _frameNode!: Node;
     private _slotLayer!: Node;
     private _tempLayer!: Node;
     private _fxLayer!: Node;
@@ -168,6 +199,11 @@ export class GamePage extends PageBase {
     private _barG!: Graphics;
     private _timeLabel!: Label;
     private _countLabel!: Label;
+    /** 顶条关卡名（`layoutHeader` 要读它的实际宽度来给「规则」钮算 x） */
+    private _titleLabel!: Label;
+    /** 顶条「规则」钮：图形节点与它的热区节点（热区比图形大一圈，见 CFG.RULE_BTN_HIT_*） */
+    private _ruleNode!: Node;
+    private _ruleHitNode!: Node;
 
     // ---- 动效（S7）----
     /**
@@ -185,6 +221,9 @@ export class GamePage extends PageBase {
     private _tempRackShown = false;
     /** 返回按钮（A3 与槽位条一起滑入，否则"槽位上来了按钮没上来"很怪） */
     private _backBtnNode!: Node;
+    /** 局内「重玩」小方（S18，与返回同排） */
+    private _replayBtnNode!: Node;
+    private _replayLabel!: Label;
     private _propNodes: Partial<Record<PropId, Node>> = {};
     /** 顶部状态条的元素集合（A4 整体下落淡入）。存目标 y，动画结束后要精确落回原位 */
     private _hudItems: Array<{ node: Node; y: number }> = [];
@@ -275,8 +314,12 @@ export class GamePage extends PageBase {
         this.logPickable();
 
         // ---------- 2. 页面骨架 ----------
-        createPaperBackground(this.root);
-        createPageFrame(this.root);
+        // ⚠️ `_frameNode` 必须是**底图那个节点本身**：S19 起页框画在贴图里，
+        //    `createPageFrame` 现在只返回一个**不画任何东西**的空节点 ——
+        //    通关时那四拍「纸面震」如果抖的是它，画面完全不动、而且不报错
+        //    （口径见 `CFG.MOTION.STAMP.SHAKE_TARGET_IS_FRAME`）。
+        //    底图节点下面垫着一层 1.6 倍大的纯纸色矩形，横移 ±9px 不会露画布底色。
+        this._frameNode = createPaperBackground(this.root);
 
         // ---------- 3. 分层容器 ----------
         // 层序（从下到上）：牌堆 → UI → 槽内牌 → 暂存牌 → 特效 → 弹窗
@@ -285,6 +328,11 @@ export class GamePage extends PageBase {
         //    但绝不能进入弹窗之上（弹窗必须永远在最上面，否则会被穿透点击）。
         this._stackLayer = createNode('StackLayer', this.root, { w: CFG.SCREEN.W, h: CFG.SCREEN.H });
         const uiLayer = createNode('UILayer', this.root, { w: CFG.SCREEN.W, h: CFG.SCREEN.H });
+        this._hudLayer = uiLayer;
+        // ★ S18.4：两个组各挂一个 UIOpacity —— 开场期间要**分别**控制显隐
+        //（只亮 HUD、不亮牌堆），这是"串行两段"能讲清楚两件事的唯一手段。
+        uiLayer.addComponent(UIOpacity);
+        this._stackLayer.addComponent(UIOpacity);
         this._slotLayer = createNode('SlotLayer', this.root, { w: CFG.SCREEN.W, h: CFG.SCREEN.H });
         this._tempLayer = createNode('TempLayer', this.root, { w: CFG.SCREEN.W, h: CFG.SCREEN.H });
         this._fxLayer = createNode('FxLayer', this.root, { w: CFG.SCREEN.W, h: CFG.SCREEN.H });
@@ -296,6 +344,16 @@ export class GamePage extends PageBase {
         this.buildSlotBar(uiLayer);
         this.buildPropBar(uiLayer);
         this.buildStack();
+
+        // ---------- 3'. 开场动画：决定"先看到空舞台"还是"直接看到牌" ----------
+        //  params.instant = true 时**跳过开场**（首页那颗「重玩」小方走的就是这条路：
+        //  它的语义是"原地立刻再开一局"，再播一遍 1.5s 的开场就变成了惩罚）。
+        this._introOn = !(this.params && this.params.instant);
+        if (this._introOn) {
+            // 牌堆区先压到全透明 —— 它的内容在涌现开始前一张都不许露出来
+            MotionFx.setFade(this._stackLayer, 0);
+            MotionFx.setFade(this._hudLayer, 0);
+        }
 
         // ---------- 4. 统一点击入口 ----------
         // 页面节点铺满全屏（Widget），所以整屏的触摸都会到这里。
@@ -319,66 +377,116 @@ export class GamePage extends PageBase {
     }
 
     // --------------------------------------------------------
-    //  顶部信息（关卡名 / 计时 / 进度 / 提示）
+    //  顶部信息（关卡名 / 规则 / 计时 / 进度 / 提示）
     // --------------------------------------------------------
+    /**
+     * 顶条 + 进度条 + 计数行。
+     *
+     * 【S19 版式：四条通栏 + 一条弹性三段】
+     *  通栏（左右边界 = 版心 ±272，逐像素对齐）：
+     *     细墨线(460) → 进度条(444) → 槽位条(−284) → 道具栏(−386)
+     *  弹性三段（标题 / 规则钮 / 计时）：
+     *     [ 第 4 关 · 就差一点 ]  ⟵gap⟶  [ 规则 ]  ⟵gap⟶  [ 05:23 ]
+     *  两处 gap **恒相等**（余量均分），见 `layoutHeader`。
+     *
+     * 【为什么取消旧版的"极浅墨色底带"】
+     *  旧版在顶条后面铺了一条 INK/13 的横带，用来把"状态"和"牌局"分开。
+     *  S19 的底图（R3 通用底图）本身是干净的宣纸 + 朱红页框，
+     *  再加一条横带会把"一张纸"切成上下两块，反而破坏了底图的整体性；
+     *  设计稿的 `.hdr` 也没有底色。所以整条去掉，靠字重和字号建立层级。
+     */
     private buildHeader(parent: Node): void {
         const L = CFG.GAME_LAYOUT;
-        const F = CFG.FONT;
+        const R3 = CFG.SKIN.R3D;
 
-        // 顶部信息条的极浅墨色底，把"状态"和"牌局"在视觉上分开。
-        // ⚠️ S14.2b：范围不再写死 96 高，改为**跟着上下两行算** ——
-        //    牌堆顶抬到 442 之后，这条底色多伸出去一点就会压到牌堆顶牌。
-        //    上边界 = 标题行上沿 + 20，下边界 = 计数行下沿 − 14。
-        const header = createNode('Header', parent, { w: CFG.SCREEN.W, h: 130 });
-        const hg = header.addComponent(Graphics);
-        const fr = frameRect();
-        const bandTop = L.HEADER_Y + 20;
-        const bandBot = L.ROW_Y - 14;
-        fillBox(hg, 0, (bandTop + bandBot) / 2, fr.w, bandTop - bandBot, 0, CFG.COLOR.INK, 13);
-
-        const titleLabel = createLabel(parent, `第 ${this._level.id} 关 · ${this._level.name}`, {
-            x: L.HEADER_TITLE_X, y: L.HEADER_Y, alignLeft: true, w: 400,
-            fontSize: F.SIZE_LABEL, color: CFG.COLOR.INK, bold: true, serif: true,
+        // ---------- 关卡名（左对齐，节点位置 = 左边界）----------
+        this._titleLabel = createLabel(parent, this.titleText(), {
+            x: L.HEADER_TITLE_X, y: L.HEADER_Y, alignLeft: true, w: CFG.SCREEN.W,
+            fontSize: L.HEADER_TITLE_SIZE, color: CFG.COLOR.INK, bold: true, serif: true,
         });
 
-        // 计时：右对齐（锚点移到右边，位置就代表"右边界"）
+        // ---------- 计时（右对齐，节点位置 = 右边界；文字自己往左长）----------
         this._timeLabel = createLabel(parent, this.timeText(), {
             x: L.HEADER_TIME_X, y: L.HEADER_Y,
-            fontSize: F.SIZE_LABEL, color: CFG.COLOR.VERMILION, bold: true, serif: true,
+            fontSize: L.HEADER_TITLE_SIZE, color: CFG.COLOR.VERMILION, bold: true, serif: true,
         });
         const tui = this._timeLabel.node.getComponent(UITransform)!;
         tui.setAnchorPoint(1, 0.5);
         this._timeLabel.node.setPosition(L.HEADER_TIME_X, L.HEADER_Y, 0);
         this._timeLabel.horizontalAlign = Label.HorizontalAlign.RIGHT;
 
-        // 细墨线分隔
-        const line = createNode('HeaderLine', parent, { w: fr.w, h: 2 });
+        // ---------- ★ S19：「规则」钮（92×46 圆角方，与底部「重玩」同形制）----------
+        // 【为什么从「?」改成「规则」】旧稿那颗 42 正圆绝对居中在 x=0，
+        //  换成汉字后最窄要 88 宽，居中会与关卡名的右边界**必撞**（实测只剩 5px）。
+        //  新做法是「跟随标题」的弹性三段（见 layoutHeader），它是**结构上不可能重叠**的。
+        // 【为什么热区比图形大】这是"伸上去点"的元素，手指抖动量比点底部大。
+        //  ⚠️ 热区宽 108 > 图形宽 92 —— 不能沿用旧稿的 88（那样左右各 2px 点不到）。
+        this._ruleHitNode = createNode('RuleHit', parent, {
+            w: L.RULE_BTN_HIT_W, h: L.RULE_BTN_HIT_H,
+        });
+        this._ruleHitNode.setPosition(0, L.RULE_BTN_Y, 0);   // 真位置由 layoutHeader 定
+        this._ruleHitNode.on(Node.EventType.TOUCH_END, (e: EventTouch) => {
+            // 顶条在页面 TOUCH_END（统一命中测试）的上方，不拦的话这次点击
+            // 会继续冒泡到 onTap 去做一次牌命中测试 —— 虽然顶条上没有牌、
+            // 结果无害，但"无害"是靠巧合成立的，显式吃掉更稳。
+            e.propagationStopped = true;
+            if (this._modal || this._over) return;
+            RuleSheet.open(this.root);
+        }, this._ruleHitNode);
+
+        // 图形画在热区的**子节点**上 —— 热区一动它就跟着动，位置只有一个来源。
+        this._ruleNode = createNode('RuleBtn', this._ruleHitNode, {
+            w: L.RULE_BTN_W, h: L.RULE_BTN_H,
+        });
+        const rg = this._ruleNode.addComponent(Graphics);
+        draw3dFace(rg, 0, 0, {
+            w: L.RULE_BTN_W,
+            h: L.RULE_BTN_H,
+            radius: L.RULE_BTN_RADIUS,
+            stops: CFG.SKIN.GRAD.TOOL,
+            border: R3.BORDER_RULE,
+            depth: R3.DEPTH_RULE,      // CSS `.rule-btn{0 4px 0}`（不是 DEPTH_SMALL 的 5）
+            depthColor: CFG.SKIN.GRAD.WHITE_DEPTH,
+            hiliteAlpha: R3.HILITE_ALPHA,
+            // 规则钮**有**柔影：`.rule-btn{…,0 9px 12px rgba(34,32,28,.24)}`（12 / 9 / 61）。
+            //  ⚠️ S20 曾把这条读成"没有第三条"，理由是"规则钮贴着顶条，不该有投影" ——
+            //  那是**凭感觉反推设计稿**，不是实测。原 CSS 就写在 `局内-优化后-1x.html` 第 48 行。
+            shadow: R3.SHADOW.RULE,
+        });
+        createLabel(this._ruleNode, L.RULE_BTN_LABEL, {
+            fontSize: L.RULE_BTN_FONT, color: '#2B2823', bold: true, serif: true,
+        });
+
+        // ---------- 细墨线分隔（通栏）----------
+        // 两端渐隐（CSS `linear-gradient(90deg, 透明, .42 12%, .42 88%, 透明)`）：
+        // 用 3 段不同 alpha 的矩形逼近，比整条实线"软"，不会在两端形成硬切点。
+        const line = createNode('HeaderLine', parent, { w: L.BAR_W, h: 2 });
         const lg = line.addComponent(Graphics);
-        lg.lineWidth = 1.6;
-        lg.strokeColor = hex2color(CFG.COLOR.INK, 128);
-        lg.moveTo(-fr.w / 2, 0);
-        lg.lineTo(fr.w / 2, 0);
-        lg.stroke();
+        const segW = L.BAR_W / 6;
+        const alphas = [0, 40, 107, 107, 40, 0];
+        for (let i = 0; i < 6; i++) {
+            const a = (alphas[i] + (alphas[i + 1] ?? alphas[i])) / 2;
+            if (a <= 0) continue;
+            fillBox(lg, -L.BAR_W / 2 + segW * (i + 0.5), 0, segW + 0.5, 2, 0,
+                CFG.COLOR.INK, a);
+        }
         line.setPosition(0, L.HEADER_LINE_Y, 0);
 
-        // 进度条
+        // ---------- 进度条（胶囊 + 内凹顶阴影 + 刻度）----------
         const progressRoot = createNode('Progress', parent, { w: L.BAR_W, h: L.BAR_H });
         progressRoot.setPosition(0, L.BAR_Y, 0);
         this._barG = progressRoot.addComponent(Graphics);
+        this.drawProgress();
 
-        // 「已清 x / y」与教学提示 —— **同一行**，一左一右贴住内框（S14.2b 合并）。
-        // 原来是上下两行（COUNT_Y 440 / TIP_Y 408），牌堆顶抬到 442 后放不下，
-        // 合并成一行正好在 464 收住。左右各贴内框边（±294），
-        // 中间留出的 38px 是 L3 那句最长提示（约 433px）加上计数（约 117px）之后剩下的。
+        // ---------- 计数（左）与玩法提示（右）—— 同一行，各自贴住版心边 ----------
         this._countLabel = createLabel(parent, '', {
             x: -L.ROW_X, y: L.ROW_Y, alignLeft: true, w: 300,
-            fontSize: F.SIZE_TINY, color: CFG.COLOR.INK_SOFT,
+            fontSize: L.TIP_SIZE, color: CFG.COLOR.INK_MID,
         });
 
-        // 教学提示：锚点移到右边，位置语义变成"右边界"，文字自己往左长
         const tip = createLabel(parent, this._level.teach, {
             x: L.ROW_X, y: L.ROW_Y, w: 520,
-            fontSize: L.TIP_SIZE, color: CFG.COLOR.INK_SOFT,
+            fontSize: L.TIP_SIZE, color: CFG.COLOR.INK_MID,
         });
         tip.node.getComponent(UITransform)!.setAnchorPoint(1, 0.5);
         tip.node.setPosition(L.ROW_X, L.ROW_Y, 0);
@@ -390,15 +498,71 @@ export class GamePage extends PageBase {
         // 视线会被自然地带到牌堆上；纯粹淡入则没有方向感。
         // 这里只登记「节点 + 它的目标 y」，真正的动画在 onEnter 里播
         // （构建期页面还不可见，播了也白播）。
+        // ⚠️ 规则钮登记的是**热区**节点 —— 图形是它的子节点，动一个就够；
+        //    两个都登记会让父子各叠一次位移，位置翻倍（且不报错）。
         this._hudItems = [
-            { node: header, y: 0 },
-            { node: titleLabel.node, y: L.HEADER_Y },
+            { node: this._titleLabel.node, y: L.HEADER_Y },
             { node: this._timeLabel.node, y: L.HEADER_Y },
             { node: line, y: L.HEADER_LINE_Y },
             { node: progressRoot, y: L.BAR_Y },
             { node: this._countLabel.node, y: L.ROW_Y },
             { node: tip.node, y: L.ROW_Y },
+            { node: this._ruleHitNode, y: L.RULE_BTN_Y },
         ];
+
+        // 先算一次（构建期量不准也没关系，`onEnter` 会再算一次 —— 见那里的注释）
+        this.layoutHeader();
+    }
+
+    /** 顶条关卡名的文案（一处生成，避免 onEnter 重算时两边不一致）*/
+    private titleText(): string {
+        return `第 ${this._level.id} 关 · ${this._level.name}`;
+    }
+
+    /**
+     * 顶条**弹性三段**排版：把「标题 → 规则钮 → 计时」之间的余量**均分**。
+     *
+     *      标题左边界(−272) ─ 标题宽 ─┐
+     *                                 ├─ gap ─ [规则钮 92] ─ gap ─ 计时左边界 ┐
+     *      计时右边界(+272) ─ 计时宽 ─┘                                        │
+     *      2·gap = 544 − 标题宽 − 92 − 计时宽                                  ┘
+     *
+     * 【为什么必须"均分"而不是"固定 24px 间距"】
+     *  固定间距的话，关卡名一变长，间隙就从右边单方向被吃掉 —— 最后必然撞上计时。
+     *  均分的话两侧同时收，**结构上不可能重叠**，而且关卡名越长视觉上越"平衡"。
+     *  （设计稿实测：标题 219 宽 → 两侧各 70px，正是均分。）
+     *
+     * 【为什么要在这里改字号】标题有 311px 的硬上限（「不能被挤掉的入口」优先于字号）。
+     *  超了就降到 HEADER_TITLE_MIN_SIZE 一档 —— 只降一档，不循环，
+     *  避免"量宽度 → 改字号 → 宽度又变"这种在构建期跑不稳的反馈环。
+     *
+     * ⚠️ 调用时机：`buildHeader` 末尾一次 + `onEnter` 开头一次。
+     *  `onEnter` 那次才是准的（PageManager 用 setTimeout 延后 ~240ms 才调它，
+     *  此时 Label 已经过渲染管线、`contentSize` 可信）；构建期那次只是兜底。
+     */
+    private layoutHeader(): void {
+        const L = CFG.GAME_LAYOUT;
+        const t = this._titleLabel;
+        const hit = this._ruleHitNode;
+        if (!t || !t.node || !t.node.isValid || !hit || !hit.isValid) return;
+
+        const text = this.titleText();
+        let tw = measureLabel(t, text);
+        if (tw > L.HEADER_TITLE_MAX_W && t.fontSize > L.HEADER_TITLE_MIN_SIZE) {
+            t.fontSize = L.HEADER_TITLE_MIN_SIZE;
+            t.lineHeight = t.fontSize * CFG.FONT.LINE_HEIGHT_RATIO;
+            tw = Math.min(measureLabel(t, text), estTextWidth(text, t.fontSize));
+        }
+
+        const timeW = measureLabel(this._timeLabel, this.timeText());
+        const avail = CFG.SKIN.SAFE_X1 - CFG.SKIN.SAFE_X0;      // = 544
+        let gap = (avail - tw - L.RULE_BTN_W - timeW) / 2;
+        // 兜底：标题被极端长名字撑满时，宁可退回固定间隙（偏左一点），
+        // 也不能让 gap 变成负数 —— 负数会让规则钮插进标题里。
+        if (gap < L.RULE_BTN_GAP) gap = L.RULE_BTN_GAP;
+
+        const rx = CFG.SKIN.SAFE_X0 + tw + gap + L.RULE_BTN_W / 2;
+        hit.setPosition(rx, L.RULE_BTN_Y, 0);
     }
 
     // --------------------------------------------------------
@@ -413,7 +577,7 @@ export class GamePage extends PageBase {
 
         const label = createLabel(parent, '暂存', {
             x: L.TEMP_LABEL_X, y: L.TEMP_RACK_Y, w: 120,
-            fontSize: CFG.FONT.SIZE_TINY, color: CFG.COLOR.INK_SOFT,
+            fontSize: CFG.FONT.SIZE_TINY, color: CFG.COLOR.INK_MID,
         });
         this._tempLabelNode = label.node;
 
@@ -498,42 +662,123 @@ export class GamePage extends PageBase {
 
         this.drawSlotBar();
 
-        // 底部返回
+        // ---------- 底部返回（S19：3D 纸白胶囊，与「重玩」并排成一组）----------
+        // ⚠️ X 不能再是 0：旧稿"返回居中 + 重玩甩到最右"让两个按钮中间空出一大块，
+        //    视觉上读成"两个不相干的控件"。现在 (−60) 与 (+96) 组成一组，
+        //    整组以 x = 18 为中心大致居中（见 CFG.BACK_BTN_X 的推导）。
         const back = createNode('BackBtn', parent, { w: L.BACK_BTN_W, h: L.BACK_BTN_H });
-        back.setPosition(0, L.BACK_BTN_Y, 0);
+        back.setPosition(L.BACK_BTN_X, L.BACK_BTN_Y, 0);
         this._backBtnNode = back;
+        const R3 = CFG.SKIN.R3D;
         const bg = back.addComponent(Graphics);
-        fillBox(bg, 0, -CFG.SHAPE.CARD_DEPTH, L.BACK_BTN_W, L.BACK_BTN_H, CFG.SHAPE.RADIUS_BTN, CFG.COLOR.INK, 150);
-        fillBox(bg, 0, 0, L.BACK_BTN_W, L.BACK_BTN_H, CFG.SHAPE.RADIUS_BTN, CFG.COLOR.FACE);
-        strokeBox(bg, 0, 0, L.BACK_BTN_W, L.BACK_BTN_H, CFG.SHAPE.RADIUS_BTN, CFG.COLOR.INK, 2.6);
+        draw3dFace(bg, 0, 0, {
+            w: L.BACK_BTN_W,
+            h: L.BACK_BTN_H,
+            radius: R3.RADIUS_PILL,
+            stops: CFG.SKIN.GRAD.PAPER_BACK,
+            border: R3.BORDER_BTN,
+            depth: R3.DEPTH_SMALL,
+            depthColor: CFG.SKIN.GRAD.WHITE_DEPTH,
+            hiliteAlpha: R3.HILITE_ALPHA,
+            // 接地柔影 = `.btn-back{0 10px 14px rgba(34,32,28,.24)}`（14 / 10 / 61）
+            shadow: R3.SHADOW.BACK,
+        });
         createLabel(back, '返 回', {
-            fontSize: CFG.FONT.SIZE_BODY, color: CFG.COLOR.INK, bold: true,
+            fontSize: CFG.FONT.SIZE_BODY, color: '#2B2823', bold: true, serif: true,
         });
         back.on(Node.EventType.TOUCH_END, () => {
             if (this._modal) return;
-            this.goto('levelSelect');
+            // ★ S18.3：选关页已删除 → 返回的位置改为**首页**。
+            this.goto('menu');
         }, back);
+
+        // ---------- S18：局内常驻「重玩」小方 ----------
+        // 【为什么它必须常驻】打不过想重来，不该先失败一次才能重开。
+        //  位置 = 返回按钮右侧同高，与首页那颗「重玩」小方**同形制、同语义**
+        //  （首页是"主按钮 + 小方"，这里是"返回 + 小方"）。
+        //  走的也是 `instant: true` —— 重开就是重开，不再播一遍 1.5s 开场。
+        // 【形制】圆角方（RADIUS_REPLAY 22），不是胶囊 —— 胶囊会与「返回」撞形制。
+        const replay = createButton(parent, 'ReplayBtn', {
+            w: L.REPLAY_BTN_SIZE, h: L.REPLAY_BTN_SIZE,
+            x: L.REPLAY_BTN_X, y: L.REPLAY_BTN_Y,
+            radius: R3.RADIUS_REPLAY,
+            // 形制 = `.btn-replay{0 5px 0 #C3B89F, 0 5px 0 4px #22201C, 0 10px 14px .26}`
+            //  ⚠️ 用 'white' 而不是 'tool'：两者底色渐变相近，但 `tool` 的
+            //  厚度是 6、描边 3.5（道具键规格），而重玩小方是 **5 / 4**。
+            //  差 1px 的厚度在 76×76 的小方上很显眼（会读成"比返回键厚"）。
+            tone: 'white',
+            depth: R3.DEPTH_SMALL,
+            text: '重 玩',
+            fontSize: CFG.FONT.SIZE_SMALL,
+            serif: true,
+            onClick: () => {
+                if (this._modal) return;
+                this.goto('game', { levelId: this._level.id, instant: true });
+            },
+        });
+        this._replayBtnNode = replay;
+        this._replayLabel = replay.getComponentInChildren(Label);
     }
 
     /**
      * 重画槽位条。
      * 「加槽」道具会改变容量，所以这个方法必须能在运行中被再调一次 ——
      * 槽格的宽度是**按容量算出来的**，容量一变整条都要重画。
+     *
+     * 【S19 形制】条体 = 3D 厚描边（radius14 / border3.5 / depth5）+ 顶部内阴影；
+     * 槽格 = **凹陷的格底**（SLOTCELL 渐变 + 内阴影，无描边）。
+     *  ⚠️ 旧版只给空槽画描边（"空与满一眼可分"）。现在格底**一律画出来**：
+     *     牌落上去会正好盖住它，占用与否由牌本身表达 ——
+     *     再留一层描边反而会在牌的四周露出"第二个框"，像没对准。
      */
     private drawSlotBar(): void {
         const L = CFG.GAME_LAYOUT;
         const g = this._slotBarG;
         if (!g) return;
+        const R3 = CFG.SKIN.R3D;
         g.clear();
-        fillBox(g, 0, 0, L.SLOT_BAR_W, L.SLOT_BAR_H, 4, CFG.COLOR.FACE);
-        strokeBox(g, 0, 0, L.SLOT_BAR_W, L.SLOT_BAR_H, 4, CFG.COLOR.INK, 2.6);
 
-        // 空槽位：只画描边，不填色 —— 空与满一眼可分
+        draw3dFace(g, 0, 0, {
+            w: L.SLOT_BAR_W,
+            h: L.SLOT_BAR_H,
+            radius: R3.RADIUS_SLOT,
+            stops: CFG.SKIN.GRAD.SLOT,
+            border: R3.BORDER_SLOT,
+            depth: R3.DEPTH_SMALL,
+            depthColor: CFG.SKIN.GRAD.WHITE_DEPTH,
+            // ⚠️ **槽位条没有外圈墨边**：CSS 是
+            //   `.slotbar{border:3.5px solid #22201C; box-shadow:inset 0 5px 9px …,
+            //             0 5px 0 #C3B89F,   ← 这条**没有 spread**
+            //             0 10px 14px rgba(34,32,28,.18)}`
+            //   其它控件的第二条都写了 `0 Npx 0 <描边宽>px #22201C`（外圈与描边齐平），
+            //   只有它没写 ⇒ 下缘只有 5px 厚度色就接纸面。
+            //   不显式关掉的话，下缘会多出 4px 纯黑（实测：设计稿 y979 起是 202~207，
+            //   渲染出来是 31.3）—— 槽位条会读成"浮在一个黑色托盘上"，很脏。
+            depthSpread: 0,
+            hiliteAlpha: 0,                       // 内凹件不要高光带
+            insetTop: 5,                          // CSS `inset 0 5px 9px`
+            insetAlpha: 40,
+            // 接地柔影 = `.slotbar{…, 0 10px 14px rgba(34,32,28,.18)}`（14 / 10 / 46）。
+            //  ⚠️ 它是**最轻的一档**：槽位条本身是"凹槽"，只该在纸面上微微压出一点接触影。
+            //  它下沿（y≈979）到道具栏上沿（y≈986）只有 7px，所以实际露出极少 —— 但正是
+            //  这 7px 决定它是"嵌在纸里"还是"一张浮起来的纸片"。
+            shadow: R3.SHADOW.SLOTBAR,
+        });
+
         const slotW = this.slotWidth();
         const cellH = L.SLOT_BAR_H - CFG.GAMEPLAY.SLOT_INSET_Y * 2;
         for (let i = 0; i < this._slotCapacity; i++) {
-            strokeBox(g, this.slotOffsetX(i), 0, slotW, cellH,
-                CFG.SHAPE.RADIUS_SLOT, CFG.COLOR.INK, 1.1, 115);
+            draw3dFace(g, this.slotOffsetX(i), 0, {
+                w: slotW,
+                h: cellH,
+                radius: R3.RADIUS_SLOTCELL,
+                stops: CFG.SKIN.GRAD.SLOTCELL,
+                border: 0,
+                depth: 0,
+                hiliteAlpha: 0,
+                insetTop: 3,                      // CSS `inset 0 3px 6px`
+                insetAlpha: 40,
+            });
         }
     }
 
@@ -586,7 +831,7 @@ export class GamePage extends PageBase {
         MotionFx.fadeChain(this._warnNode, steps, { tag: TAG.FADE });
     }
 
-    /** 画警戒层：只描剩余空位的框 */
+    /** 画警戒层：把剩余空位的格底**再描一圈朱红**（S19 起槽格本身不再是描边，所以这里补框） */
     private drawSlotWarn(fromIndex: number): void {
         const g = this._warnG;
         if (!g) return;
@@ -596,7 +841,7 @@ export class GamePage extends PageBase {
         const cellH = L.SLOT_BAR_H - CFG.GAMEPLAY.SLOT_INSET_Y * 2;
         for (let i = fromIndex; i < this._slotCapacity; i++) {
             strokeBox(g, this.slotOffsetX(i), 0, slotW, cellH,
-                CFG.SHAPE.RADIUS_SLOT, CFG.COLOR.VERMILION, CFG.MOTION.WARN_LINE);
+                CFG.SKIN.R3D.RADIUS_SLOTCELL, CFG.COLOR.VERMILION, CFG.MOTION.WARN_LINE);
         }
     }
 
@@ -711,10 +956,10 @@ export class GamePage extends PageBase {
 
             // 道具按钮**刻意不用 createButton**：它的文本是居中的，
             // 而道具需要「名字 + 副标签」两行结构。这里手画一个同形制的。
+            //  ⚠️ S19：厚度层不再单独建节点 —— 整个 3D 面（厚度 + 描边 + 渐变 + 高光）
+            //     由 `drawPropFace` 一次画在同一张 Graphics 上，
+            //     因为"可用 = 朱红 / 不可用 = 纸白"要能随时整块重画（见 refreshPropBar）。
             const btn = createNode(`Prop_${def.id}`, parent, { w: L.PROP_BTN_W, h: L.PROP_BTN_H, x, y: L.PROP_BAR_Y });
-            const depthNode = createNode('Depth', btn, { w: L.PROP_BTN_W, h: L.PROP_BTN_H, y: -CFG.SHAPE.BTN_DEPTH });
-            const dg = depthNode.addComponent(Graphics);
-            fillBox(dg, 0, 0, L.PROP_BTN_W, L.PROP_BTN_H, CFG.SHAPE.RADIUS_BTN, CFG.COLOR.INK, 150);
 
             const face = createNode('Face', btn, { w: L.PROP_BTN_W, h: L.PROP_BTN_H });
             const fg = face.addComponent(Graphics);
@@ -722,25 +967,29 @@ export class GamePage extends PageBase {
 
             // D2 的"图标亮度提升"：一张只填白色的圆角层，平时全透明，
             // 按下时短暂亮起。用叠白而不是改底色，是因为底色还要承担
-            // "可用 / 就绪（金）/ 不可用（灰）"三种语义，不能被按压态污染。
+            // "可用（朱红）/ 不可用（纸白）"两种语义，不能被按压态污染。
             const glow = createNode('Glow', face, { w: L.PROP_BTN_W, h: L.PROP_BTN_H });
             const glowG = glow.addComponent(Graphics);
-            fillBox(glowG, 0, 0, L.PROP_BTN_W, L.PROP_BTN_H, CFG.SHAPE.RADIUS_BTN, CFG.COLOR.FACE);
+            fillBox(glowG, 0, 0, L.PROP_BTN_W, L.PROP_BTN_H, CFG.SKIN.R3D.RADIUS_TOOL, CFG.COLOR.FACE);
             const glowOp = glow.addComponent(UIOpacity);
             glowOp.opacity = 0;
             this._propGlows[def.id] = glowOp;
 
             const name = createLabel(face, def.name, {
-                y: L.PROP_NAME_DY, fontSize: CFG.FONT.SIZE_BODY + 2,
-                color: CFG.COLOR.FACE, bold: true, serif: true,
+                y: L.PROP_NAME_DY, fontSize: CFG.FONT.SIZE_BODY + 4,
+                color: '#2B2823', bold: true, serif: true,
             });
             const sub = createLabel(face, '', {
-                y: L.PROP_SUB_DY, fontSize: CFG.FONT.SIZE_TINY, color: CFG.COLOR.FACE, w: L.PROP_BTN_W - 16,
+                y: L.PROP_SUB_DY, fontSize: CFG.FONT.SIZE_TINY,
+                color: CFG.COLOR.INK_MID, w: L.PROP_BTN_W - 16,
             });
             this._propNames[def.id] = name;
             this._propSubs[def.id] = sub;
 
             this._propNodes[def.id] = btn;
+
+            // 首次画一次（默认"不可用"的纸白态；真状态由 refreshPropBar 刷）
+            this.drawPropFace(def.id, false, false);
 
             // D2：按压反馈。**与 B1 共用同一组常量**（CFG.MOTION.TAP_DOWN /
             // PRESS_SCALE / EASE）—— 道具按钮与牌如果按压手感不一致，
@@ -770,47 +1019,55 @@ export class GamePage extends PageBase {
         }
     }
 
-    /** 重画某个道具按钮的面（可用 = 朱红 + 角花；不可用 = 纸灰 + 无角花） */
+    /**
+     * 重画某个道具按钮的面。
+     *
+     * 【S19 两态，来自设计稿】
+     *  可用 = **朱红**（`GRAD.TOOL_RED` + `RED_DEPTH` 厚度 + 白字）
+     *  不可用 = **纸白**（`GRAD.TOOL` + `WHITE_DEPTH` 厚度 + 墨字）
+     *  （旧版是"朱红 + 角花 / 纸灰 + 无角花"，角花在 3D 圆角体系里已经取消。）
+     *
+     * ⚠️ `armed`（"已按下、正在等玩家点第二下"）**不再换底色为金色**：
+     *    3D 体系里金色与朱红同亮度，交换底色会读成"换了一个道具"。
+     *    改为抬高一档高光（`HILITE_ALPHA` 提满），并在外面补一圈金环 ——
+     *    形制不变、只变"亮度 + 外环"，才读得出"同一个键被按下去了"。
+     */
     private drawPropFace(id: PropId, enabled: boolean, armed: boolean): void {
         const g = this._propFaces[id];
         if (!g) return;
         const L = CFG.GAME_LAYOUT;
+        const R3 = CFG.SKIN.R3D;
         g.clear();
-        if (enabled) {
-            // 就绪态用金色：与"已被按下、正在等玩家下一步"区分开
-            fillBox(g, 0, 0, L.PROP_BTN_W, L.PROP_BTN_H, CFG.SHAPE.RADIUS_BTN,
-                armed ? CFG.COLOR.GOLD : CFG.COLOR.VERMILION);
-            strokeBox(g, 0, 0, L.PROP_BTN_W, L.PROP_BTN_H, CFG.SHAPE.RADIUS_BTN, CFG.COLOR.INK, 2.6);
-            this.drawFaceCorners(g, L.PROP_BTN_W, L.PROP_BTN_H);
-        } else {
-            fillBox(g, 0, 0, L.PROP_BTN_W, L.PROP_BTN_H, CFG.SHAPE.RADIUS_BTN, CFG.COLOR.LOCK_BG);
-            strokeBox(g, 0, 0, L.PROP_BTN_W, L.PROP_BTN_H, CFG.SHAPE.RADIUS_BTN, CFG.COLOR.LOCK, 2);
-        }
-        const nc = enabled ? CFG.COLOR.FACE : CFG.COLOR.INK_SOFT;
-        const nameLabel = this._propNames[id];
-        if (nameLabel) nameLabel.color = hex2color(nc);
-        const subLabel = this._propSubs[id];
-        if (subLabel) subLabel.color = hex2color(enabled ? CFG.COLOR.FACE : CFG.COLOR.INK_SOFT);
-    }
 
-    /** 按钮内的四角浅色角花（与 createButton 保持同一形制，只是不透明地画在这里） */
-    private drawFaceCorners(g: Graphics, w: number, h: number): void {
-        const len = CFG.SHAPE.CORNER_LEN * 0.6;
-        const x0 = -w / 2;
-        const x1 = w / 2;
-        const y0 = -h / 2;
-        const y1 = h / 2;
-        g.lineWidth = 1.6;
-        g.strokeColor = hex2color(CFG.COLOR.FACE, 200);
-        const seg = (pts: number[][]) => {
-            g.moveTo(pts[0][0], pts[0][1]);
-            for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
-            g.stroke();
-        };
-        seg([[x0, y1 - len], [x0, y1], [x0 + len, y1]]);
-        seg([[x1 - len, y1], [x1, y1], [x1, y1 - len]]);
-        seg([[x1, y0 + len], [x1, y0], [x1 - len, y0]]);
-        seg([[x0 + len, y0], [x0, y0], [x0, y0 + len]]);
+        draw3dFace(g, 0, 0, {
+            w: L.PROP_BTN_W,
+            h: L.PROP_BTN_H,
+            radius: R3.RADIUS_TOOL,
+            stops: enabled ? CFG.SKIN.GRAD.TOOL_RED : CFG.SKIN.GRAD.TOOL,
+            border: R3.BORDER_TOOL,
+            depth: R3.DEPTH_MID,
+            depthColor: enabled ? CFG.SKIN.GRAD.RED_DEPTH : CFG.SKIN.GRAD.WHITE_DEPTH,
+            hiliteAlpha: enabled ? R3.HILITE_ALPHA : 0,
+            // 接地柔影：设计稿给了**两态两组值**，但两者**只有 α 不同**（出处是局内页）——
+            //   白态 `.tool{   0 6px 0 …,0 11px 15px rgba(34,32,28,.22)}` → 15 / 11 / 56
+            //   红态 `.tool.red{0 6px 0 …,0 11px 15px rgba(34,32,28,.28)}` → 15 / 11 / 71
+            // 红态影更重是对的：朱红与纸底的明度差更大，影太淡会读成"贴上去的"。
+            // ⚠️ 别再抄 `首页-优化后-1x.html` 里的 `.tool-red`（那张表写的是
+            //   `0 13px 17px .30`，而且连 `.tool` 的厚度都写 7）—— 它与局内页不是同一版，
+            //   实测局内的厚度是 6，以局内页为准。
+            shadow: enabled ? R3.SHADOW.TOOL_RED : R3.SHADOW.TOOL,
+        });
+
+        // armed：在按钮外圈补一道金环（不改底色，见上面注释）
+        if (armed) {
+            strokeBox(g, 0, 0, L.PROP_BTN_W + 7, L.PROP_BTN_H + 7, R3.RADIUS_TOOL + 3.5,
+                CFG.COLOR.GOLD, 3);
+        }
+
+        const nameLabel = this._propNames[id];
+        if (nameLabel) nameLabel.color = hex2color(enabled ? CFG.COLOR.FACE : '#2B2823');
+        const subLabel = this._propSubs[id];
+        if (subLabel) subLabel.color = hex2color(enabled ? '#F6D9D4' : CFG.COLOR.INK_MID);
     }
 
     /** 道具当前是否可用；返回不可用的原因（null = 可用） */
@@ -876,23 +1133,29 @@ export class GamePage extends PageBase {
             const t = tiles[i];
             // 牌宽用**这张牌自己的** w（L1 = 128、L2 起 = 85），不能用全局基准
             const view = new TileView(this._stackLayer, t.key, t.w);
-            // A1/A2 改版（S7.5）：起始态 = 屏幕外正上方 + 随机横移 + 随机角度 + 全透明。
+            // A1/A2 改版（S16）：起始态 = **目标位置的正下方** + 横向微散 + 随机小角度
+            //                    + 缩小（"还没长开"）+ 全透明。
             //
             // 【为什么在 build 期就摆好，而不是等 onEnter 再摆出去】
             // 页面是"先淡入、再播入场动画"的。如果这里仍把牌摆在自己的位置上、
-            // 等到 onEnter 才挪到天上，玩家会看到"牌先在正确位置闪一帧，
-            // 然后集体跳上去再飞下来" —— 这是最典型的入场瑕疵。
+            // 等到 onEnter 才挪到土里，玩家会看到"牌先在正确位置闪一帧，
+            // 然后集体跳下去再长上来" —— 这是最典型的入场瑕疵。
             // 起始态必须在**它第一次被看见之前**就摆好。
             //
             // 【随机值也在这里定死】
-            // playEnterMotion 会直接复用这个位置当起点（不再重新随机）。
+            // playSproutMotion 会直接复用这个位置当起点（不再重新随机）。
             // 重新随机一次的后果是**起点跳变**：牌在可见的第一帧瞬移一下。
+            //
+            // ⚠️ **缩放也必须在 build 期设**（旧版飞入时可以留到 onEnter，
+            //    那是因为起点在屏幕外 680px 处，看不见；现在起点就在牌堆正下方
+            //    **画面里**，晚一帧设缩放就会看到"一堆大牌在下面闪一下"）。
             view.node.setPosition(
-                t.x + (Math.random() * 2 - 1) * M.FLY_IN_SPREAD_X,
-                t.y + M.FLY_IN_FROM_Y,
+                t.x + (Math.random() * 2 - 1) * M.SPROUT_SPREAD_X,
+                t.y - t.h * M.SPROUT_FROM_RATIO,
                 0,
             );
-            view.node.angle = (Math.random() * 2 - 1) * M.FLY_IN_ANGLE;
+            view.node.angle = (Math.random() * 2 - 1) * M.SPROUT_ANGLE;
+            view.node.setScale(M.SPROUT_SCALE_FROM, M.SPROUT_SCALE_FROM, 1);
             MotionFx.setFade(view.node, 0);
             // 开局就把被压住的牌画成"灰"的：玩家一眼能看出哪些能点
             view.setState(this._blocked[i] > 0 ? 'dim' : 'normal');
@@ -907,9 +1170,9 @@ export class GamePage extends PageBase {
         }
         this._depthOrder = order;
 
-        // ⚠️ S7.5 起牌堆层**不再整体缩放 / 淡出**。
-        //    入场改成逐张飞入后，每张牌自己负责自己的淡入；
-        //    如果这里还保留整体淡入，先飞进来的那几张会被"淡上再淡"，
+        // ⚠️ S16 起牌堆层**不再整体缩放 / 淡出**。
+        //    入场改成逐张从土里长出来后，每张牌自己负责自己的淡入；
+        //    如果这里还保留整体淡入，先冒出来的那几张会被"淡上再淡"，
         //    看起来比后面的牌更透明 —— 一条时间轴上出现两种淡入速度。
         //    （旧值 ENTER_SCALE_FROM / 整层 setFade(0) 已随之废弃。）
     }
@@ -918,122 +1181,221 @@ export class GamePage extends PageBase {
     //  动效：入场（A1 / A2 / A3 / A4 / A5）
     // ========================================================
     /**
-     * 入场总编排（S7.5 改版：牌堆由「整体浮现」改为「**逐张飞入**」）。
+     * 入场总编排（S17 方案 B：底部涌现 + 借用抓大鹅的物理感）。
      *
-     * 【用户原话】"入场时逐张飞入"
+     * 【用户原话 S16】"改成抓大鹅那种从底部涌现，就像蘑菇一样喷涌出来的方式，更有动感"
+     * 【用户原话 S17】"你先去看抓大鹅的初始牌堆是如何出现的，理解透之后再与我沟通，
+     *                  给出方案等我拍板" → 逐帧调研后用户拍板 **方案 B**
      *
-     * 【为什么旧版不算"飞入"】
-     * 旧版的牌**从头到尾都在自己的位置上**，只改了透明度和缩放 ——
-     * 玩家看到的是"一张一张亮起来"，不是"一张一张飞进来"。
-     * 差别不在"有没有动画"，而在**有没有空间轨迹**：
-     * 轨迹产生了"牌从别处来、落到这里"的叙事，入场这才变成"发牌"。
+     * 【抓大鹅实测 vs 本作诉求（证据：temp/S17-抓大鹅开局参考/）】
+     * 抓大鹅是**从容器上方往下倒**的：物件很小地落下来、边落边变大、落点散乱不成行，
+     * 先落的沉在底下 —— 所谓"自底向上"是**落体顺序**的结果，它的**运动方向是向下的**。
+     * 而本作要的是**从底部涌出**，运动方向朝上。方向相反，所以只借它的**物理感**：
+     *   · 节奏散乱   → 错峰改「随机成束」（不是整齐条带）
+     *   · 由小变大   → 起始缩放 0.45
+     *   · 落地有弹性 → 三段「挤压 → 回弹过冲 → 归位」
+     *   · 整体慢下来 → 总时长 1.6s（实测抓大鹅 1.3~2.5s）
      *
      * 【时间轴】
      *   t=0          底部三件套滑入 + 槽格描边依次点亮（A3）
      *                顶部状态条下落淡入（A4）
-     *   0 ~ 1.05s    每张牌按**深度升序**从屏幕上方飞入（A1/A2 合并）：
-     *                  · 位移用 backOut（到位瞬间有过冲 = "啪"地扣上去）
-     *                  · 旋转从随机角度归零（"翻正"与"落下"必须是同一件事）
-     *                  · 淡入只占前半程（后程要能看清落下来的是什么牌）
-     *                  · 落位挤压（squash & stretch）+ 落牌声（节流）
+     *   0 ~ 1.6s     牌按**随机成束**从"锅底"升上来（A1/A2 合并）：
+     *                  · 束心随机撒（索引洗牌取前 N 个），每张牌归**最近**的束心
+     *                  · 束的先后按**束心高度自下而上** —— 成束管"散"、排序管"方向"
+     *                  · 位移与缩放写在同一条 tween（backOut 过冲 = "顶出来"）
+     *                  · 旋转从随机角度归到这张牌自己的朝向（"顶正"与"冒出"是一件事）
+     *                  · 落位「挤压 → 回弹过冲 → 归位」+ 落牌声（节流）
      *   末尾         首层可点牌做一次上浮提示（仅第 1 关，A5）
      *
-     * 【为什么按深度升序（底层先落）】
-     * 底下的牌先落、上面的牌后压上去，顺序与"谁压住谁"的视觉逻辑一致。
-     * 反过来（顶层先落）会出现"上面的牌已经就位了、下面的牌还在天上飞"，
-     * 看起来像穿模。
+     * 【为什么不再用"按屏幕 y 分带"（上一版的做法）】
+     * 分带得到的是**整齐的水平条带**、一批一批往上顶，观感是"电梯上升 / 春笋冒头"；
+     * 而抓大鹅的观感是**一撮一撮**地涌。所以换成"随机束心 + 就近归并"：
+     * 得到的簇散落在牌堆各处、是不规则的小团，而不是横平竖直的条。
+     * ⚠️ 绘制顺序（siblingIndex）仍然按深度排，这里只改**先后**，不动 z 序 ——
+     *    两者混为一谈会让"谁压住谁"跟着入场顺序一起变，那才是真 bug。
      *
      * 【为什么入场期间仍然要锁输入】
-     * 飞行中每张牌的位置都在变，而命中测试用的是**数据坐标**；
+     * 涌现过程中每张牌的位置都在变，而命中测试用的是**数据坐标**；
      * 这时候点下去，玩家点的是"他看见的位置"，判定却按落点算 —— 必然错位。
-     * 锁 1 秒的代价，远小于"点了没反应 / 点错牌"的代价。
+     * 锁 1.6 秒的代价，远小于"点了没反应 / 点错牌"的代价。
      * ⚠️ 解锁必须走 setTimeout（铁律），不能用 tween 回调。
      */
-    private playEnterMotion(): void {
+    private playSproutMotion(): void {
         const M = CFG.MOTION;
         const L = CFG.GAME_LAYOUT;
         const tiles = this._layout.tiles;
         const n = tiles.length;
 
-        // ---------- A1 / A2：逐张飞入 ----------
-        // 飞入顺序：深度升序（底层的先落到）
-        const order: number[] = [];
-        for (let i = 0; i < n; i++) order.push(i);
-        order.sort((a, b) => tiles[a].depth - tiles[b].depth);
+        // ★ S18.4：涌现段的**整体时间缩放**。
+        // 【为什么加这个旋钮】S18 起开局是「先开场（1.5s）→ 再涌现（1.6s）」的串行，
+        // 玩家要等 3.1s。1.6s 的涌现是 S17 逐帧验收过的手感，**不能为了凑总时长
+        // 去砍它的任何一个参数**（砍了手感就散了）；所以这里让所有**时序量**
+        //（升程 / 束间距 / 束内铺开 / 落位回弹）统一乘以一个系数，
+        // 形态与相对节奏一比一保留。默认 1.0（＝ S17 原手感），想加速只改 CFG 那一个数。
+        const TS = M.SPROUT_TIME_SCALE;
 
-        // 错峰预算：牌多时**压缩间隔**，而不是把入场拉长到 2 秒。
-        // （第 4 关 24 张 × 28ms = 644ms，仍在 1.05s 预算内，不会真的被压缩；
-        //   这条兜底是为将来"牌数再翻倍"准备的。）
-        const budget = Math.max(0, M.FLY_IN_TOTAL_MAX - M.FLY_IN);
-        const stagger = n > 1 ? Math.min(M.FLY_IN_STAGGER, budget / (n - 1)) : 0;
+        // ---------- A1 / A2：自下而上涌现（**随机成束**）----------
+        // ① 随机挑"束心"：把索引洗牌后取前 bursts 个。
+        //    【为什么是洗牌而不是"随机抽到不重复为止"】随机抽要处理重复、可能空转；
+        //    洗牌是 O(bursts) 且**必然终止**（这是个"必然执行"路径，不能赌概率）。
+        const bursts = Math.max(1, Math.min(M.SPROUT_BURST_MAX,
+            Math.max(M.SPROUT_BURST_MIN, Math.ceil(n / M.SPROUT_BURST_SIZE))));
+        const pickIdx: number[] = [];
+        for (let i = 0; i < n; i++) pickIdx.push(i);
+        const pick = Math.min(bursts, n);
+        for (let i = 0; i < pick; i++) {
+            const j = i + Math.floor(Math.random() * (n - i));
+            const tmp = pickIdx[i]; pickIdx[i] = pickIdx[j]; pickIdx[j] = tmp;
+        }
+        const centers: Array<{ x: number; y: number }> = [];
+        for (let b = 0; b < pick; b++) {
+            centers.push({ x: tiles[pickIdx[b]].x, y: tiles[pickIdx[b]].y });
+        }
 
-        for (let k = 0; k < n; k++) {
-            const id = order[k];
-            const v = this._views[id];
-            const t = tiles[id];
+        // ② 每张牌归**最近的束心**（欧氏距离）。
+        //    束因此是"空间上抱团的一撮"，而不是"按屏幕 y 切出来的一条" ——
+        //    这正是它与上一版"田垄"最大的差别：条带一定是横平竖直的，
+        //    而随机束心 + 就近归并得到的簇，是散落在牌堆各处的小团。
+        const burstOf: number[] = new Array(n);
+        // 到**自身束心**的距离（待归一化）：束内按它铺开先后，
+        // 让一束"从中心一小片一小片鼓出来"，而不是整团一次性弹起。
+        const ringOf: number[] = new Array(n);
+        let ringMax = 0;
+        for (let i = 0; i < n; i++) {
+            let best = 0;
+            let bd = Infinity;
+            for (let b = 0; b < centers.length; b++) {
+                const dx = tiles[i].x - centers[b].x;
+                const dy = tiles[i].y - centers[b].y;
+                const d = dx * dx + dy * dy;
+                if (d < bd) { bd = d; best = b; }
+            }
+            burstOf[i] = best;
+            const dist = Math.sqrt(Math.max(0, bd));
+            ringOf[i] = dist;
+            if (dist > ringMax) ringMax = dist;
+        }
+        // 归一化到 0..1（所有牌都落在束心上时 ringMax=0，此时全部记 0，避免除以 0）
+        if (ringMax > 0) {
+            for (let i = 0; i < n; i++) ringOf[i] /= ringMax;
+        }
+
+        // ③ 束的先后按**束心高度自下而上**。
+        //    "成束"管散、"排序"管方向，两件事分开管，才能既散乱又不丢"从下往上"。
+        //    （如果连顺序也随机，整堆会变成一片没有方向的雪崩 —— 那是抓大鹅
+        //      "从上方倒"的观感；本作要的是"从锅底顶上来"。）
+        const burstRank: number[] = new Array(centers.length);
+        {
+            const seq: number[] = [];
+            for (let b = 0; b < centers.length; b++) seq.push(b);
+            seq.sort((a, b) => centers[a].y - centers[b].y);
+            for (let i = 0; i < seq.length; i++) burstRank[seq[i]] = i;
+        }
+
+        // ④ 束间距预算：束数变多时**压缩束间距**，而不是把入场拖成 3 秒的等待。
+        //    注意扣的是"整段"：单张升程 + 落位回弹 + 束内抖动 + 束内铺开，全都要占预算，
+        //    否则实际结束时刻会超出 SPROUT_TOTAL_MAX（S17 第一版只扣了升程，实测 1.84s）。
+        //  ⚠️ 先按**未缩放**的口径算 min()，最后才整体乘 TS ——
+        //    两边同时缩放会让 min 比较失去意义（SPROUT_BURST_GAP 没缩、gapBudget 缩了）。
+        const gapBudget = Math.max(0, M.SPROUT_TOTAL_MAX
+            - M.SPROUT_IN - M.SPROUT_SQUASH
+            - M.SPROUT_BURST_JITTER - M.SPROUT_BURST_RING);
+        const burstGap = centers.length > 1
+            ? Math.min(M.SPROUT_BURST_GAP, gapBudget / (centers.length - 1)) * TS
+            : 0;
+
+        for (let i = 0; i < n; i++) {
+            const v = this._views[i];
+            const t = tiles[i];
             if (!v || !v.node.isValid) continue;
 
-            const delay = k * stagger;
+            // 束内几乎同时冒，只留 ±jitter 的抖动 —— 同束齐步走会像"方阵"，
+            // 完全不抖又会看到"一次冒一撮、中间空一拍"的机械感。
+            // 再叠加 ring（到束心的距离）让一束从中心往外鼓开。
+            const delay = Math.max(0, burstRank[burstOf[i]] * burstGap
+                + ringOf[i] * M.SPROUT_BURST_RING * TS
+                + (Math.random() * 2 - 1) * M.SPROUT_BURST_JITTER * TS);
 
             // 起点**不重新随机** —— 直接沿用 buildStack 里摆好的那个点。
             // 重新随机一次的后果是"起点跳变"：牌在它可见的第一帧瞬移一下。
-            MotionFx.to(v.node, { position: v3(t.x, t.y, 0) },
-                { duration: M.FLY_IN, delay, easing: EASE.POP, tag: TAG.STACK });
-            // 旋转归位：与位移同长同期，视觉上"摆正"和"落下"是一件事。
-            // ⚠️ 归的是**这张牌自己的目标朝向** t.angle（0/90/180/270），不是 0 ——
-            //    入场时牌带着随机小角度飞过来，落定必须回到它在牌堆里的摆放方向。
+            // ⚠️ 位移和缩放必须写在**同一次 to()**里：
+            //    分两条 tween 抢 scale 会在交界处出现重叠帧；
+            //    而共用同一个 tag 又会让后起的那条把先起的 stop 掉。
+            MotionFx.to(v.node,
+                { position: v3(t.x, t.y, 0), scale: v3(1, 1, 1) },
+                { duration: M.SPROUT_IN * TS, delay, easing: EASE.POP, tag: TAG.STACK });
+            // 旋转归位：与位移同长同期，视觉上"长正"和"冒头"是一件事。
+            // ⚠️ 归的是**这张牌自己的目标朝向** t.angle（0/90/180/270 + 偏斜），不是 0 ——
+            //    入场时牌带着随机小角度冒上来，落定必须回到它在牌堆里的摆放方向。
             // 用独立通道 TAG.SPIN —— 它和 TAG.STACK 改的是不同属性，
             // 共用一个 tag 只会互相打断（后起的把先起的 stop 掉）。
             MotionFx.to(v.node, { angle: t.angle },
-                { duration: M.FLY_IN, delay, easing: EASE.POP, tag: TAG.SPIN });
-            // 淡入只占前半程（0.55）。后程必须完全不透明：
-            // 牌在最后 150ms 是要被"看清是什么牌"的，那时还半透明就是废动作。
-            MotionFx.fade(v.node, 255, M.FLY_IN * 0.55,
+                { duration: M.SPROUT_IN * TS, delay, easing: EASE.POP, tag: TAG.SPIN });
+            // 淡入只占前半程的一小截（0.32）。后程必须完全不透明：
+            // 牌在最后 280ms 是要被"看清是什么牌"的，那时还半透明就是废动作。
+            // 【为什么从 0.45 收到 0.32】0.45 × 0.42s ≈ 190ms，一垄刚冒到一半还是半透明的
+            // ——整堆看上去像一层雾。收到 0.32（≈135ms）之后，牌"顶出土"的瞬间就已经是实的。
+            MotionFx.fade(v.node, 255, M.SPROUT_IN * 0.32 * TS,
                 { delay, easing: EASE.ENTER, tag: TAG.FADE });
 
             // 落位挤压 + 落牌声：各自一个定时器（不走 tween 回调）
-            setTimeout(() => this.onFlyInLand(v, t.x, t.y, t.angle),
-                MotionFx.unlockMs(delay + M.FLY_IN));
+            setTimeout(() => this.onSproutLand(v, t.x, t.y, t.angle),
+                MotionFx.unlockMs(delay + M.SPROUT_IN * TS));
         }
-        const flyDone = stagger * Math.max(0, n - 1) + M.FLY_IN + M.FLY_IN_SQUASH;
+        // 末束起跳点 + 束内铺开 + 束内抖动 + 单张升程 + 落位回弹 = 整段结束时刻
+        // ⚠️ burstGap 在上面已经是**缩放后**的值了，这里不能再乘一次 TS。
+        const sproutDone = Math.max(0, centers.length - 1) * burstGap
+            + (M.SPROUT_BURST_RING + M.SPROUT_BURST_JITTER
+                + M.SPROUT_IN + M.SPROUT_SQUASH) * TS;
 
-        // ---------- A3：底部（槽位条 / 暂存架 / 返回）滑入 + 槽格依次点亮 ----------
-        // 只做"底部三件套"一起滑：单独滑槽位条会让暂存架悬在半空，
+        // ---------- A3：底部（槽位条 / 暂存架 / 返回 / 重玩）滑入 + 槽格依次点亮 ----------
+        // 只做"底部几件套"一起滑：单独滑槽位条会让暂存架悬在半空，
         // 那一帧的排版是错的（玩家会看到"东西错位了一下"）。
+        // ★ S18.4：开场动画播过时不走这一段 —— "舞台"（页框 + 全部静态 HUD）
+        //    已经在第 ⑥ 帧"墨圆裂开"时整体淡入过了；再来一次滑入等于同一件事讲两遍。
         const bottomNodes: Array<{ node: Node; y: number }> = [
             { node: this._slotBarNode, y: L.SLOT_BAR_Y },
             { node: this._tempRackNode, y: L.TEMP_RACK_Y },
             { node: this._tempLabelNode, y: L.TEMP_RACK_Y },
             { node: this._backBtnNode, y: L.BACK_BTN_Y },
+            { node: this._replayBtnNode, y: L.REPLAY_BTN_Y },
         ];
-        for (const b of bottomNodes) {
-            if (!b.node || !b.node.isValid) continue;
-            b.node.setPosition(b.node.position.x, b.y + M.SLOT_IN_FROM_Y, 0);
-            MotionFx.to(b.node, { position: v3(b.node.position.x, b.y, 0) },
-                { duration: M.SLOT_IN, easing: EASE.POP, tag: TAG.ENTER });
+        if (!this._introOn) {
+            for (const b of bottomNodes) {
+                if (!b.node || !b.node.isValid) continue;
+                b.node.setPosition(b.node.position.x, b.y + M.SLOT_IN_FROM_Y, 0);
+                MotionFx.to(b.node, { position: v3(b.node.position.x, b.y, 0) },
+                    { duration: M.SLOT_IN, easing: EASE.POP, tag: TAG.ENTER });
+            }
         }
         this.playSlotCellLightUp();
 
         // ---------- A4：顶部状态条下落淡入（与 A3 并行）----------
-        for (const item of this._hudItems) {
-            if (!item.node || !item.node.isValid) continue;
-            MotionFx.setFade(item.node, 0);
-            item.node.setPosition(item.node.position.x, item.y + M.HUD_IN_FROM_Y, 0);
-            MotionFx.to(item.node, { position: v3(item.node.position.x, item.y, 0) },
-                { duration: M.HUD_IN, easing: EASE.ENTER, tag: TAG.ENTER });
-            MotionFx.fade(item.node, 255, M.HUD_IN, { easing: EASE.ENTER, tag: TAG.FADE });
+        // 同上：开场动画播过时跳过（HUD 已由第 ⑥ 帧整体淡入）。
+        if (!this._introOn) {
+            for (const item of this._hudItems) {
+                if (!item.node || !item.node.isValid) continue;
+                MotionFx.setFade(item.node, 0);
+                item.node.setPosition(item.node.position.x, item.y + M.HUD_IN_FROM_Y, 0);
+                MotionFx.to(item.node, { position: v3(item.node.position.x, item.y, 0) },
+                    { duration: M.HUD_IN, easing: EASE.ENTER, tag: TAG.ENTER });
+                MotionFx.fade(item.node, 255, M.HUD_IN, { easing: EASE.ENTER, tag: TAG.FADE });
+            }
         }
 
         // ---------- 解锁输入 ----------
-        // 取"最慢的一条 + 余量"：逐张飞入、槽位滑入、HUD 下落里最长的那个。
-        const total = Math.max(flyDone, M.SLOT_IN + M.SLOT_IN_STAGGER * this._slotCapacity, M.HUD_IN);
-        this._busy = true;
+        // 取"最慢的一条 + 余量"：涌现、槽位滑入、HUD 下落里最长的那个。
+        // 开场路径下底部/顶部的两段都没播，所以只剩"涌现"这一条在占时间。
+        const total = this._introOn
+            ? sproutDone
+            : Math.max(sproutDone, M.SLOT_IN + M.SLOT_IN_STAGGER * this._slotCapacity, M.HUD_IN);        this._busy = true;
         setTimeout(() => {
             if (!this.node.isValid) return;
             // 兜底复位：无论动效链路是否正常，终值一定要写死到位。
-            // 入场这里尤其关键 —— 一旦某条 tween 丢了，那张牌会**永久停在屏幕外**，
+            // 入场这里尤其关键 —— 一旦某条 tween 丢了，那张牌会**永久停在土里**
+            // （这次起点就在画面内，比旧版"停在屏幕外"更容易被看见），
             // 表现为"这张牌凭空消失了"，而玩家完全不知道发生了什么。
-            // 所以位置也要按数据坐标复位，不能只复位 scale / opacity。
+            // 所以位置 / 缩放也要按数据复位，不能只复位角度与透明度。
             for (let i = 0; i < this._views.length; i++) {
                 const v = this._views[i];
                 const t = tiles[i];
@@ -1050,37 +1412,44 @@ export class GamePage extends PageBase {
     }
 
     /**
-     * 单张牌落位（逐张飞入的收尾）：兜底复位 → 挤压 → 落牌声。
+     * 单张牌冒头落定（涌现的收尾）：兜底复位 → 挤压 → 落牌声。
      *
      * 【为什么每张牌都要"兜底复位"】
      * 这个 setTimeout 是"必然执行"路径上的一环。哪怕位移补间因为任何原因
      * 没跑到终点，这里也会把牌写回精确坐标 —— 玩家永远不会看到一张
-     * 卡在半空的牌。铁律的另一半：复位走定时器，不依赖 tween 回调。
+     * 卡在半路（这次是"卡在土里"）的牌。铁律的另一半：复位走定时器，不依赖 tween 回调。
      */
-    private onFlyInLand(v: TileView, x: number, y: number, angle: number): void {
+    private onSproutLand(v: TileView, x: number, y: number, angle: number): void {
         if (!this.node.isValid || !v.node.isValid) return;
         const M = CFG.MOTION;
+        // 与涌现段同口径缩放（S18.4）
+        const TS = M.SPROUT_TIME_SCALE;
 
         v.node.setPosition(x, y, 0);
         v.node.angle = angle;
         MotionFx.setFade(v.node, 255);
         MotionFx.setScale(v.node, 1);
 
-        // 落位挤压：横向一撑、纵向一压，再弹回 1.0。
-        // 两条独立 tween 抢 scale 会有重叠帧，所以必须走 to2 的一条链。
-        MotionFx.to2(v.node,
+        // 落位：**挤压 → 回弹过冲 → 归位** 三段。
+        // 【为什么从两段加到三段】两段（压 → 直接回 1）的收尾是"啪"地贴平、没有余韵；
+        // 抓大鹅的落地是**有弹性**的 —— 压扁之后先弹过一点，再慢慢收住。
+        // 三段必须在**同一条 chain** 上跑：几条独立 tween 抢 scale 会在交界处
+        // 出现重叠帧，真机上是一次肉眼可见的顿挫。
+        MotionFx.chain(v.node, [
             { props: { scale: v3(M.SQUASH_X, M.SQUASH_Y, 1) },
-              duration: M.FLY_IN_SQUASH * 0.35, easing: EASE.EXIT },
+              duration: M.SPROUT_SQUASH * 0.30 * TS, easing: EASE.EXIT },
+            { props: { scale: v3(1, M.SPROUT_BOUNCE, 1) },
+              duration: M.SPROUT_SQUASH * 0.35 * TS, easing: EASE.POP },
             { props: { scale: v3(1, 1, 1) },
-              duration: M.FLY_IN_SQUASH * 0.65, easing: EASE.POP },
-            { tag: TAG.SLOT });
+              duration: M.SPROUT_SQUASH * 0.35 * TS, easing: EASE.ENTER },
+        ], { tag: TAG.SLOT });
 
-        // 落牌声。gapMs 放宽到 FLY_IN_LAND_GAP_MS：
-        // 24 张牌在 1 秒内落地，不节流会糊成一段白噪声；
-        // 错开到 130ms 一声才是"哒、哒、哒"的落牌感。
+        // 落牌声。gapMs 放宽到 SPROUT_LAND_GAP_MS：
+        // 96 张牌在 1 秒内冒头，不节流会糊成一段白噪声；
+        // 错开到 110ms 一声才是"噗、噗、噗"的冒头感。
         AudioService.play('land', {
-            gain: M.FLY_IN_LAND_GAIN,
-            gapMs: M.FLY_IN_LAND_GAP_MS,
+            gain: M.SPROUT_LAND_GAIN,
+            gapMs: M.SPROUT_LAND_GAP_MS,
         });
     }
 
@@ -1338,10 +1707,11 @@ export class GamePage extends PageBase {
             const id = this._depthOrder[k];
             if (this._taken[id]) continue;
             const t = tiles[id];
-            // 命中区必须用**这张牌旋转后的视觉包围盒**：
-            // 横躺的牌是"宽 114 × 高 85"，拿竖放尺寸去判会点不中两端、又误中上下。
-            const b = boxOf(t);
-            if (Math.abs(local.x - t.x) > b.hw || Math.abs(local.y - t.y) > b.hh) continue;
+            // ★ S15.3：命中区 = 这张牌**旋转后的真实矩形**，不是它的轴对齐包围盒。
+            // 旧版用 AABB 判：那在"只有 0/90/180/270"时误差可接受（退化成正矩形），
+            // 但牌能歪到 45° 之后，AABB 的四角是**牌根本没画到**的空白 ——
+            // 玩家点在空白角上会选中这张牌，而视觉上那里明明是另一张。
+            if (!pointInTile(t, local.x, local.y)) continue;
             return id;
         }
         return -1;
@@ -1355,12 +1725,14 @@ export class GamePage extends PageBase {
     private hitPending(local: Vec3): boolean {
         const p = this._pending;
         if (!p) return false;
-        // 用**这张牌自己的旋转后包围盒**，不是全局的 TILE.W/H：
-        // 牌现在可以躺倒（宽 = 牌高 114），拿竖放尺寸去判会"点不中两端、
-        // 又误中上下"，撤销就变成了碰运气。
+        // ★ S15.3：同样走"旋转后的真实矩形"，不是轴对齐包围盒。
+        // 牌现在还能歪到 45°，拿 AABB 去判会让"撤销"在牌的空角落上误触发。
         const t = this._layout.tiles[p.id];
-        const b = t ? boxOf(t) : { hw: CFG.TILE.W / 2, hh: CFG.TILE.H / 2 };
-        return Math.abs(local.x - p.ox) <= b.hw && Math.abs(local.y - p.oy) <= b.hh;
+        if (!t) {
+            return Math.abs(local.x - p.ox) <= CFG.TILE.W / 2
+                && Math.abs(local.y - p.oy) <= CFG.TILE.H / 2;
+        }
+        return pointInRect(local.x, local.y, p.ox, p.oy, t.w, t.h, t.angle);
     }
 
     /** 命中槽内 / 暂存架里的牌？ */
@@ -1800,17 +2172,22 @@ export class GamePage extends PageBase {
     }
 
     /**
-     * 播放消除。**三类牌型（碰 / 吃 / 杠）共用同一套「撞击」动效。**
+     * 播放消除。**三种牌型共用同一套「撞击」动效。**
      *
      * 【2026-10-01 晚 用户拍板 —— 这一版为什么又改回来】
      *   用户原话：「吃的特效还是不够好，直接应用碰的特效吧，把字改成"吃"即可」
      *   于是取消「吃」的专属动效（咀嚼），改回与「碰」完全一致的
      *   **蓄力(后退) → 猛冲 → 撞 → 停一拍 → 炸开**。
      *
-     * ★ 牌型的差异**只留在"这一下叫什么"上，不在动作上**：
-     *     · 飘字：`popMatchLabel(m.type)` 查 `MATCH_LABEL` → 「碰」/「吃」/「杠」
-     *     · 人声：`onClash` 里按 `m.type` 选 `peng` / `eat`
-     *   也就是说：**看到的**是同一套撞击，**听到的**才知道这是吃还是碰。
+     * ★ S18 决议 5 之后：牌型差异**在画面上与听觉上都归零了**。
+     *      · 飘字：`popMatchLabel(m.type)` 查 `MATCH_WORD` → 一律「消 除」
+     *      · 声音：`onClash` 一律 `clash`
+     *   也就是说：三种牌型现在**看到的是同一套撞击、听到的是同一个音**。
+     *   差异只剩两处，且都不上屏：**消掉几张牌（看得见）**、以及
+     *   `MATCH_LABEL` 那行内部日志（排查用）。
+     *   ⚠️ 这正是"零棋牌语义"的代价与收益：代价是三种牌型少了一个识别符号，
+     *      收益是听觉上不再出现「碰」「吃」两个词 —— 那是**上架硬约束**，
+     *      不是审美取舍，没有折中空间。
      *
      * 【被否掉的那一版（咀嚼）去哪了 —— 别到处找】
      *   `playEatClear` / `onEatBite` / `onEatBurp` 三个方法、
@@ -1822,47 +2199,52 @@ export class GamePage extends PageBase {
      *     一行即可，两个方法都还在。
      *   · 想彻底清理：三个方法 + EAT_* 常量 + spawnJaw **一起删**
      *     （★ 常量与它的引用方必须落在同一个提交里，教训见 CFG.MOTION 十五·B）。
+     *   ☑ 音源已就位：`playEatClear` 里现在播 `swish`（S18 新合成的纸木「唰」），
+     *     切回咀嚼**不需要**再补音效。
      *
      * ⚠️ 【术语，务必读】「连章」现在的定义是**连击**（限时窗口内连续消除的
-     *    计数），和「吃」是两回事，本作**不需要**。初版把它误当成"用户想要
-     *    的新玩法"，做了一整套流光带 + 「连章 ×N」层数 + 4 档递增音高；
-     *    而真正的「吃」当时和「碰」**共用同一套撞击动效**。结果是用户要的
+     *    计数），和「同族连号三张」是两回事，本作**不需要**。初版把它误当成
+     *    "用户想要的新玩法"，做了一整套流光带 + 「连章 ×N」层数 + 4 档递增音高；
+     *    而真正的「连号」当时和「三张相同」**共用同一套撞击动效**。结果是用户要的
      *    两样东西，一样做错了、另一样根本没做。那套连击机制已整体删除
      *    （动机与痕迹见 CFG.MOTION §十五）。**别再让「连章」进入玩法/动效/音效。**
      */
     private playClear(m: MatchResult): void {
-        // 这一行是**验证"吃"有没有被触发过的唯一线索**：它同时说明"消的是哪种
-        // 牌型"和"走了哪套动效"。没有它，无头跑完一关只能看到"已清 N/M"，
-        // 根本不知道中间有没有出现过「吃」—— 而「吃」在 L1/L2 里**根本不可能
-        // 出现**（pickPatterns 给那两关的同族连号少于 3 个，凑不出顺子），
-        // 所以"没看到吃"到底是"没触发"还是"没实现"，只能靠这行区分。
+        // 这一行是**验证"三种牌型有没有都被触发过"的唯一线索**：它同时说明
+        // "消的是哪种牌型"和"走了哪套动效"。没有它，无头跑完一关只能看到
+        // "已清 N/M"，根本不知道中间有没有出现过「同族连号」—— 而它在 L1/L2 里
+        // **根本不可能出现**（pickPatterns 给那两关的同族连号少于 3 个，凑不成串），
+        // 所以"没看到连号消除"到底是"没触发"还是"没实现"，只能靠这行区分。
         // ⚠️ `动效=` 这个字段现在恒为「撞击」，但**别删**：它仍是"这条路走通了"
         //    的唯一无头证据（将来若再加第二套动效，字段原样可用）。
+        // ⚠️ 这里用 `MATCH_LABEL`（「碰 / 吃 / 杠」）是**故意的**：日志走 console、
+        //    不上屏，有中文别名能省掉一次查字典。**飘字走 `MATCH_WORD`**，两者别拿混。
         if (CFG.DEBUG.LOG_STATE) {
             const keys = m.indices.map((i) => this._slots[i].key).join(' ');
             log(`[GamePage] 消除 牌型=${m.type}(${MATCH_LABEL[m.type]}) 张数=${m.indices.length}`
                 + ` → 动效=撞击 ｜ ${keys}`);
         }
 
-        // 三类型共用。**不要再按牌型分叉动作** —— 牌型差异一律收在
-        // playClashClear 内部（飘字查 MATCH_LABEL、人声按 m.type 选）。
+        // 三类型共用。**不要再按牌型分叉动作** —— ★ S18 决议 5 之后，
+        // 牌型差异**只剩飘字之外的日志**（`MATCH_LABEL` 只进 console，
+        // 飘字走中性的 `MATCH_WORD`，声音统一 `clash`）。
         this.playClashClear(m);
     }
 
     /**
-     * 碰 / 吃 / 杠 的**撞击**：蓄力 → 冲刺 → 撞上 → 停一拍 → 一起炸开。
+     * 三种牌型的**撞击**：蓄力 → 冲刺 → 撞上 → 停一拍 → 一起炸开。
      *
-     * 【旧版为什么不够"碰"】
+     * 【旧版为什么不够"撞"】
      * 旧版的三张牌**从头到尾都待在自己的槽格里**：上浮、放大、再缩到 0。
      * 也就是说，它们之间从来没有发生过任何**空间关系** ——
      * 玩家看到的是"三张牌各自胀了一下"，而不是"三张牌撞到了一起"。
      * 差距全在下面这条时间轴上，而不在"幅度够不够大"。
      *
-     * 【时间轴】（碰 / 吃 / 杠 通用；三类只有**声音与飘字**不同）
+     * 【时间轴】（三类型通用；★ S18 之后三类**完全一致**，没有任何按牌型的分叉）
      *   t=0           蓄力：三张牌朝**远离中心**的方向各退 12px（攒势）
      *   t=90ms        冲刺：quadIn 加速，朝中心猛冲，最终中心间距压到槽格宽的 45%
      *   t=200ms       ★ 撞击帧：挤压(squash & stretch) + 冲击圆环 + 碎屑
-     *                            + 牌堆上踢 + 人声（碰「碰」/ 吃「吃」）+ 中档震动
+     *                            + 牌堆上踢 + 合成音 `clash` + 中档震动
      *   t=290ms       停一拍（POP_HOLD）：给大脑一次眨眼，把"这三张是一组"读进去
      *   t=290ms 起    释放：先胀到 1.20，再收缩到 0 并淡出
      *   t=+240ms      数据收尾 → 连锁判定 → 胜负判定
@@ -1937,10 +2319,19 @@ export class GamePage extends PageBase {
         const M = CFG.MOTION;
 
         // ① 声音与触感 —— 这是全局唯一"值得震"的瞬间。
-        //    ★ 动作不分牌型，**声音必须分**：「吃」得说"吃"。否则这一下就没有
-        //    名字了 —— 玩家只能看到"三张牌撞了一下"，分不出是碰还是吃。
-        //    （两句人声同出一套棋牌语音库的女声，音色一致，只是字不同。）
-        AudioService.play(m.type === 'chi' ? 'eat' : 'peng');
+        //    ★ S18 决议 5：**这里的声音不再分牌型了。**
+        //    原来写的是 `m.type === 'chi' ? 'eat' : 'peng'`，
+        //    也就是"同张消除播人声念白「碰」、连号消除播人声念白「吃」"——
+        //    那是一句话里塞了两个棋牌术语（听觉上的术语比看得见的文字更容易被漏掉），
+        //    与"个人主体 + 休闲益智类目、游戏内零棋牌语义"的硬约束直接冲突。
+        //    现在统一播合成音 `clash`（噪声瞬态 + 三音和弦，320ms，不含任何语义）。
+        //
+        //    ⚠️ 现在这一句是**全局唯一的消除音**：三种牌型（三张相同 / 同族连号 /
+        //    四张相同）全部走本方法（见 playClear → playClashClear），
+        //    所以运行时每消一次响的都是 `clash`。
+        //    `swish`（纸木「唰」）是留给"咀嚼"那条**已停用**路径的（playEatClear），
+        //    当前不出声；它保留在包里是为了"切回咀嚼"仍然是一行代码的事。
+        AudioService.play('clash');
         Haptics.medium();
 
         // ② 挤压（squash & stretch）：撞上去的牌会被压扁一点、拉长一点。
@@ -2173,9 +2564,16 @@ export class GamePage extends PageBase {
             holdDur: M.EAT_MOUTH_HOLD,
         });
 
-        // ⑤ 人声念「吃」：与第一张起步**同时**响。
-        //    整段咀嚼只有这一句人声，它是"这一下叫吃"的识别符号。
-        AudioService.play('eat');
+        // ⑤ 咀嚼音：与第一张起步**同时**响（★ S18 决议 5 换过音源）。
+        //    原来是 `eat`（人声念白「吃」）—— 听得见的棋牌术语，已下线；
+        //    现在是一记纸 / 木质的「唰」（`swish`，合成音）。
+        //    ⚠️ 它**不是"可有可无的背景音"**：整段咀嚼只有这一下声音，
+        //    它负责说清"这一段开始了、而且是**另一种**消除" ——
+        //    如果这里静音，玩家只能靠画面区分两条路径，
+        //    而"逐口咬合"在 200ms 内是看不清的。
+        //    （🔴 本方法当前**未被调用**，所以这一句运行时不会响；
+        //      留着它是为了"切回咀嚼"仍是一行代码的事。见 playClear 的注释。）
+        AudioService.play('swish');
 
         // ⑥ 逐口咬合。每口一个独立定时器 —— 它们互不依赖，
         //    某一口被打断（页面切走）最多少一口视觉，不影响数据收尾。
@@ -2385,7 +2783,13 @@ export class GamePage extends PageBase {
     }
 
     /**
-     * C6 飘字：从消除位置上浮 40px 并淡出，「碰 / 吃 / 杠」大字。
+     * C6 飘字：从消除位置上浮 40px 并淡出，「消 除」大字。
+     *
+     * ★ S18 决议 5：**字换了，位置 / 字号 / 动效 / 时长一个字没动。**
+     *  原来飘的是「碰 / 吃 / 杠」，那是棋牌术语，必须下线；
+     *  现在统一飘「消 除」（取词见 `MatchRule.MATCH_WORD`）。
+     *  ⚠️ 取词表是 `MATCH_WORD`（对外）而**不是** `MATCH_LABEL`（仅内部日志）——
+     *  这两个表长得像，拿错一个就把术语又飘回屏幕上了。
      *
      * 【为什么要延后 80ms 起播】
      * 它和前摇（C1）是同一时刻发生的两件事。同时起播时，
@@ -2398,7 +2802,7 @@ export class GamePage extends PageBase {
      * 淡出用 quadIn（越淡越快，收得干净）。总长压在 620ms：
      * 再长就会盖住下一张牌飞进来的过程，那是干扰不是反馈。
      */
-    private popMatchLabel(type: keyof typeof MATCH_LABEL): void {
+    private popMatchLabel(type: keyof typeof MATCH_WORD): void {
         const layer = this._fxLayer;
         if (!layer || !layer.isValid) return;
         const M = CFG.MOTION;
@@ -2406,7 +2810,7 @@ export class GamePage extends PageBase {
         // 起点取槽位条上方一点：飘字是"从消除的位置长出来的"，
         // 从屏幕正中冒出来会失去它和槽位的空间联系。
         const startY = CFG.GAME_LAYOUT.SLOT_BAR_Y + 130;
-        const label = createLabel(layer, MATCH_LABEL[type], {
+        const label = createLabel(layer, MATCH_WORD[type], {
             y: startY,
             fontSize: 96,
             color: CFG.COLOR.GOLD,
@@ -3232,18 +3636,7 @@ export class GamePage extends PageBase {
     private refreshHud(): void {
         const total = this._layout.tiles.length;
 
-        if (this._barG) {
-            const g = this._barG;
-            const L = CFG.GAME_LAYOUT;
-            g.clear();
-            fillBox(g, 0, 0, L.BAR_W, L.BAR_H, 0, CFG.COLOR.INK, 30);
-            const ratio = total > 0 ? this._cleared / total : 0;
-            if (ratio > 0) {
-                g.fillColor = hex2color(CFG.COLOR.VERMILION);
-                g.rect(-L.BAR_W / 2, -L.BAR_H / 2, L.BAR_W * ratio, L.BAR_H);
-                g.fill();
-            }
-        }
+        this.drawProgress();
 
         if (this._countLabel) {
             this._countLabel.string = `已清 ${this._cleared} / ${total}`;
@@ -3251,6 +3644,25 @@ export class GamePage extends PageBase {
         if (this._timeLabel) {
             this._timeLabel.string = this.timeText();
         }
+    }
+
+    /**
+     * 重画顶部进度条。
+     *
+     * ⚠️ **不要在这里调 `layoutHeader()`**：计时文案从「05:00」倒数到「00:59」
+     *    宽度是会变的（`estTextWidth` 口径下 5 个字符同宽，实际字形会有 1~2px 抖动），
+     *    每秒钟重排一次会让「规则」钮**原地抖** —— 那比偏几像素难看得多。
+     *    顶条只在"入场"那一刻排一次版（见 `layoutHeader` 的调用时机说明）。
+     */
+    private drawProgress(): void {
+        const g = this._barG;
+        if (!g) return;
+        const L = CFG.GAME_LAYOUT;
+        const total = this._layout ? this._layout.tiles.length : 0;
+        const ratio = total > 0 ? this._cleared / total : 0;
+        // 刻度 4 根（含两端）＝ 三段 —— 与「三张成组」的心算节奏对齐，
+        // 比百分比刻度更贴玩法（设计稿就是 0/33.3/66.6/100 四根）。
+        drawProgressBar(g, L.BAR_W, L.BAR_H, ratio, 4);
     }
 
     private timeText(): string {
@@ -3265,9 +3677,52 @@ export class GamePage extends PageBase {
     //  计时与胜负
     // ========================================================
     protected onEnter(): void {
+        // ★ S19：**顶条弹性三段在这里定稿**。
+        //  为什么必须放在 onEnter、而且要放在最前面：
+        //   ① PageManager 是 `setTimeout(FADE_DURATION + 20ms)` 之后才调 onEnter 的，
+        //      此时 Label 已经过渲染管线，`contentSize.width` 才是真值
+        //      （构建期读到的可能是默认的 100 —— 而且**不报错**）；
+        //   ② 下面的 A4「HUD 下落淡入」会把 node.position 整个 tween 到
+        //      `v3(当前x, 目标y)` —— x 是**此刻**读的快照。如果排版发生在它之后，
+        //      tween 会把规则钮拉回旧 x，读起来是"按钮自己滑回去了"。
+        this.layoutHeader();
+
         // 入场动效必须先播：PageManager 是在转场结束（也就是本页完全可见）之后
         // 才调 onEnter 的，这里才是"观众已经就座"的时刻。
-        this.playEnterMotion();
+        //
+        // ★ S18.4：入场变成**串行的两段**（用户拍板「先播开场动画，再出现牌堆涌现」）：
+        //   第一段 开场（IntroAnim，1.5s）—— 负责"**舞台**"：
+        //          页框 / 顶部信息 / 槽位条 / 道具栏（全部静态 HUD）淡入，**牌堆区是空的**；
+        //   第二段 涌现（playSproutMotion，1.6s）—— 负责"**演员**"：
+        //          牌堆从棋盘里成束升起、挤压、回弹。
+        //  两段的内容边界刻意切开，所以同一件事不会被讲两遍。
+        //  ⚠️ 计时**必须后移到涌现结束之后**（见 beginPlay 的注释）：
+        //    否则玩家还在看动画，成绩已经在跑了。
+        if (this._introOn) {
+            this._busy = true;   // 开场期间锁输入（点击只用于"跳过"）
+            IntroAnim.play({
+                parent: this.root,
+                title: `第 ${this._level.id} 关 · ${this._level.name}`,
+                hudLayer: this._hudLayer,
+                onDone: () => this.beginPlay(),
+            });
+        } else {
+            this.beginPlay();
+        }
+    }
+
+    /**
+     * 进入"可玩"状态：牌堆亮相 → 涌现 → **这时才开始计时**。
+     *
+     * 【计时为什么必须后移】S18 之前它就在 onEnter 里，因为那时入场只有 1.6s 的涌现，
+     * 玩家在动画期间也没法操作、但**看得见牌**。串行两段之后，开场那 1.5s 里
+     * 画面上连牌都没有 —— 这段时间要是也算成绩，L4 的 720 秒会被白扣 3 秒，
+     * 而且玩家会觉得"我还没开始玩就掉时间"。所以计时点跟着"牌出现"走。
+     */
+    private beginPlay(): void {
+        // 牌堆组在此刻才亮相（开场期间它一直是全透明）
+        MotionFx.setFade(this._stackLayer, 255);
+        this.playSproutMotion();
 
         if (this._level.timeLimit > 0 && !this._timing) {
             this._timing = true;
@@ -3349,16 +3804,47 @@ export class GamePage extends PageBase {
             const best = save.getBestTime(this._level.id);
             save.markCleared(this._level.id, this._usedTime);
             const isRecord = best === 0 || this._usedTime < best;
-            toast(this.root, `通关！用时 ${this._usedTime} 秒${isRecord ? ' · 新纪录' : ''}`, 2.2);
-            // 结算后延迟一点回关卡页（S7 会换成正式的结算面板）
-            setTimeout(() => {
+
+            // ★ S18.5：通关的结算不再是一条 toast + 2 秒后跳页，而是
+            //   **一枚朱砂「过」印砸在纸上**（见 ResultFx.stamp 的头注释）。
+            //   toast 的问题是它和"印"在讲同一件事 —— 屏幕中央飘一行
+            //   「通关！用时 12 秒」的同时砸下一枚写着「过」的印，信息重复，
+            //   而且 toast 会被那枚 96×96 的印盖住一半（它俩都居中）。
+            //   所以 toast 整个让位给印：**印负责"赢了"，面板负责"多快"**。
+            //
+            //   时序（全部可调，见 CFG.MOTION.STAMP）：
+            //     0      → 印从上方砸下（110ms，过冲 1.32）
+            //     90     → 纸面震四拍 + 纵向压到 86%
+            //     410    → 外扩环 + 16 枚印泥颗粒向上飞
+            //     900    → 印静止
+            //     1600   → 结算条推入（340ms backOut）
+            //     1940+  → 停留 PANEL_HOLD 后自动回首页
+            ResultFx.stamp(this.root, this._frameNode, () => {
                 if (!this.node.isValid) return;
-                this.goto('levelSelect');
-            }, 2000);
+                const panel = ResultFx.buildWinPanel(this.root, this._usedTime, best, isRecord);
+                ResultFx.slidePanelIn(
+                    panel,
+                    CFG.MOTION.STAMP.PANEL_Y0, CFG.MOTION.STAMP.PANEL_Y1,
+                    CFG.MOTION.STAMP.PANEL_IN,
+                );
+                // 回首页（★ S18.3：选关页已删除 → 这里原本回 levelSelect）。
+                // 首页主按钮会自动变成「继 续 · 第 N 关」，所以"接着打下一关"
+                // 依然是一步可达；不在这里再放按钮是为了守住 §5 一级重心只有 1 个。
+                setTimeout(() => {
+                    if (!this.node.isValid) return;
+                    this.goto('menu');
+                }, (CFG.MOTION.STAMP.PANEL_IN + CFG.MOTION.STAMP.PANEL_HOLD) * 1000);
+            });
             return;
         }
 
-        this.showFailPanel();
+        // ★ S18.5：失败先"揉纸 + 溅墨"，动效收束之后再推入结算面板。
+        //  【为什么面板必须等】面板 520×420 一盖上就压掉了 6 段纸面带抖动的
+        //  大半区域 —— 先弹面板等于把动效白做。所以 onPanel 回调里才建面板。
+        ResultFx.crease(this.root, () => {
+            if (!this.node.isValid) return;
+            this.showFailPanel();
+        });
     }
 
     /**
@@ -3409,18 +3895,17 @@ export class GamePage extends PageBase {
         mg.fill();
         mask.on(Node.EventType.TOUCH_END, (e: EventTouch) => { e.propagationStopped = true; });
 
-        const panel = createNode('FailPanel', mask, { w: F.PANEL_W, h: F.PANEL_H, y: F.PANEL_Y });
-        const pg = panel.addComponent(Graphics);
-        fillBox(pg, 0, 0, F.PANEL_W, F.PANEL_H, CFG.SHAPE.RADIUS_PANEL, CFG.COLOR.FACE);
-        strokeBox(pg, 0, 0, F.PANEL_W, F.PANEL_H, CFG.SHAPE.RADIUS_PANEL, CFG.COLOR.INK, 3);
+        const panel = createPanel(mask, 'FailPanel', F.PANEL_W, F.PANEL_H, {
+            x: 0, y: F.PANEL_Y, inner: true,
+        });
         panel.on(Node.EventType.TOUCH_END, (e: EventTouch) => { e.propagationStopped = true; });
 
         createLabel(panel, why, {
-            y: F.TITLE_DY, fontSize: CFG.FONT.SIZE_TITLE - 8,
+            y: F.TITLE_DY, fontSize: F.TITLE_SIZE,
             color: CFG.COLOR.VERMILION, bold: true, serif: true,
         });
         createLabel(panel, `已清 ${this._cleared} / ${this._layout.tiles.length} · 还剩 ${this._left} 张`,
-            { y: F.REASON_DY, fontSize: CFG.FONT.SIZE_SMALL, color: CFG.COLOR.INK_SOFT });
+            { y: F.REASON_DY, fontSize: F.REASON_SIZE, color: CFG.COLOR.INK_MID });
 
         // ① 复活：可选的最优解，插在第一位，但**不是唯一出路**
         //    文案里的张数**从参数算**，不写死 4 —— 「加槽」后槽容量变 9，
@@ -3430,34 +3915,50 @@ export class GamePage extends PageBase {
                 * CFG.REWARD.REVIVE_CLEAR_RATIO);
             createButton(panel, 'ReviveBtn', {
                 y: F.REVIVE_DY, w: F.BTN_W, h: F.BTN_H,
+                tone: 'red',
                 // 文案刻意短：初版「看广告复活（清空槽位 + 洗牌）」在 400px 按钮里
-                // 放不下（末字被裁），加宽到 448 再配 SIZE_BUTTON−12 才留出安全边距。
+                // 放不下（末字被裁），加宽到 404 再配 BTN_FONT(26) 才留出安全边距。
                 text: reviveLeft > 0
                     ? `看广告复活（消 ${reviveClear} 张 + 重排）`
                     : '本关复活机会已用完',
-                fontSize: CFG.FONT.SIZE_BUTTON - 12, serif: true,
+                fontSize: F.BTN_FONT, serif: true,
                 enabled: reviveLeft > 0,
-                enabledFill: CFG.COLOR.LOCK_BG,
+                // 禁用态由 createButton 统一走 LOCK 纸灰（不再需要 enabledFill）
                 onClick: () => { void this.doRevive(); },
             });
         }
 
-        // ② 重开本关：永远免费的兜底
+        // ② 重玩本关：永远免费的兜底
+        //  ★ S18.3：文案从「重开本关」改成「重玩 · 第 k 关」——
+        //  与首页那颗「重玩」小方**同词同义**（决议 3：重玩指向当前这一关），
+        //  顺便把关号写出来，玩家不必回忆"刚才打的是第几关"。
         createButton(panel, 'RestartBtn', {
             y: F.RESTART_DY, w: F.BTN_W, h: F.BTN_H,
-            text: '重开本关', fontSize: CFG.FONT.SIZE_BUTTON - 8,
-            fill: CFG.COLOR.FACE, textColor: CFG.COLOR.INK, stroke: CFG.COLOR.INK,
+            tone: 'white',
+            text: `重玩 · 第 ${this._level.id} 关`, fontSize: F.BTN_FONT,
+            serif: true,
             onClick: () => { this.goto('game', { levelId: this._level.id }); },
         });
 
-        // ③ 返回关卡页
-        const backLabel = createLabel(panel, '返回关卡', {
-            y: F.BACK_DY, fontSize: CFG.FONT.SIZE_BODY, color: CFG.COLOR.INK_SOFT,
+        // ③ 回首页
+        //  ★ S18.3：文案从「返回关卡」改成「返回首页」（选关页已删除，
+        //  "返回关卡"这个说法随之失去指代对象），路由改 `goto('menu')`。
+        const backLabel = createLabel(panel, '返回首页', {
+            y: F.BACK_DY, fontSize: F.BACK_SIZE, color: '#57503F',
             w: 240, h: 64,
         });
-        backLabel.node.on(Node.EventType.TOUCH_END, () => { this.goto('levelSelect'); });
+        backLabel.node.on(Node.EventType.TOUCH_END, () => { this.goto('menu'); });
 
         this._failPanel = mask;
+        // ★ S18.5：面板"从下沿推上来"（形制 / 布局 / 文案一个字不动，只加进场）。
+        //  从 -820 推入 = 与通关结算条**同一套进场语言**，两处结算读起来是一家人。
+        //  ⚠️ 推的是 panel 而不是 mask：mask 是 2000×2000 的遮罩，
+        //    推它会把遮罩也带偏、边缘露出底色。
+        ResultFx.slidePanelIn(
+            panel,
+            CFG.MOTION.CREASE.PANEL_Y0, F.PANEL_Y,
+            CFG.MOTION.CREASE.PANEL_IN,
+        );
         log(`[GamePage] 失败面板已开 原因=${why} 可复活=${reviveLeft > 0}`);
     }
 

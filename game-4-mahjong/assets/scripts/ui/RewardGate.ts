@@ -87,7 +87,7 @@ export class RewardGate {
         const G = CFG.REWARD.GATE;
         const mask = RewardGate.makeMask(parent, 'GateMask');
         const panel = createPanel(mask, 'GatePanel', G.PANEL_W, G.PANEL_H, {
-            y: G.PANEL_Y, stroke: CFG.COLOR.INK, lineWidth: 3, corners: true,
+            y: G.PANEL_Y, inner: true,
         });
 
         createLabel(panel, reason, {
@@ -96,7 +96,7 @@ export class RewardGate {
         });
         // 合规说明：广告与分享是并列的两条路，不诱导、不绑定
         createLabel(panel, '广告 与 分享 是并列的两条路，任选其一', {
-            y: G.SUB_DY, fontSize: CFG.FONT.SIZE_SMALL, color: CFG.COLOR.INK_SOFT,
+            y: G.SUB_DY, fontSize: CFG.FONT.SIZE_SMALL, color: CFG.COLOR.INK_MID,
         });
 
         // 分享还剩几次：让玩家自己决定走哪条，而不是被引导
@@ -132,9 +132,8 @@ export class RewardGate {
             y: G.SHARE_BTN_DY, w: G.BTN_W, h: G.BTN_H,
             text: left > 0 ? `分享给朋友（今日还剩 ${left} 次）` : '分享给朋友（今日已用完）',
             fontSize: CFG.FONT.SIZE_BUTTON - 10,
-            fill: CFG.COLOR.FACE, textColor: CFG.COLOR.INK, stroke: CFG.COLOR.INK,
+            tone: 'white',
             enabled: left > 0,
-            enabledFill: CFG.COLOR.LOCK_BG,
             onClick: () => {
                 if (!handOver()) return;
                 log('[RewardGate] 渠道面板选择=share');
@@ -145,7 +144,7 @@ export class RewardGate {
         // ---- 放弃 ----
         // 只用文字，不画按钮，也不画角花：门是软的，不拦人。
         const cancelLabel = createLabel(panel, '暂不使用', {
-            y: G.CANCEL_DY, fontSize: CFG.FONT.SIZE_BODY, color: CFG.COLOR.INK_SOFT,
+            y: G.CANCEL_DY, fontSize: CFG.FONT.SIZE_BODY, color: CFG.COLOR.INK_MID,
             w: 200, h: 64,
         });
         cancelLabel.node.on(Node.EventType.TOUCH_END, cancel);
@@ -207,7 +206,7 @@ export class RewardGate {
 
         const mask = RewardGate.makeMask(parent, 'AdMockMask');
         const panel = createPanel(mask, 'AdMockPanel', A.PANEL_W, A.PANEL_H, {
-            y: A.PANEL_Y, stroke: CFG.COLOR.INK, lineWidth: 3,
+            y: A.PANEL_Y, inner: true,
         });
 
         createLabel(panel, '模拟广告', {
@@ -216,7 +215,7 @@ export class RewardGate {
         });
         // 明确写出"这是占位页"：自测与审核时都不会被误认成真广告
         const hint = createLabel(panel, `开发者环境占位页 · ${secs} 秒后自动完成`, {
-            y: A.HINT_DY, fontSize: CFG.FONT.SIZE_SMALL, color: CFG.COLOR.INK_SOFT,
+            y: A.HINT_DY, fontSize: CFG.FONT.SIZE_SMALL, color: CFG.COLOR.INK_MID,
             w: A.PANEL_W - 60,
         });
 
@@ -248,7 +247,7 @@ export class RewardGate {
             createButton(panel, 'SkipBtn', {
                 y: A.SKIP_BTN_DY, w: A.BTN_W, h: A.BTN_H,
                 text: '跳过', fontSize: CFG.FONT.SIZE_BUTTON - 8,
-                fill: CFG.COLOR.FACE, textColor: CFG.COLOR.INK, stroke: CFG.COLOR.INK,
+                tone: 'white',
                 onClick: () => finish(true),
             });
         }
@@ -288,14 +287,14 @@ export class RewardGate {
         const A = CFG.REWARD.AD_MOCK;
         const mask = RewardGate.makeMask(parent, 'ShareMockMask');
         const panel = createPanel(mask, 'ShareMockPanel', A.PANEL_W, A.PANEL_H, {
-            y: A.PANEL_Y, stroke: CFG.COLOR.INK, lineWidth: 3,
+            y: A.PANEL_Y, inner: true,
         });
         createLabel(panel, '模拟分享', {
             y: A.TITLE_DY, fontSize: CFG.FONT.SIZE_H2 - 6,
             color: CFG.COLOR.INK, bold: true, serif: true,
         });
         createLabel(panel, '开发者环境不拉起分享面板，1 秒后直接放行', {
-            y: A.HINT_DY, fontSize: CFG.FONT.SIZE_SMALL, color: CFG.COLOR.INK_SOFT,
+            y: A.HINT_DY, fontSize: CFG.FONT.SIZE_SMALL, color: CFG.COLOR.INK_MID,
             w: A.PANEL_W - 60,
         });
 

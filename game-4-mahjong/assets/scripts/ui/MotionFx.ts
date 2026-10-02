@@ -147,7 +147,7 @@ export const TAG = {
      * 用同一个 tag 反而会互相打断（后起的把前一条 stop 掉）。
      */
     SPIN: 'spin',
-    /** 牌堆内的位置（入场铺开、洗牌铺开、提示呼吸） */
+    /** 牌堆内的位置（入场涌现、洗牌铺开、提示呼吸） */
     STACK: 'stack',
     /** 牌堆整体浮现（改容器 scale / opacity） */
     ENTER: 'enter',

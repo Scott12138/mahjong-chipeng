@@ -61,28 +61,39 @@ const BGM_PATH = 'audio/bgm';
 /**
  * 全部音效 id。
  *
- * 【两张"出生证明"要分清（S12.2）】
- *   · 合成音（8 段）：与 tools/make-sfx.py 的 SFX 字典一一对应；
- *   · 人声念白（2 段）：`peng` / `eat`，由 tools/make-voice.py 生成 ——
- *     它们是**借真人 TTS 干声重写声调**得到的人声，
- *     不是 make-sfx.py 那几个正弦/噪声基元能合成的。
- * ⚠️ 所以「改某一个音效」之前，先看它归哪个脚本管：
- *    改错脚本会让"重跑生成脚本"把刚做的改动直接冲掉。
+ * 【★ S18 决议 5：人声念白整体下线（2026-10-01）】
+ *   以前这里有两段**人声念白** `peng` / `eat`（真人 TTS 念的「碰」「吃」，
+ *   由 `tools/install-voice-lib.py` 从棋牌语音库灌进 assets）。
+ *   它们读出来的就是**棋牌术语**，虽然"好听、有辨识度"，
+ *   但和"个人主体 + 休闲益智类目、游戏内零棋牌语义"这条硬约束直接冲突
+ *   （见 `MatchRule.ts` 头注释与 DESIGN §10），所以：
+ *     · `peng.m4a` → **改名 `clash`** 并换成**合成音**（波形从 sfx_peng 继承，
+ *        本来就是噪声瞬态 + 三音和弦，不含任何语义）；
+ *     · `eat.m4a`  → **改用 `swish`**（新合成的纸 / 木质「唰」）；
+ *     · 两个旧文件已从 assets 删除，`id` 也从下面这个联合类型里移除了。
+ *   ⚠️ 从此**全工程不再有"人声"这一类音源**，`SfxId` 里全部是合成音，
+ *      所以「改音效」这件事**只归 make-sfx.py 管**（不会再有两个脚本抢名字）。
  *
- * 【`flow` 已退役（S12.2）】它原来是「吃」的"流水汇合"音。
- * 「吃」改成咀嚼之后没有调用方了，文件与 id 一并删除 ——
+ * 【两张"出生证明"仍要分清（S12.2）】
+ *   · 合成音（13 段）：与 tools/make-sfx.py 的 SFX 字典**一一对应**；
+ *   · BGM 1 段：由 tools/make-bgm.py 生成，不走 SfxId。
+ *   改音效前先看一眼它归哪个脚本管，改错脚本会让"重跑生成脚本"冲掉刚做的改动。
+ *
+ * 【`flow` 已退役（S12.2）】它原来是连号消除的"流水汇合"音。
+ * 连号消除改成"咀嚼"之后没有调用方了，文件与 id 一并删除 ——
  * 留着一个永远加载不到的 id，只会让"怎么没声音"变成一桩悬案
  * （音频加载失败**只 warn 不报错**）。
+ * 函数体仍在 make-sfx.py 里留作参考实现（但**不登记**进 SFX 字典）。
  */
 export type SfxId =
     | 'tap' | 'pick' | 'land' | 'reject'
-    | 'peng' | 'clear' | 'eat'
+    | 'clash' | 'clear' | 'swish'
     | 'shuffle' | 'reward' | 'fail' | 'revive' | 'addslot' | 'win';
 
 /** 与资源目录一致的清单（顺序无关，只用于遍历加载） */
 const ALL_SFX: SfxId[] = [
     'tap', 'pick', 'land', 'reject',
-    'peng', 'clear', 'eat',
+    'clash', 'clear', 'swish',
     'shuffle', 'reward', 'fail', 'revive', 'addslot', 'win',
 ];
 

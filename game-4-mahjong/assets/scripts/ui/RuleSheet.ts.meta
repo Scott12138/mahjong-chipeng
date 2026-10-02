@@ -2,11 +2,11 @@
   "ver": "4.0.24",
   "importer": "typescript",
   "imported": true,
-  "uuid": "0b81c381-c6e1-53f1-b442-729cb4e5e4a7",
+  "uuid": "768419ac-965c-5024-b393-773f88ca898a",
   "files": [],
   "subMetas": {},
   "userData": {
-    "moduleId": "project:///assets/scripts/ui/LevelSelectPage.js",
+    "moduleId": "project:///assets/scripts/ui/RuleSheet.js",
     "importerSettings": 7,
     "simulateGlobals": []
   }

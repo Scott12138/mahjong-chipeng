@@ -1,0 +1,13 @@
+{
+  "ver": "4.0.24",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "ec1f642d-b56b-56ad-9782-0886e7a765d9",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "moduleId": "project:///assets/scripts/ui/ResultFx.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

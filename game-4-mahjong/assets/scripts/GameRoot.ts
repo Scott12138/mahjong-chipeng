@@ -28,15 +28,20 @@ import { PageManager } from './core/PageManager';
 import { SaveService } from './core/SaveService';
 import { GamePage } from './ui/GamePage';
 import { AudioService } from './ui/AudioService';
-import { LevelSelectPage } from './ui/LevelSelectPage';
 import { MenuPage } from './ui/MenuPage';
 
 const { ccclass } = _decorator;
 
-/** 页面名常量（避免各处写裸字符串写错） */
+/**
+ * 页面名常量（避免各处写裸字符串写错）。
+ *
+ * ★ S18.3：`LEVEL_SELECT` 已删除 —— 选关页被首页吸收（决议 7）。
+ *   ⚠️ 删这个键之前必须先 grep **`levelSelect`** 而不是 `LevelSelectPage`：
+ *   后者只有本文件命中，而真正的调用点（4 处 `goto('levelSelect')`）
+ *   散在 MenuPage / GamePage 里，漏一处就是一个白屏。
+ */
 export const PAGE = {
     MENU: 'menu',
-    LEVEL_SELECT: 'levelSelect',
     GAME: 'game',
 } as const;
 
@@ -136,7 +141,7 @@ export class GameRoot extends Component {
     // --------------------------------------------------------
     private registerPages(): void {
         PageManager.register(PAGE.MENU, MenuPage);
-        PageManager.register(PAGE.LEVEL_SELECT, LevelSelectPage);
+        // ★ S18.3：选关页已删除。首页主按钮**直达**游戏页 —— 少一次点击、少一次转场。
         PageManager.register(PAGE.GAME, GamePage);
         // 后续里程碑在此追加：result（S7 正式结算面板）……
     }

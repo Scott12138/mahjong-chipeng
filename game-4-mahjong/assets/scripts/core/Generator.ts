@@ -28,7 +28,7 @@
  * ============================================================
  */
 
-import { CFG, LevelConfig, SOLID_OVERHANG } from '../CFG';
+import { CFG, LevelConfig, rotatedVisualBox } from '../CFG';
 import {
     ALL_PATTERNS, Family, FAMILIES, PatternKey, TILE_GEO, parsePattern, patternKey,
 } from '../TileData';
@@ -55,6 +55,134 @@ export function makeRng(seed: number): Rng {
 /** [0, n) 的整数 */
 function randInt(rng: Rng, n: number): number {
     return Math.floor(rng() * n);
+}
+
+/**
+ * 抽一个摆放角度（★ S15.2）。
+ *
+ * 形状 = **四向基础朝向** + **偏斜**，两段各自独立随机。参数全在
+ * `CFG.STACK.ROTATION` 里，这里只负责按权重抽签。
+ *
+ * 【为什么两段分开，而不是直接从一个 0~360 的分布里抽】
+ *   · 基础段控制"横竖各占多少"（牌堆里横躺与竖立的比例）；
+ *   · 偏斜段控制"歪得有多野"（0° 大半、点缀几张大角度）。
+ *  合成起来能配出"有横有竖、大半摆正、少数歪着"的写实牌堆，
+ *  而单段分布要么全歪、要么全正，调不出这个中间态。
+ *
+ * 【为什么正负号用 50% 而不是对称档位】
+ *  档位表里只存绝对值、符号单独抽，是为了让"想加一档 60°"只改一处 ——
+ *  写成 [-60, +60] 两条的话，早晚会出现"只加了正的、忘了负的"。
+ */
+export function rollAngle(rng: Rng): number {
+    const r = rollAngleParts(rng);
+    return r.base + r.sign * r.skew;
+}
+
+/**
+ * 跟 `rollAngle` 同源，但**把三个部分分开返回**。
+ *
+ * 【为什么要拆开】
+ * 靠近牌堆区边缘的牌，角度要能"往回收"（见 `fitAngle`）——
+ * 而"往回收"必须知道它原本是**从哪个基础朝向歪过来的**：
+ * 45° 既可以读成「竖放 +45」，也可以读成「横放 −45」，
+ * 两者往回收的方向完全相反（一个转回竖直、一个转回横躺）。
+ * 只拿到合成后的角度是**分不出**这两种意图的。
+ */
+function rollAngleParts(rng: Rng): { base: number; sign: number; skew: number } {
+    const R = CFG.STACK.ROTATION;
+    const base = R.BASE[randInt(rng, R.BASE.length)];
+
+    let sum = 0;
+    for (const t of R.SKEW) sum += t[1];
+    let pick = rng() * sum;
+    let skew = 0;
+    for (const t of R.SKEW) {
+        pick -= t[1];
+        if (pick <= 0) { skew = t[0]; break; }
+    }
+    // ⚠️ 符号那一抽**即使 skew = 0 也要抽**（抽完丢掉）。
+    // 不是为了好看：探针要对比"不同偏斜档位"的两批布局，如果随机数的**消耗次数**
+    // 随档位变化，两批牌局从第一张起就完全不同，对比出来的差异里混着"换了布局"
+    // 这个噪声，结论就不可信了。固定消耗 3 次，A/B 才落在同一批布局上。
+    const sign = rng() < 0.5 ? -1 : 1;
+    if (skew === 0) return { base, sign: 1, skew: 0 };
+    return { base, sign, skew };
+}
+
+/**
+ * 把**已经存在**的角度拆回三个部分（`rollAngleParts` 的逆运算）。
+ * 只给「洗牌」用：它不改朝向（牌还是那张牌），但换了位置之后同样要让位，
+ * 而让位需要知道"它原本是从哪个基础朝向歪过来的"。
+ * 因为 |偏斜| ≤ 45，取最近的 90 的倍数当基础朝向一定是准的。
+ */
+function angleParts(deg: number): { base: number; sign: number; skew: number } {
+    const base = Math.round(deg / 90) * 90;
+    const d = deg - base;
+    return { base, sign: d < 0 ? -1 : 1, skew: Math.abs(d) };
+}
+
+/** 角度容差（px）：浮点误差不该让一张"刚好贴边"的牌被判定为放不下 */
+const FIT_EPS = 0.5;
+
+/**
+ * ★ S15.2：把"想要的角度"调成"在这个位置上放得下的角度"。
+ *
+ * ------------------------------------------------------------
+ *  【为什么需要它 —— 这是"牌能歪着摆"最大的一个坑】
+ *  一张牌转起来之后占位会变大：45° 时是正立的 **1.65 倍面积**，
+ *  横躺时左侧还要多出 93px（厚度壁与投影跟着一起转，跑到左边去了）。
+ *  于是"贴边的牌会捅出牌堆区"。
+ *
+ *  最直接的修法是**逐张夹位置**（把牌心往里推）。但那样会：
+ *    · 把一张牌从它所在的列上推走最多 40px（≈ 1/3 个格距）——
+ *      同一行的牌立刻挤成一团，"列"这个结构没了；
+ *    · 而如果要让"夹位置"不发生，网格就得按 45° 的最坏占位来排 ——
+ *      列数从 5 掉到 4，整堆容量少 20%，牌堆明显变窄。
+ *  两条都是"为了一个 5% 概率的大角度，牺牲掉全局"。所以都不选。
+ *
+ *  【这里选的做法】
+ *  **优先保住角度，其次才是位置**，顺序如下：
+ *    ① 按档位从大到小试（45 → 33 → 24 → 16 → 10 → 5 → 0），
+ *       第一个"放得下"的就用 —— 于是贴边的牌会**自己收一点偏斜**，
+ *       像一堆牌里靠边的那几张确实会被挤得摆正一些，这是符合直觉的；
+ *    ② 连基础朝向都放不下（只有横躺牌贴左边界会这样），
+ *       才**保角度、挪位置**（往右推最小的一点点）。
+ *
+ *  网格容量则完全按**正立牌**算（见 `buildGrid`），一列都不让 ——
+ *  因为"牌堆占满画面"是观感的地基，不能为了边缘的几张牌放弃。
+ *
+ * @returns 调整后的角度与（必要时）修正过的牌心 x
+ */
+function fitAngle(
+    x: number, y: number, w: number, h: number, want: { base: number; sign: number; skew: number },
+): { angle: number; x: number } {
+    const S = CFG.STACK;
+
+    const fits = (deg: number): boolean => {
+        const v = rotatedVisualBox(w, h, deg);
+        return x + v.dx - v.hw >= S.X_MIN - FIT_EPS
+            && x + v.dx + v.hw <= S.X_MAX + FIT_EPS
+            && y + v.dy - v.hh >= S.Y_MIN - FIT_EPS
+            && y + v.dy + v.hh <= S.Y_MAX + FIT_EPS;
+    };
+
+    // 档位从大到小。只试"不超过它想歪的幅度"的那些 —— 不能给它加戏。
+    const tiers = S.ROTATION.SKEW.map((t) => t[0]).sort((a, b) => b - a);
+    for (const t of tiers) {
+        if (t > want.skew) continue;
+        const deg = want.base + want.sign * t;
+        if (fits(deg)) return { angle: deg, x };
+    }
+
+    // 基础朝向都放不下 → 保角度、挪位置。只有横躺牌贴左边界会走到这里
+    // （横躺时"往右下溢出的厚度"转到了左边，左外延从 54 涨到 93）。
+    const v = rotatedVisualBox(w, h, want.base);
+    const lo = S.X_MIN - v.dx + v.hw;
+    const hi = S.X_MAX - v.dx - v.hw;
+    let nx = x;
+    if (nx < lo) nx = lo;
+    if (nx > hi) nx = hi;
+    return { angle: want.base, x: nx };
 }
 
 // ============================================================
@@ -94,23 +222,118 @@ export interface TileInst {
     /** 牌面显示高（= w × 176/132，保持牌面内部比例） */
     h: number;
     /**
-     * 摆放朝向（度）：0 / 90 / 180 / 270。
-     * L1（教学关）恒为 0；L2 起四向随机。
+     * 摆放朝向（度）—— **任意值**，口径与 Cocos 的 `node.angle` 一致
+     * （屏幕坐标 y 向上、顺时针为正）。
      *
-     * ⚠️ 旋转到 90 / 270 时**视觉宽高互换**，所以所有跟矩形有关的计算
-     * （遮挡判定、命中测试）**必须走 `boxOf()`**，
-     * 不能再像旧版那样直接拿 `CFG.TILE.W/H` 去比 —— 那样横躺的牌会判错。
+     * L1（教学关）恒为 0（新手第一次玩，牌面歪着会直接劝退）；
+     * L2 起 = `CFG.STACK.ROTATION` 里抽的「四向基础 + 随机偏斜」（见 `rollAngle`）。
+     *
+     * ⚠️ 角度一旦不是 90 的整数倍，**所有与矩形有关的计算都不能再用轴对齐包围盒**：
+     *    · 遮挡判定 → `obbOverlap()`（分离轴定理，精确）
+     *    · 命中测试 → `pointInTile()`（把点逆变换回牌的局部坐标）
+     *    · 占位/边界 → `CFG.rotatedVisualBox()`（含立体侧壁与投影）
+     * 拿 AABB 去判，45° 的牌会虚胖成 1.65 倍面积，凭空压住四个邻居。
      */
     angle: number;
 }
 
 /**
- * 一张牌的**视觉**包围盒半宽 / 半高。
- * 90 / 270 度时宽高互换。
+ * 一张牌的**轴对齐**包围盒半宽 / 半高（**不含**立体侧壁与投影）。
+ *
+ * 【S15.2 起口径变了】
+ * 旧版只判 `angle === 90 || 270`，因为那时角度只有四个值。
+ * 现在角度是任意数，必须按通用公式算旋转矩形的外接框：
+ *   hw = (w·|cosθ| + h·|sinθ|) / 2
+ *   hh = (w·|sinθ| + h·|cosθ|) / 2
+ * 45° 时它比正立大 1.65 倍面积 —— 它**只适合当粗筛**
+ * （先快速排除离得很远的牌），真正的"压没压住"必须用 `obbOverlap`。
  */
 export function boxOf(t: TileInst): { hw: number; hh: number } {
-    const rotated = t.angle === 90 || t.angle === 270;
-    return rotated ? { hw: t.h / 2, hh: t.w / 2 } : { hw: t.w / 2, hh: t.h / 2 };
+    const rad = (t.angle * Math.PI) / 180;
+    const c = Math.abs(Math.cos(rad));
+    const s = Math.abs(Math.sin(rad));
+    return { hw: (t.w * c + t.h * s) / 2, hh: (t.w * s + t.h * c) / 2 };
+}
+
+// ============================================================
+//  几何：点是否在牌内 / 两张牌是否真的相交
+// ============================================================
+//  【★ S15.3 为什么要换掉轴对齐包围盒】
+//  牌能任意旋转之后，拿 AABB 判"压没压住"是**错的**：
+//    · 45° 的牌，AABB 是 200×200，而牌本身只占其中 41% 的面积；
+//    · 于是 AABB 与邻居大面积"相交"，但牌其实离邻居还有 40px。
+//  这会凭空造出大量假遮挡 → 可点牌骤减 → 开局长得像死局。
+//  所以遮挡判定改用**精确的旋转矩形相交**（分离轴定理），
+//  命中判定同理（否则会点中"牌没画到、但包围盒盖住了"的空角落）。
+//
+//  ⚠️ 旋转方向的口径**只有一处**：CFG.rotatedVisualBox 的文件注释里写了
+//     「屏幕坐标 y 向上、顺时针为正：(x,y) → (x·cosθ + y·sinθ, −x·sinθ + y·cosθ)」。
+//     本文件下面两个函数必须与它逐字一致，否则会出现
+//     "看着压住了却点得动" / "点中了旁边那张"这种谁都说不清的问题。
+// ============================================================
+
+/**
+ * 点 `(px, py)` 是否落在圆心 `(cx, cy)`、宽高 `w × h`、旋转 `angleDeg` 的矩形里。
+ * 做法：把点**逆变换**回矩形的局部坐标，再和半宽半高比 —— 比逐边判快，也更好读。
+ */
+export function pointInRect(
+    px: number, py: number, cx: number, cy: number, w: number, h: number, angleDeg: number,
+): boolean {
+    const rad = (angleDeg * Math.PI) / 180;
+    const c = Math.cos(rad);
+    const s = Math.sin(rad);
+    const dx = px - cx;
+    const dy = py - cy;
+    // 顺时针 θ 的逆变换（= 逆时针 θ）
+    const lx = dx * c - dy * s;
+    const ly = dx * s + dy * c;
+    return Math.abs(lx) <= w / 2 && Math.abs(ly) <= h / 2;
+}
+
+/** `pointInRect` 的牌版：判断点是否落在这张牌的**牌体**上 */
+export function pointInTile(t: TileInst, px: number, py: number): boolean {
+    return pointInRect(px, py, t.x, t.y, t.w, t.h, t.angle);
+}
+
+/**
+ * 两个旋转矩形是否**真的相交**（分离轴定理 SAT）。
+ *
+ * 【原理】两个凸多边形若不相交，一定存在一条轴，使得两者的投影不重叠。
+ * 矩形只要检查 **4 根候选轴**（各自的两条边的法向）就够 —— 不必枚举所有方向。
+ * 只要找到一根分开的轴就立刻返回"不相交"。
+ *
+ * 【为什么值得写这一段】
+ * AABB 判法一行就够，但它在旋转场景下会系统性地**高估遮挡**：
+ * 45° 的牌 AABB 面积是牌本身的 2.4 倍，虚出来的四个角会与四邻都"相交"。
+ * 实测这个高估会把 L4 的开局可点牌从 5~7 张压到 1~2 张。
+ */
+export function obbOverlap(a: TileInst, b: TileInst): boolean {
+    const ra = (a.angle * Math.PI) / 180;
+    const rb = (b.angle * Math.PI) / 180;
+    const ca = Math.cos(ra);
+    const sa = Math.sin(ra);
+    const cb = Math.cos(rb);
+    const sb = Math.sin(rb);
+
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const ha = a.w / 2;
+    const hb = a.h / 2;
+    const hc = b.w / 2;
+    const hd = b.h / 2;
+
+    // 4 根候选轴：(A.x, A.y, B.x, B.y)，都已在世界坐标下
+    const axes = [ca, -sa, sa, ca, cb, -sb, sb, cb];
+    for (let i = 0; i < 4; i++) {
+        const nx = axes[i * 2];
+        const ny = axes[i * 2 + 1];
+        const dist = Math.abs(dx * nx + dy * ny);
+        // A 在法向 n 上的投影半径 = 半宽·|A.x·n| + 半高·|A.y·n|
+        const ra2 = ha * Math.abs(ca * nx - sa * ny) + hb * Math.abs(sa * nx + ca * ny);
+        const rb2 = hc * Math.abs(cb * nx - sb * ny) + hd * Math.abs(sb * nx + cb * ny);
+        if (dist > ra2 + rb2) return false;   // 找到分离轴 → 不相交
+    }
+    return true;
 }
 
 /** 一关的完整牌局 */
@@ -286,6 +509,25 @@ export function tileSizeOf(level: LevelConfig): { w: number; h: number } {
     return { w, h: w * (CFG.TILE.H / CFG.TILE.W) };
 }
 
+/**
+ * 网格容量用的"牌占位" —— **按正立牌算**（含立体侧壁与投影）。
+ *
+ * ------------------------------------------------------------
+ *  【★ S15 为什么刻意不按"最坏角度"算】
+ *  45° 的牌占位是正立的 1.65 倍，横躺的牌左侧还要多出 74px
+ *  （厚度壁与投影跟着转）。如果按这个最坏值排网格：
+ *      列数 5 → 4，行数 8 → 7，**格点从 40 掉到 28（-30%）**
+ *  而真正歪到大角度的牌只占 5%~24%。为这点牌让整堆变窄，不值。
+ *
+ *  正确性没有因此打折：**贴边的牌由 `fitAngle` 逐张把偏斜收回来**
+ *  （收不动才挪位置），所以"牌捅出牌堆区"依然不会发生。
+ *  这条口径与 S14 一致 —— 那时网格也是按正立牌排、由边界逐张兜住的。
+ */
+function gridExtent(w: number, h: number): { up: number; down: number; left: number; right: number } {
+    const v = rotatedVisualBox(w, h, 0);
+    return { up: v.dy + v.hh, down: v.hh - v.dy, left: v.hw - v.dx, right: v.hw + v.dx };
+}
+
 function buildGrid(level: LevelConfig): Grid {
     const S = CFG.STACK;
     const T = tileSizeOf(level);
@@ -296,9 +538,10 @@ function buildGrid(level: LevelConfig): Grid {
     const cellW = S.CELL_W * scale;
     const cellH = T.h * (level.flat ? S.CELL_H_RATIO_FLAT : S.CELL_H_RATIO_STACK);
 
-    // 可用的格点中心范围：堆叠区四边各内缩半张牌
-    const spanX = (S.X_MAX - T.w / 2) - (S.X_MIN + T.w / 2);
-    const spanY = (S.Y_MAX - T.h / 2) - (S.Y_MIN + T.h / 2);
+    // 可用的格点中心范围：堆叠区四边各内缩"正立牌的视觉外延"（见 gridExtent）。
+    const ext = gridExtent(T.w, T.h);
+    const spanX = (S.X_MAX - ext.right) - (S.X_MIN + ext.left);
+    const spanY = (S.Y_MAX - ext.up) - (S.Y_MIN + ext.down);
 
     const cols = Math.max(1, Math.floor(spanX / cellW) + 1);
 
@@ -333,8 +576,8 @@ function buildGrid(level: LevelConfig): Grid {
     // 同格叠号的错开量：正常配置下同格很少超过 2 张，留 1 档就够（LAYER_MAX = 0 不设上限，
     // 但真叠起来也不会叠到十几张 —— 那是采样异常，不该由行数预算兜着）
     const stackSpan = cellH * S.LAYER_OFFSET;
-    const availY = (S.Y_MAX - T.h / 2 - SOLID_OVERHANG.UP * solidScale)
-        - (S.Y_MIN + T.h / 2 + SOLID_OVERHANG.DOWN * solidScale);
+    // S15：纵向可用高 = 区高扣掉"最坏角度下的上/下外延"，正好就是 spanY。
+    const availY = spanY;
     const rowBudget = availY - layerSpan - 2 * jitterY - stackSpan;
 
     const rows = Math.max(1, Math.floor(rowBudget / cellH) + 1);
@@ -342,8 +585,8 @@ function buildGrid(level: LevelConfig): Grid {
     // 居中：把格点阵列摆到区域正中，两侧留白均等
     const padX = (spanX - (cols - 1) * cellW) / 2;
     const padY = (spanY - (rows - 1) * cellH) / 2;
-    const x0 = S.X_MIN + T.w / 2 + padX;
-    const yTop = S.Y_MAX - T.h / 2 - padY;
+    const x0 = S.X_MIN + ext.left + padX;
+    const yTop = S.Y_MAX - ext.up - padY;
 
     return {
         cols, rows, cellW, cellH, tileW: T.w, tileH: T.h,
@@ -565,8 +808,12 @@ export function buildBlockGraph(tiles: TileInst[], skip?: boolean[]): BlockGraph
     for (let i = 0; i < n; i++) { below.push([]); above.push([]); }
 
     // ⚠️ 必须用**每张牌自己的**旋转后包围盒，不能用全局的 CFG.TILE.W/H：
-    //    牌有四种朝向、且各关尺寸不同（L1 = 128、L2 起 = 85）。
-    //    矩形相交的判据：|dx| ≥ hw1+hw2 或 |dy| ≥ hh1+hh2 ⟺ 两矩形分离。
+    //    牌可以任意角度、且各关尺寸不同（L1 = 128、L2 起 = 85）。
+    //
+    // 两级判定（S15.3）：
+    //   ① 轴对齐外接框粗筛 —— 一行比较就能排除掉绝大多数"离得远"的牌对，
+    //      而外接框只会**偏大**不会偏小，所以粗筛不会漏判；
+    //   ② 分离轴定理精判 —— 只有外接框相交的牌对才跑，数量级从 n² 降到 n。
     const box = tiles.map(boxOf);
 
     for (let i = 0; i < n; i++) {
@@ -579,6 +826,7 @@ export function buildBlockGraph(tiles: TileInst[], skip?: boolean[]): BlockGraph
             const bj = box[j];
             if (Math.abs(tiles[i].x - tiles[j].x) >= bi.hw + bj.hw) continue;
             if (Math.abs(tiles[i].y - tiles[j].y) >= bi.hh + bj.hh) continue;
+            if (!obbOverlap(tiles[i], tiles[j])) continue;    // ← 精判：外接框相交 ≠ 牌相交
             above[i].push(j);
             below[j].push(i);
         }
@@ -776,10 +1024,11 @@ function simulate(
  * 深度公式（**唯一口径**，首次铺牌与洗牌重排共用）。
  *
  * ```
- * depth = 层号 × 100000 + 层内叠号 × 1000 + 行号反序
+ * depth = 层号 × 1000000 + 层内叠号 × 10000 + 行号反序 × 100 + 列号反序
  *          └─ 主序：上一层无条件压住下一层
  *                       └─ 次序：同格叠放时后摞的在上
- *                                  └─ 末序：同一层内，上面的行压住下面的行
+ *                                  └─ 次序：同一层内，上面的行压住下面的行
+ *                                              └─ 末序：同行相邻时，左边的压住右边的
  * ```
  *
  * 【为什么必须抽成一个函数（2026-10-01）】
@@ -787,13 +1036,22 @@ function simulate(
  * 深度公式一错，表现是"遮挡关系偶尔不对劲"——不报错、不崩、只是有些牌
  * 莫名点不动，是最难查的一类问题。口径只留一处。
  *
- * 【为什么 100000 / 1000 这两个量级是安全的】
- *   层内叠号 < 1000：正常配置下同层同格最多 2~3 张（见 CFG.STACK.LAYER_MAX）；
- *   行号反序 < 1000：格点行数最多十几行。
- * 两者都不会越界，所以三段可以拼成一个可比较的标量，下游排序接口不用改。
+ * 【S15 新增"列号反序"这一段 —— 它为什么必要】
+ * 旧公式里同一层、同一行、同一叠号的两张牌**深度完全相等**，而遮挡判定的
+ * 条件是 `depth 严格更大才压住`（见 buildBlockGraph）→ 两张牌谁都不压谁。
+ * 这在旧版是无害的：横向格距 > 牌宽，同行相邻牌根本不会相交。
+ * 但 S15 起牌能歪着摆，45° 的牌横向占位接近两格 → 同行相邻牌**必然相交**，
+ * 于是会出现"两张牌明显地叠在一起、却两张都能点"的怪状态。
+ * 补上列号之后，同行相交也有一条确定的先后（左上压右下，与立体阴影的方向一致）。
+ *
+ * 【为什么 1000000 / 10000 / 100 这几个量级是安全的】
+ *   层内叠号 < 10000：同层同格最多 2~3 张（见 CFG.STACK.LAYER_MAX）；
+ *   行数 < 100、列数 < 100：实测格点阵列最多 8~10 行 × 5~6 列。
+ * 各段都不会越界，所以四段可以拼成一个可比较的标量，下游排序接口不用改。
  */
 function depthOfCell(grid: Grid, cell: CellPick): number {
-    return cell.floor * 100000 + cell.layer * 1000 + (grid.rows - 1 - cell.r);
+    return cell.floor * 1000000 + cell.layer * 10000
+        + (grid.rows - 1 - cell.r) * 100 + (grid.cols - 1 - cell.c);
 }
 
 /**
@@ -840,22 +1098,15 @@ function resolvePositions(
     const floorGapY = depthPx * S.FLOOR.GAP_MUL;
     const layerGapY = grid.cellH * S.LAYER_OFFSET;
 
-    // ★ S14.2c：立体装饰是画在牌体盒子**之外**的，边界必须一起让出来。
-    // 厚度侧壁往下画 DEPTH、投影往右下再扩，两者都不在 CFG.TILE.W×H 里
-    // （见 CFG.SOLID_OVERHANG 的长注释）。不让的话，贴边的牌会出现
-    // "牌面体在区内、侧壁和阴影糊在暂存架/提示语上"—— 不报错，只是难看。
-    //
-    // 牌中心允许到达的范围（再往外牌就出区了）。
-    // ⚠️ 半径取 **max(牌宽, 牌高) / 2**，不能只按牌宽算：
-    //    牌会横躺（90° / 270°），此时视觉宽度反而更大，
-    //    按牌宽留边会让横躺的牌探出牌堆区（实测每局 5~7 张越界）。
-    //    立体外扩则相反 —— 它是**屏幕方向**的（永远朝下、朝右），
-    //    不随牌旋转，所以直接加，不与 max() 混。
-    const halfMax = Math.max(grid.tileW, grid.tileH) / 2;
-    const limL = S.X_MIN + halfMax + SOLID_OVERHANG.LEFT * scale;
-    const limR = S.X_MAX - halfMax - SOLID_OVERHANG.RIGHT * scale;
-    const limT = S.Y_MAX - halfMax - SOLID_OVERHANG.UP * scale;
-    const limB = S.Y_MIN + halfMax + SOLID_OVERHANG.DOWN * scale;
+    // 边界用**正立牌**的视觉外延（与网格容量同一把尺子）。
+    // ⚠️ 旋转/横躺的牌**不在这一步兜** —— 它们由 `fitAngle` 逐张把偏斜收回来，
+    //    原因见 `fitAngle` 与 `gridExtent` 的长注释：夹位置会把牌从它所在的
+    //    列上推走最多 40px，同一行立刻挤成一团，"列"这个结构就没了。
+    const v0 = rotatedVisualBox(grid.tileW, grid.tileH, 0);
+    const limL = S.X_MIN - v0.dx + v0.hw;
+    const limR = S.X_MAX - v0.dx - v0.hw;
+    const limT = S.Y_MAX - v0.dy - v0.hh;
+    const limB = S.Y_MIN - v0.dy + v0.hh;
     // 算偏移量时先把抖动的额度扣掉，抖动就不会把自己顶出边界
     const safeL = limL + S.JITTER_X;
     const safeR = limR - S.JITTER_X;
@@ -884,9 +1135,24 @@ function resolvePositions(
             if (c < minC) minC = c;
             if (c > maxC) maxC = c;
         }
-        // 左边界由最右那列决定、右边界由最左那列决定（xOf 随 c 单调增）
-        const lo = Math.max(-nominal, safeL - grid.xOf(maxC));
-        const hi = Math.min(nominal, safeR - grid.xOf(minC));
+        // ------------------------------------------------------------
+        //  ⚠️⚠️ 2026-10-01 修正：这两行的 maxC / minC **原来是写反的**
+        // ------------------------------------------------------------
+        //  行是整体平移 `off`，所以某张牌的 x = xOf(c) + off。要保证
+        //  **整行都在区内**，必须对"最左的那张"和"最右的那张"分别约束：
+        //      最左： xOf(minC) + off ≥ safeL  →  off ≥ safeL − xOf(minC)
+        //      最右： xOf(maxC) + off ≤ safeR  →  off ≤ safeR − xOf(maxC)
+        //  旧代码把 minC / maxC 调了个个儿，于是约束退化成两条**永远成立**的
+        //  不等式（safeL − xOf(maxC) 是个很大的负数，直接被 −nominal 盖住），
+        //  等于每行都能偏移满 ±nominal（0.3 格）。
+        //  后果不是"看着不对"，而是**最边上的牌被 `if (x < limL) x = limL`
+        //  逐张夹回边界** —— 一夹，同行相邻牌的间距就从 140px 压到 119px
+        //  （< 牌宽 128），两张牌**重叠**了。而同行重叠正是本工程反复强调
+        //  "不能破"的那条底线（见 CFG.STACK 的长注释）。
+        //  表现：教学关 12 张牌里有 1 张被压住、开局点不动 —— 不报错、不崩。
+        //  修完之后"同行相邻必然分离"在任何关卡都成立，不依赖调参。
+        const lo = Math.max(-nominal, safeL - grid.xOf(minC));
+        const hi = Math.min(nominal, safeR - grid.xOf(maxC));
         // lo ≤ 0 ≤ hi 恒成立（基础格点本身就在区内），这里只是防御
         offX.set(k, lo <= hi ? lo + rng() * (hi - lo) : 0);
     });
@@ -920,14 +1186,19 @@ function resolvePositions(
     //  位移不改变任何两张牌的相对关系 → 分层错位永远完整。
     //   · 堆得下  → 取一个不超过边界的位移；0 在合法区间内就取 0（保持既有观感）
     //   · 堆不下  → 上下各让一半（居中），宁可整体占满也不局部压扁
-    let yMin = Infinity;
-    let yMax = -Infinity;
+    //
+    //  ⚠️ 这里用的是**正立牌**的视觉边界（v0）。旋转的牌之所以不用单独考虑：
+    //     横躺（90°/270°）时牌在纵向反而更矮（上 54 / 下 65 < 正立的 71 / 93），
+    //     只有"歪到中间角度"才会略高一点，而那一点由 fitAngle 收偏斜解决。
+    //     所以纵向**永远不会**比正立牌更容易出界 —— 一把尺子就够。
+    let botMin = Infinity;
+    let topMax = -Infinity;
     for (const p of raw) {
-        if (p.y < yMin) yMin = p.y;
-        if (p.y > yMax) yMax = p.y;
+        if (p.y + v0.dy - v0.hh < botMin) botMin = p.y + v0.dy - v0.hh;
+        if (p.y + v0.dy + v0.hh > topMax) topMax = p.y + v0.dy + v0.hh;
     }
-    const lo = limB - yMin;          // 位移下限（再小下边就出界）
-    const hi = limT - yMax;          // 位移上限（再大上边就出界）
+    const lo = S.Y_MIN - botMin;     // 位移下限（再小下边就出界）
+    const hi = S.Y_MAX - topMax;     // 位移上限（再大上边就出界）
     const shift = lo <= hi ? Math.min(Math.max(0, lo), hi) : (lo + hi) / 2;
 
     return raw.map((p) => ({ x: p.x, y: p.y + shift }));
@@ -972,19 +1243,29 @@ function placeTiles(
     // seq 为 null = 关掉了顺滑区（或没给分组）→ 用洗过的那份牌袋原序
     const keyAt = (k: number) => (seq ? seq[k] : bag[k]);
 
+    // ★ S15.2 摆一张牌要分三步，顺序不能换：
+    //   ① 抽"想歪多少" —— 只抽不算（`rollAngleParts` 把基础朝向/符号/幅度分开给，
+    //      因为往回收的时候必须知道它原本是从哪个朝向歪过来的）；
+    //   ② 算位置 —— 网格容量与逐行错位都按**正立牌**算，与朝向无关，所以这一步
+    //      完全不受旋转影响（这是刻意的：让"牌歪着摆"不污染牌堆的整体形状）；
+    //   ③ 定朝向 —— 按"在这个位置上放不放得下"把偏斜往回收（`fitAngle`）。
+    //
+    //  朝向规则：教学关（upright）一律正立 —— 新手第一次玩，牌面倒着或横着会
+    //  直接劝退；L2 起 = 四向基础朝向 + 随机偏斜（见 CFG.STACK.ROTATION）。
+    const rolls = cells.map(() => (level.upright
+        ? { base: 0, sign: 1, skew: 0 }
+        : rollAngleParts(rng)));
     const pos = resolvePositions(cells, grid, rng, level);
-    // 朝向：教学关（upright）一律正立 —— 新手第一次玩，牌面倒着或横着会直接劝退；
-    //      L2 起四向随机（用户 2026-10-01 拍板："可以横着摆，或者倒着摆"）。
-    const ANGLES = [0, 90, 180, 270];
 
     const out: TileInst[] = new Array(cells.length);
     for (let k = 0; k < order.length; k++) {
         const i = order[k];
         const cell = cells[i];
+        const fit = fitAngle(pos[i].x, pos[i].y, grid.tileW, grid.tileH, rolls[i]);
         out[i] = {
             id: i,
             key: keyAt(k),
-            x: pos[i].x,
+            x: fit.x,
             y: pos[i].y,
             depth: depthOfCell(grid, cell),
             floor: cell.floor,
@@ -992,7 +1273,7 @@ function placeTiles(
             col: cell.c,
             w: grid.tileW,
             h: grid.tileH,
-            angle: level.upright ? 0 : ANGLES[randInt(rng, ANGLES.length)],
+            angle: fit.angle,
         };
     }
     return out;
@@ -1328,17 +1609,24 @@ export function planReshuffle(
         const cells = sampleCells(grid, ids.length, level, rng);
         if (cells.length < ids.length) continue;   // 格点不够（不该发生，防御）
 
-        const pos = resolvePositions(cells, grid, rng, level);
         // ids 也打乱一次：否则"哪些牌留在原位"会带上规律
+        // ⚠️ 打乱必须放在 resolvePositions **之前**：下面要按同一个顺序
+        //    把每张牌的朝向喂给边界计算，顺序对不上就会"用 A 的角度去夹 B 的位置"。
         const order = ids.slice();
         for (let i = order.length - 1; i > 0; i--) {
             const j = randInt(rng, i + 1);
             const t = order[i]; order[i] = order[j]; order[j] = t;
         }
+        const pos = resolvePositions(cells, grid, rng, level);
         for (let k = 0; k < order.length; k++) {
             const tile = shadow[order[k]];
-            tile.x = pos[k].x;
+            // 重排**基本不改朝向** —— 牌还是那张牌，只是换了个位置。
+            // 唯一的例外：新位置贴边、原来的角度放不下时，把偏斜收一点
+            // （`fitAngle`）。不收的话就得把牌心往里推，那会毁掉行/列的对齐。
+            const fit = fitAngle(pos[k].x, pos[k].y, grid.tileW, grid.tileH, angleParts(tile.angle));
+            tile.x = fit.x;
             tile.y = pos[k].y;
+            tile.angle = fit.angle;
             tile.row = cells[k].r;
             tile.col = cells[k].c;
             // 深度/层号只由新格点决定，与被压住的旧值无关。

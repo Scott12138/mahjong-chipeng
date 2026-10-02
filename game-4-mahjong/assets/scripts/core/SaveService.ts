@@ -160,6 +160,17 @@ export class SaveService {
         return this._data.cleared.length;
     }
 
+    /**
+     * 已通关关卡 id 的**只读副本**（S18.3 新增）。
+     *
+     * 【为什么给副本而不是原数组】外部拿到原数组就能 push 一个关卡进去，
+     * 绕过 markCleared 的"用时只在刷新纪录时覆盖"逻辑 —— 存档结构的唯一
+     * 写入口必须只有 markCleared / reset 两个。给副本的代价是一次浅拷贝（≤4 个数字）。
+     */
+    public get clearedIds(): number[] {
+        return this._data.cleared.slice();
+    }
+
     // --------------------------------------------------------
     //  每日计数（分享上限）
     // --------------------------------------------------------
